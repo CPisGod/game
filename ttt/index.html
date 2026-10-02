@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>틱택토 게임 - 랭킹 시스템</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            background: #f3f4f6;
+            padding: 5px;
+            border-radius: 15px;
+        }
+        .tab {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            background: transparent;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 1em;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .status {
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            height: 40px;
+            color: #667eea;
+        }
+        .players-info {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            color: #6b7280;
+        }
+        .player-x { color: #3b82f6; font-weight: bold; }
+        .player-o { color: #ef4444; font-weight: bold; }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 20px;
+        }
+        .cell {
+            aspect-ratio: 1;
+            background: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 3em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .cell:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .cell:active:not(:disabled) { transform: scale(0.95); }
+        .cell.x { color: #3b82f6; }
+        .cell.o { color: #ef4444; }
+        .cell.winner {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            transform: scale(1.1);
+        }
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        button.btn {
+            padding: 15px;
+            border: none;
+            border-radius: 15px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+        .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .btn-secondary { background: linear-gradient(135deg, #6b7280, #4b5563); }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        button.btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
+        button.btn:active { transform: translateY(0); }
+        button.btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .ranking-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 15px;
+            background: #f3f4f6;
+            border: 2px solid #e5e7eb;
+        }
+        .ranking-item.rank-1 {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-color: #fbbf24;
+        }
+        .ranking-item.rank-2 {
+            background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+            border-color: #9ca3af;
+        }
+        .ranking-item.rank-3 {
+            background: linear-gradient(135deg, #fed7aa, #fdba74);
+            border-color: #f97316;
+        }
+        .rank-number {
+            font-size: 2em;
+            font-weight: bold;
+            width: 50px;
+            text-align: center;
+        }
+        .player-info {
+            flex: 1;
+        }
+        .player-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #374151;
+        }
+        .last-win {
+            font-size: 0.85em;
+            color: #6b7280;
+        }
+        .win-count {
+            text-align: right;
+        }
+        .win-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .win-label {
+            font-size: 0.85em;
+            color: #6b7280;
+        }
+        .empty-ranking {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .empty-ranking .icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background: #dbeafe;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+        .info-box h3 {
+            color: #1e40af;
+            margin-bottom: 10px;
+        }
+        .info-box ul {
+            list-style: none;
+            color: #1e3a8a;
+        }
+        .info-box li {
+            margin: 5px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        .info-box li:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>틱택토</h1>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('setup')">👥 설정</button>
+            <button class="tab" id="playTab" onclick="showTab('play')" disabled>🎮 게임</button>
+            <button class="tab" onclick="showTab('ranking')">🏆 랭킹</button>
+        </div>
+
+        <!-- 플레이어 설정 탭 -->
+        <div id="setup" class="tab-content active">
+            <div class="input-group">
+                <label>플레이어 X (파란색)</label>
+                <input type="text" id="playerXInput" placeholder="이름을 입력하세요" maxlength="10">
+            </div>
+            <div class="input-group">
+                <label>플레이어 O (빨간색)</label>
+                <input type="text" id="playerOInput" placeholder="이름을 입력하세요" maxlength="10">
+            </div>
+            <button class="btn btn-primary" style="width: 100%; font-size: 1.2em;" onclick="startGame()">
+                게임 시작하기 🎮
+            </button>
+            <div class="info-box">
+                <h3>💡 게임 방법</h3>
+                <ul>
+                    <li>가로, 세로, 대각선으로 3개를 먼저 연결하면 승리!</li>
+                    <li>승리 기록은 자동으로 랭킹에 저장됩니다</li>
+                    <li>랭킹 탭에서 전체 순위를 확인하세요</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 게임 플레이 탭 -->
+        <div id="play" class="tab-content">
+            <div class="players-info">
+                <span class="player-x" id="playerXDisplay"></span> vs 
+                <span class="player-o" id="playerODisplay"></span>
+            </div>
+            <div class="status" id="status"></div>
+            <div class="board" id="board"></div>
+            <div class="buttons">
+                <button class="btn btn-primary" onclick="resetGame()">🔄 다시하기</button>
+                <button class="btn btn-secondary" onclick="changePlayer()">👥 플레이어 변경</button>
+            </div>
+        </div>
+
+        <!-- 랭킹 탭 -->
+        <div id="ranking" class="tab-content">
+            <div id="rankingList"></div>
+            <div class="buttons" style="margin-top: 30px;">
+                <button class="btn btn-primary" onclick="showTab('play')">🎮 게임하기</button>
+                <button class="btn btn-danger" onclick="clearRankings()">🗑️ 랭킹 초기화</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let board = Array(9).fill(null);
+        let isXNext = true;
+        let gameOver = false;
+        let playerXName = '';
+        let playerOName = '';
+        let rankings = JSON.parse(localStorage.getItem('tictactoe_rankings') || '[]');
+
+        const winPatterns = [
+            [0,1,2], [3,4,5], [6,7,8],
+            [0,3,6], [1,4,7], [2,5,8],
+            [0,4,8], [2,4,6]
+        ];
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabName === 'ranking') {
+                displayRankings();
+            }
+        }
+
+        function startGame() {
+            const xName = document.getElementById('playerXInput').value.trim();
+            const oName = document.getElementById('playerOInput').value.trim();
+            
+            if (!xName || !oName) {
+                alert('플레이어 이름을 모두 입력해주세요!');
+                return;
+            }
+            
+            playerXName = xName;
+            playerOName = oName;
+            
+            document.getElementById('playerXDisplay').textContent = playerXName;
+            document.getElementById('playerODisplay').textContent = playerOName;
+            document.getElementById('playTab').disabled = false;
+            
+            initBoard();
+            showTab('play');
+        }
+
+        function initBoard() {
+            board = Array(9).fill(null);
+            isXNext = true;
+            gameOver = false;
+            
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'cell';
+                cell.onclick = () => handleClick(i);
+                boardEl.appendChild(cell);
+            }
+            
+            updateBoard();
+            updateStatus();
+        }
+
+        function handleClick(i) {
+            if (board[i] || gameOver) return;
+            
+            board[i] = isXNext ? 'X' : 'O';
+            isXNext = !isXNext;
+            
+            const result = checkWinner();
+            if (result) {
+                gameOver = true;
+                const winnerName = result.winner === 'X' ? playerXName : playerOName;
+                updateRanking(winnerName);
+                highlightWinner(result.line);
+            } else if (board.every(cell => cell)) {
+                gameOver = true;
+            }
+            
+            updateBoard();
+            updateStatus();
+        }
+
+        function checkWinner() {
+            for (let pattern of winPatterns) {
+                const [a, b, c] = pattern;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    return { winner: board[a], line: pattern };
+                }
+            }
+            return null;
+        }
+
+        function highlightWinner(line) {
+            const cells = document.querySelectorAll('.cell');
+            line.forEach(i => cells[i].classList.add('winner'));
+        }
+
+        function updateBoard() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, i) => {
+                cell.textContent = board[i] || '·';
+                cell.className = 'cell';
+                if (board[i]) cell.classList.add(board[i].toLowerCase());
+            });
+        }
+
+        function updateStatus() {
+            const result = checkWinner();
+            const statusEl = document.getElementById('status');
+            
+            if (result) {
+                const winnerName = result.winner === 'X' ? playerXName : playerOName;
+                statusEl.textContent = '🎉 ' + winnerName + ' 승리! 🎉';
+                statusEl.style.color = result.winner === 'X' ? '#3b82f6' : '#ef4444';
+            } else if (board.every(cell => cell)) {
+                statusEl.textContent = '무승부!';
+                statusEl.style.color = '#6b7280';
+            } else {
+                const currentPlayer = isXNext ? playerXName : playerOName;
+                statusEl.textContent = currentPlayer + '의 차례';
+                statusEl.style.color = isXNext ? '#3b82f6' : '#ef4444';
+            }
+        }
+
+        function resetGame() {
+            initBoard();
+        }
+
+        function changePlayer() {
+            showTab('setup');
+        }
+
+        function updateRanking(winnerName) {
+            const existingPlayer = rankings.find(p => p.name === winnerName);
+            
+            if (existingPlayer) {
+                existingPlayer.wins += 1;
+                existingPlayer.lastWin = new Date().toISOString();
+            } else {
+                rankings.push({
+                    name: winnerName,
+                    wins: 1,
+                    lastWin: new Date().toISOString()
+                });
+            }
+            
+            rankings.sort((a, b) => b.wins - a.wins);
+            localStorage.setItem('tictactoe_rankings', JSON.stringify(rankings));
+        }
+
+        function displayRankings() {
+            const listEl = document.getElementById('rankingList');
+            
+            if (rankings.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-ranking">
+                        <div class="icon">🎮</div>
+                        <p style="font-size: 1.2em; color: #6b7280;">아직 기록이 없습니다</p>
+                        <p style="color: #9ca3af; margin-top: 10px;">게임을 플레이하고 랭킹에 도전하세요!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            listEl.innerHTML = '<div class="ranking-list">' + rankings.map((player, index) => {
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1);
+                const rankClass = index < 3 ? 'rank-' + (index + 1) : '';
+                const date = new Date(player.lastWin).toLocaleDateString('ko-KR');
+                
+                return `
+                    <div class="ranking-item ${rankClass}">
+                        <div class="rank-number">${medal}</div>
+                        <div class="player-info">
+                            <div class="player-name">${player.name}</div>
+                            <div class="last-win">마지막 승리: ${date}</div>
+                        </div>
+                        <div class="win-count">
+                            <div class="win-number">${player.wins}</div>
+                            <div class="win-label">승</div>
+                        </div>
+                    </div>
+                `;
+            }).join('') + '</div>';
+        }
+
+        function clearRankings() {
+            if (confirm('정말로 모든 랭킹 기록을 삭제하시겠습니까?')) {
+                rankings = [];
+                localStorage.removeItem('tictactoe_rankings');
+                displayRankings();
+            }
+        }
+
+        // 초기화
+        displayRankings();
+    </script>
+</body>
+</html>

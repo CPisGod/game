@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>망고 파칭코</title>
+<style>
+:root{--gold:#ffd54a;--gold2:#ff9d00;--red:#e01e5a;--panel:#1d0b36;--line:#4b2a86}
+*{box-sizing:border-box;margin:0;padding:0;user-select:none;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;color:#fff;overflow:hidden;
+  background:
+   radial-gradient(circle at 20% 10%,#5b1fa8aa,transparent 40%),
+   radial-gradient(circle at 80% 90%,#c2185baa,transparent 45%),
+   repeating-conic-gradient(from 0deg at 50% 120%,#1a0833 0 6deg,#240b47 6deg 12deg);
+  display:flex;align-items:center;justify-content:center}
+/* 테두리 전구: 두 겹을 번갈아 깜빡임 */
+.bulbs{position:fixed;inset:0;pointer-events:none;animation:tw 1.2s infinite;
+  --d:radial-gradient(circle,var(--gold) 0 2px,transparent 3px);
+  background:var(--d) 0 0/24px 8px repeat-x,var(--d) 0 100%/24px 8px repeat-x,var(--d) 0 0/8px 24px repeat-y,var(--d) 100% 0/8px 24px repeat-y;
+  filter:drop-shadow(0 0 4px var(--gold))}
+.bulbs.b{animation-delay:.6s;background-position:12px 0,12px 100%,0 12px,100% 12px}
+@keyframes tw{50%{opacity:.25}}
+#machine{position:relative;width:min(94vw,440px);padding:12px;border-radius:18px;
+  background:linear-gradient(160deg,#3a1470,#1d0b36 60%);border:3px solid var(--gold);
+  box-shadow:0 0 0 3px #000,0 0 30px #ff9d0088,inset 0 0 20px #000}
+h1{text-align:center;font-size:20px;letter-spacing:3px;color:var(--gold);
+  text-shadow:0 0 8px var(--gold2),0 2px 0 #000;margin-bottom:8px}
+h1 small{color:#fff;font-size:11px;letter-spacing:1px;opacity:.7;margin-left:6px}
+#done{position:absolute;right:10px;top:-15px;z-index:2;display:flex;align-items:center;gap:4px;background:#000a;border:1px solid var(--gold);border-radius:14px;padding:1px 8px 1px 4px;height:26px}
+#done img{height:20px;width:20px;object-fit:contain;filter:brightness(0) opacity(.6)}
+#done.has img{filter:drop-shadow(0 0 4px var(--gold))}
+#done b{font-size:13px;color:var(--gold);min-width:10px;text-align:center}
+#reels{display:flex;gap:6px;padding:8px;background:#000;border-radius:12px;border:2px solid var(--line);position:relative}
+.reel{flex:1;height:96px;overflow:hidden;border-radius:8px;background:linear-gradient(#ddd,#fff 30%,#fff 70%,#ccc);position:relative}
+.reel::after{content:"";position:absolute;inset:0;background:linear-gradient(#0008,transparent 25%,transparent 75%,#0008);pointer-events:none}
+.strip{will-change:transform}
+.cell{height:96px;display:flex;align-items:center;justify-content:center;padding:6px}
+.cell img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 2px 2px #0005)}
+#reels.win{animation:flash .25s 6}
+@keyframes flash{50%{box-shadow:0 0 25px 6px var(--gold);border-color:var(--gold)}}
+#payline{position:absolute;left:4px;right:4px;top:50%;height:2px;background:#ff3b3b88;pointer-events:none;transform:translateY(-1px)}
+#ctrl{display:flex;gap:6px;margin-top:8px}
+button{font:inherit;cursor:pointer;border:0;color:#fff}
+#spin{flex:1;padding:10px;font-size:18px;font-weight:900;letter-spacing:4px;border-radius:10px;
+  background:linear-gradient(#ff4d7d,var(--red));border:2px solid #ffb3c7;box-shadow:0 4px 0 #8a0f38,0 0 14px #e01e5a88}
+#spin:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 #8a0f38}
+#spin:disabled,#auto:disabled{filter:grayscale(.7) brightness(.7);cursor:default}
+#auto{width:64px;border-radius:10px;background:#2b1660;border:2px solid var(--line);font-size:12px;font-weight:700}
+#auto.on{background:var(--gold);color:#000;border-color:#fff}
+#inv{margin-top:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.slot{background:var(--panel);border:2px solid var(--line);border-radius:8px;padding:4px;position:relative;height:66px;display:flex;align-items:center;justify-content:center}
+.slot img{max-width:100%;max-height:100%;object-fit:contain;opacity:.25;filter:grayscale(1)}
+.slot.has img{opacity:1;filter:none}
+.slot.has{border-color:var(--gold);box-shadow:0 0 8px #ffd54a55}
+.slot b{position:absolute;right:3px;bottom:1px;font-size:11px;color:var(--gold);text-shadow:0 1px 2px #000}
+.slot.pop{animation:pop .5s}
+@keyframes pop{40%{transform:scale(1.15)}}
+#info{margin-top:6px;font-size:10px;text-align:center;opacity:.65}
+#log{position:fixed;right:10px;bottom:10px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;pointer-events:none;z-index:30}
+.toast{display:flex;align-items:center;gap:6px;background:#000c;border:1px solid var(--gold);border-radius:6px;padding:3px 8px;font-size:13px;animation:in .25s,out .5s 2.6s forwards}
+.toast img{height:24px;max-width:40px;object-fit:contain}
+.toast.big{border-color:#fff;font-size:15px;background:#5b1fa8ee}.toast.big img{height:40px;max-width:50px}
+@keyframes in{from{transform:translateX(40px);opacity:0}}
+@keyframes out{to{opacity:0;transform:translateY(8px)}}
+#combine{display:none;width:100%;margin-top:10px;
+  padding:14px 20px;font-size:24px;font-weight:900;letter-spacing:4px;border-radius:18px;color:#3a1a00;
+  background:linear-gradient(#fff3a0,var(--gold),var(--gold2));border:4px solid #fff;
+  box-shadow:0 0 0 4px #000,0 0 50px 10px #ffd54aaa;animation:beat .7s infinite}
+#combine.show{display:block}
+@keyframes beat{50%{transform:scale(1.05)}}
+#fx{position:fixed;inset:0;z-index:28;pointer-events:none}
+#veil{position:fixed;inset:0;z-index:27;pointer-events:none;opacity:0}
+#result{position:fixed;inset:0;z-index:26;display:none;align-items:center;justify-content:center;flex-direction:column;background:#000c;gap:10px;overflow:hidden}
+#result.show{display:flex}
+#rays{position:absolute;left:50%;top:50%;width:250vmax;height:250vmax;margin:-125vmax 0 0 -125vmax;
+  background:repeating-conic-gradient(#ffd54a55 0 8deg,transparent 8deg 20deg);
+  -webkit-mask:radial-gradient(circle,#000 0,transparent 30%);mask:radial-gradient(circle,#000 0,transparent 30%);animation:spinr 12s linear infinite}
+@keyframes spinr{to{transform:rotate(360deg)}}
+#result>*:not(#rays){position:relative}
+#result img{max-height:60vh;max-width:88vw;object-fit:contain;animation:land .9s cubic-bezier(.2,1.6,.4,1),float 2.4s 1s ease-in-out infinite;filter:drop-shadow(0 0 25px var(--gold))}
+#result p{font-size:26px;font-weight:900;letter-spacing:4px;color:#fff;text-shadow:0 0 10px var(--gold),0 0 24px var(--gold2),0 0 40px var(--red);animation:glow .6s infinite alternate}
+#result small{opacity:.6}
+@keyframes land{from{transform:scale(0) rotate(-720deg)}}
+@keyframes float{50%{transform:translateY(-10px) scale(1.03)}}
+@keyframes glow{to{filter:hue-rotate(60deg) brightness(1.4)}}
+body.shake #machine{animation:shake .08s infinite}
+@keyframes shake{25%{transform:translate(-6px,3px) rotate(-1deg)}75%{transform:translate(6px,-3px) rotate(1deg)}}
+</style>
+</head>
+<body>
+<div class="bulbs"></div><div class="bulbs b"></div>
+<div id="machine">
+  <h1>🎰 망고 파칭코<small>MANGO PACHINKO</small></h1>
+  <div id="done" title="완성품"><img src="assets/complete.png" alt=""><b id="doneN">?</b></div>
+  <div id="reels"><div id="payline"></div></div>
+  <div id="ctrl"><button id="spin">SPIN</button><button id="auto">AUTO</button></div>
+  <div id="inv"></div>
+  <button id="combine">✨ 합성 ✨</button>
+  <div id="info">3개가 같으면 부위 획득 · 모든 부위를 모아 합성하세요!</div>
+</div>
+<div id="veil"></div><canvas id="fx"></canvas>
+<div id="result"><div id="rays"></div><p>COMPLETE!</p><img id="rimg" src="assets/complete.png" alt=""><small>클릭해서 닫기</small></div>
+<div id="log"></div>
+<script>
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const COMPLETE = 'assets/complete.png';
+// need: 합성에 필요한 개수 / odds: 스핀당 당첨 확률(화면에는 표시하지 않음)
+const PARTS = {
+  head:  {src:'assets/head.png',  need:3, odds:.2},
+  left:  {src:'assets/left.png',  need:2, odds:.1},
+  right: {src:'assets/right.png', need:2, odds:.1},
+  body:  {src:'assets/body.png',  need:1, odds:.1},
+};
+const KEYS = Object.keys(PARTS);
+const REELS = 3, H = 96, STORE = 'mango-pachinko';
+
+const fresh = () => ({...Object.fromEntries(KEYS.map(k => [k, 0])), complete:0});
+let state = fresh();
+try { Object.assign(state, JSON.parse(localStorage.getItem(STORE) || '{}')); } catch (e) {}
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} };
+const canCombine = () => KEYS.every(k => state[k] >= PARTS[k].need);
+
+// 이미지 미리 로드
+[COMPLETE, ...KEYS.map(k => PARTS[k].src)].forEach(s => { new Image().src = s; });
+
+const pick = () => KEYS[Math.random() * KEYS.length | 0];
+const cellHTML = k => `<div class="cell"><img src="${PARTS[k].src}" draggable="false"></div>`;
+
+// 당첨이면 [k,k,k], 아니면 3개가 모두 같지 않은 조합
+function rollSpin() {
+  let r = Math.random();
+  for (const k of KEYS) if ((r -= PARTS[k].odds) < 0) return Array(REELS).fill(k);
+  let res;
+  do res = Array.from({length: REELS}, pick); while (res.every(k => k === res[0]));
+  return res;
+}
+
+// ---------- 릴 ----------
+const reels = Array.from({length: REELS}, () => {
+  const el = document.createElement('div'); el.className = 'reel';
+  const strip = document.createElement('div'); strip.className = 'strip';
+  const cur = pick(); strip.innerHTML = cellHTML(cur);
+  el.appendChild(strip); $('#reels').insertBefore(el, $('#payline'));
+  return {strip, cur};
+});
+
+// ---------- 로그 / 인벤토리 ----------
+function log(k, n, big) {
+  const t = document.createElement('div'); t.className = 'toast' + (big ? ' big' : '');
+  t.innerHTML = `[<img src="${k === 'complete' ? COMPLETE : PARTS[k].src}"> x ${n}]`;
+  const box = $('#log'); box.appendChild(t); setTimeout(() => t.remove(), 3200);
+  while (box.children.length > 6) box.firstChild.remove();
+}
+
+$('#inv').innerHTML = KEYS.map(k => `<div class="slot" data-k="${k}"><img src="${PARTS[k].src}"><b></b></div>`).join('');
+function render() {
+  for (const k of KEYS) {
+    const s = document.querySelector(`.slot[data-k=${k}]`);
+    s.classList.toggle('has', state[k] >= PARTS[k].need);
+    s.lastChild.textContent = `${state[k]}/${PARTS[k].need}`;
+  }
+  $('#doneN').textContent = state.complete ? '×' + state.complete : '?';
+  $('#done').classList.toggle('has', state.complete > 0);
+  $('#combine').classList.toggle('show', canCombine());
+  $('#spin').disabled = spinning || combining || canCombine();
+  $('#auto').disabled = combining || canCombine();
+  save();
+}
+
+// ---------- 스핀 ----------
+let spinning = false, combining = false, auto = false;
+
+function spin() {
+  if (spinning || combining || canCombine()) return;
+  spinning = true; render();
+  $('#reels').classList.remove('win');
+  const res = rollSpin();
+  let done = 0;
+  reels.forEach((r, i) => {
+    const seq = [r.cur, ...Array.from({length: 18 + i * 8}, pick), res[i]];   // 오른쪽 릴일수록 오래 돈다
+    const dur = 1.3 + i * .7;
+    r.strip.style.transition = 'none';
+    r.strip.style.transform = 'translateY(0)';
+    r.strip.innerHTML = seq.map(cellHTML).join('');
+    r.strip.offsetHeight;
+    r.strip.style.transition = `transform ${dur}s cubic-bezier(.15,.7,.2,1.02)`;
+    r.strip.style.transform = `translateY(${-(seq.length - 1) * H}px)`;
+    setTimeout(() => { r.cur = res[i]; if (++done === REELS) finish(res); }, dur * 1000 + 40);
+  });
+}
+
+function finish(res) {
+  spinning = false;
+  const win = res.every(k => k === res[0]);
+  if (win) {
+    const k = res[0]; state[k]++;
+    $('#reels').classList.add('win');
+    log(k, 1);
+    burst(innerWidth / 2, innerHeight / 3, 40);
+  }
+  render();
+  if (win) document.querySelector(`.slot[data-k=${res[0]}]`).classList.add('pop');
+  if (auto && !canCombine()) setTimeout(spin, 700);
+}
+
+$('#spin').onclick = spin;
+$('#auto').onclick = () => { auto = !auto; $('#auto').classList.toggle('on', auto); if (auto) spin(); };
+addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); spin(); } });
+
+// ---------- 이펙트 (캔버스 파티클) ----------
+const cv = $('#fx'), ctx = cv.getContext('2d');
+let parts = [], rings = [], raf = 0;
+const fit = () => { cv.width = innerWidth; cv.height = innerHeight; };
+addEventListener('resize', fit); fit();
+const hue = () => `hsl(${Math.random() * 360} 100% 60%)`;
+
+function burst(x, y, n, power = 1, shapes = ['rect']) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = (2 + Math.random() * 7) * power;
+    parts.push({x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 3, life: 60 + Math.random() * 40, c: hue(),
+      s: 3 + Math.random() * 6, r: Math.random() * 6, shape: shapes[Math.random() * shapes.length | 0]});
+  }
+  kick();
+}
+const ring = (x, y, c = '#fff') => { rings.push({x, y, r: 10, life: 40, c}); kick(); };
+const kick = () => { raf ||= requestAnimationFrame(tick); };
+
+function star(s) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const r = i % 2 ? s * .45 : s, a = i * Math.PI / 5; ctx.lineTo(Math.sin(a) * r, -Math.cos(a) * r); }
+  ctx.closePath(); ctx.fill();
+}
+
+function tick() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.globalCompositeOperation = 'lighter';
+  rings = rings.filter(o => o.life-- > 0);
+  for (const o of rings) {
+    o.r += 14; ctx.globalAlpha = o.life / 40; ctx.strokeStyle = o.c; ctx.lineWidth = 2 + o.life / 6;
+    ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 7); ctx.stroke();
+  }
+  parts = parts.filter(p => p.life-- > 0);
+  for (const p of parts) {
+    p.x += p.vx; p.y += p.vy; p.vy += .18; p.r += .2;
+    ctx.save(); ctx.globalAlpha = Math.min(1, p.life / 30); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c;
+    if (p.shape === 'star') star(p.s * 1.6);
+    else if (p.shape === 'dot') { ctx.beginPath(); ctx.arc(0, 0, p.s / 2, 0, 7); ctx.fill(); }
+    else ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * .6);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  raf = parts.length || rings.length ? requestAnimationFrame(tick) : 0;
+  if (!raf) ctx.clearRect(0, 0, cv.width, cv.height);
+}
+
+// ---------- 합성 ----------
+// 인벤토리의 부위 이미지들이 중앙으로 날아가 합쳐진다
+function flyParts(cx, cy) {
+  const anims = [];
+  for (const k of KEYS) {
+    const src = document.querySelector(`.slot[data-k=${k}] img`), b = src.getBoundingClientRect();
+    for (let i = 0; i < PARTS[k].need; i++) {
+      const c = src.cloneNode(); c.style.cssText = `position:fixed;z-index:29;left:${b.left}px;top:${b.top}px;width:${b.width}px;height:${b.height}px;object-fit:contain;filter:drop-shadow(0 0 8px #ffd54a);opacity:1`;
+      document.body.appendChild(c);
+      const dx = cx - b.left - b.width / 2, dy = cy - b.top - b.height / 2;
+      const a = c.animate([
+        {transform: 'none', opacity: 1},
+        {transform: `translate(${dx * .3}px,${dy * .3 - 60}px) rotate(180deg) scale(1.6)`, opacity: 1, offset: .4},
+        {transform: `translate(${dx}px,${dy}px) rotate(900deg) scale(.1)`, opacity: .9},
+      ], {duration: 1100 + Math.random() * 300, easing: 'cubic-bezier(.6,0,.4,1)', delay: anims.length * 60, fill: 'forwards'});
+      a.onfinish = () => c.remove(); anims.push(a);
+    }
+  }
+  return Promise.all(anims.map(a => a.finished));
+}
+
+$('#combine').onclick = async () => {
+  if (combining || !canCombine()) return;
+  combining = true; auto = false; $('#auto').classList.remove('on'); render();
+  const cx = innerWidth / 2, cy = innerHeight / 2, veil = $('#veil');
+  $('#combine').classList.remove('show');
+  document.body.classList.add('shake');
+  const fly = flyParts(cx, cy);
+  for (let i = 0; i < 10; i++) {                       // 모이는 동안 점점 강해지는 스파크
+    ring(cx, cy, hue()); burst(cx, cy, 14, 1 + i * .12, ['dot', 'star']);
+    await sleep(140);
+  }
+  await fly;
+  veil.style.transition = 'none'; veil.style.background = '#fff'; veil.style.opacity = 1;   // 화이트 플래시
+  document.body.classList.remove('shake');
+  for (const k of KEYS) state[k] -= PARTS[k].need;
+  state.complete++; combining = false;
+  render();
+  $('#result').classList.add('show');
+  ring(cx, cy, '#fff'); ring(cx, cy, '#ffd54a'); burst(cx, cy, 160, 2.2, ['star', 'rect', 'dot']);
+  await sleep(90);
+  veil.style.transition = 'opacity .9s'; veil.style.opacity = 0;
+  log('complete', state.complete, true);
+  for (let i = 0; i < 14; i++) {                        // 폭죽 + 위에서 쏟아지는 색종이
+    setTimeout(() => {
+      const x = Math.random() * innerWidth, y = innerHeight * (.15 + Math.random() * .4);
+      ring(x, y, hue()); burst(x, y, 50, 1.4, ['star', 'dot']); burst(Math.random() * innerWidth, -10, 12, .4, ['rect']);
+    }, i * 180);
+  }
+};
+$('#result').onclick = () => $('#result').classList.remove('show');
+
+render();
+</script>
+</body>
+</html>
