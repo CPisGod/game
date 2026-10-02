@@ -103,9 +103,17 @@
   .pop.crit { color: #ff4d4d; font-size: clamp(36px, 9vh, 72px); -webkit-text-stroke: 2px #fff; }
   #score.bump { display: inline-block; animation: bump .3s; }
   @keyframes bump { 50% { transform: scale(1.8); color: #ffe14d; } }
+
+  /* 메인 메뉴로 돌아가기 버튼 (모든 게임 공통) */
+  .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
+    background: #000a; color: #fff; font: 700 14px/1 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    text-decoration: none; border: 1px solid #fff6; }
+  .home-btn:active { transform: translateY(2px); }
 </style>
 </head>
 <body>
+<a class="home-btn" href="../">🏠 메인 메뉴</a>
+
 <div id="board">
   <div id="hud"><span>점수: <b id="score">0</b></span><span>시간: <b id="time">30</b></span></div>
 

@@ -86,9 +86,17 @@ button{font:inherit;cursor:pointer;border:0;color:#fff}
 @keyframes glow{to{filter:hue-rotate(60deg) brightness(1.4)}}
 body.shake #machine{animation:shake .08s infinite}
 @keyframes shake{25%{transform:translate(-6px,3px) rotate(-1deg)}75%{transform:translate(6px,-3px) rotate(1deg)}}
+
+  /* 메인 메뉴로 돌아가기 버튼 (모든 게임 공통) */
+  .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
+    background: #000a; color: #fff; font: 700 14px/1 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    text-decoration: none; border: 1px solid #fff6; }
+  .home-btn:active { transform: translateY(2px); }
 </style>
 </head>
 <body>
+<a class="home-btn" href="../">🏠 메인 메뉴</a>
+
 <div class="bulbs"></div><div class="bulbs b"></div>
 <div id="machine">
   <h1>🎰 망고 파칭코<small>MANGO PACHINKO</small></h1>
