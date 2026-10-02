@@ -3,16 +3,72 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>game</title>
+<title>🤪 병맛 게임천국 🤪</title>
 <style>
-  body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; font-family: system-ui, sans-serif; background: #111; color: #eee; }
-  a { display: block; width: 200px; padding: 14px 0; text-align: center; border-radius: 10px; background: #2a2a2a; color: inherit; text-decoration: none; font-size: 20px; }
-  a:hover { background: #3a3a3a; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; overflow-x: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    padding: 24px 16px;
+    font-family: "Comic Sans MS", "Jua", "Gamja Flower", system-ui, sans-serif;
+    background: linear-gradient(120deg, #ff00cc, #3333ff, #00ffd5, #fff200, #ff00cc);
+    background-size: 400% 400%;
+    animation: bg 6s linear infinite;
+    color: #fff;
+  }
+  @keyframes bg { 0% { background-position: 0% 50%; } 100% { background-position: 400% 50%; } }
+  h1 {
+    margin: 0; font-size: clamp(28px, 8vw, 56px); text-align: center; line-height: 1.1;
+    text-shadow: 3px 3px 0 #000, -2px -2px 0 #f0f, 0 0 20px #ff0;
+    animation: wob 1.2s ease-in-out infinite;
+  }
+  @keyframes wob { 0%,100% { transform: rotate(-4deg) scale(1); } 50% { transform: rotate(4deg) scale(1.1); } }
+  .sub { margin: 0; font-size: 16px; background: #000; padding: 4px 12px; border-radius: 99px; transform: rotate(2deg); }
+  .menu { display: flex; flex-direction: column; gap: 16px; width: min(320px, 100%); margin-top: 8px; }
+  a {
+    display: block; padding: 16px 0; text-align: center; border-radius: 18px;
+    color: #000; text-decoration: none; font-size: 24px; font-weight: 900;
+    border: 4px solid #000; box-shadow: 6px 6px 0 #000;
+    transition: transform .1s;
+  }
+  a:nth-child(1) { background: #ffe600; animation: jig 0.9s infinite; }
+  a:nth-child(2) { background: #ff7ad9; animation: jig 1.1s infinite reverse; }
+  a:nth-child(3) { background: #7affc8; animation: jig 1.3s infinite; }
+  @keyframes jig { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg) translateY(-4px); } }
+  a:hover { animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg) scale(1.1); } }
+  a small { display: block; font-size: 12px; font-weight: 400; }
+  .foot { font-size: 13px; opacity: .9; text-shadow: 1px 1px 0 #000; text-align: center; }
+  .float { position: fixed; font-size: 40px; pointer-events: none; animation: fl 5s linear infinite; z-index: 0; }
+  @keyframes fl { from { transform: translateY(110vh) rotate(0); } to { transform: translateY(-20vh) rotate(720deg); } }
+  h1, .sub, .menu, .foot { position: relative; z-index: 1; }
 </style>
 </head>
 <body>
-  <a href="mango/">mango</a>
-  <a href="doo/">doo</a>
-  <a href="ttt/">ttt</a>
+  <h1>🤪 병맛 게임천국 🤪</h1>
+  <p class="sub">※ 시간 순삭 보장 (인생은 책임 안 짐)</p>
+  <div class="menu">
+    <a href="mango/">🥭 mango<small>망고가 망고했다</small></a>
+    <a href="doo/">💀 doo<small>죽음이 기다린다 ㅇㅅㅇ</small></a>
+    <a href="ttt/">❌⭕ ttt<small>삼목... 근데 이제 진심인</small></a>
+  </div>
+  <p class="foot">누르면 후회할 수도 있고 안 할 수도 있음</p>
+  <script>
+    var em = ['🥭','💀','🍌','👽','🔥','🐸','💩','✨','🍕','🦆'];
+    for (var i = 0; i < 14; i++) {
+      var s = document.createElement('span');
+      s.className = 'float';
+      s.textContent = em[i % em.length];
+      s.style.left = (Math.random() * 95) + 'vw';
+      s.style.animationDuration = (4 + Math.random() * 6) + 's';
+      s.style.animationDelay = (-Math.random() * 8) + 's';
+      document.body.appendChild(s);
+    }
+    var t = ['🤪 병맛 게임천국 🤪','🥭 망고 먹고 싶다 🥭','💀 어서와 💀','🐸 개굴 🐸'];
+    var k = 0;
+    document.querySelector('h1').addEventListener('click', function () {
+      this.textContent = t[++k % t.length];
+    });
+  </script>
 </body>
 </html>
