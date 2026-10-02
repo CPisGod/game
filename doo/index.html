@@ -100,6 +100,7 @@
     20% { opacity: 1; transform: translate(-50%, -20px) scale(1.5); }
     100% { opacity: 0; transform: translate(-50%, -90px) scale(1); }
   }
+  .pop.crit { color: #ff4d4d; font-size: clamp(36px, 9vh, 72px); -webkit-text-stroke: 2px #fff; }
   #score.bump { display: inline-block; animation: bump .3s; }
   @keyframes bump { 50% { transform: scale(1.8); color: #ffe14d; } }
 </style>
@@ -110,7 +111,7 @@
 
   <div id="start" class="overlay">
     <h1>두더지 잡기</h1>
-    <p>구멍에서 나오는 얼굴을 클릭하세요!<br>30초 안에 최대한 많이 잡기 (1마리 = 10점)</p>
+    <p>구멍에서 나오는 얼굴을 클릭하세요!<br>30초 안에 최대한 많이 잡기<br>기본 10점 · 5콤보 이상 15점 · 10콤보 이상 20점<br>10% 확률로 크리티컬 (점수 x2)</p>
     <button id="startBtn">시작</button>
   </div>
   <div id="countdown" class="overlay hidden"><div id="count">3</div></div>
@@ -123,7 +124,8 @@
 
 <script>
 (() => {
-  const GAME_SECONDS = 30, POINTS = 10;
+  const GAME_SECONDS = 30, POINTS = 10, CRIT_CHANCE = 0.1;
+  const comboPoints = c => c >= 10 ? 20 : c >= 5 ? 15 : POINTS;
   // 구멍 중심 좌표(배경 이미지 720x800 기준, %)
   const HOLES = [
     [16.7, 38.5], [50, 38.5], [82.9, 38.5],
@@ -217,9 +219,9 @@
 
   function show(id, on) { $(id).classList.toggle('hidden', !on); }
 
-  function popText(x, y) {
+  function popText(x, y, pts, crit) {
     const p = document.createElement('div');
-    p.className = 'pop'; p.textContent = '+' + POINTS;
+    p.className = 'pop' + (crit ? ' crit' : ''); p.textContent = (crit ? '크리티컬! +' : '+') + pts;
     p.style.left = x + '%'; p.style.top = (y - 20) + '%';
     board.appendChild(p);
     setTimeout(() => p.remove(), 700);
@@ -254,8 +256,10 @@
       if (current === h) current = null;
       killEffect(h);
       h.deadUntil = performance.now() + 2500; // 죽는 연출 동안 이 구멍에서 다시 안 나옴
-      score += POINTS; scoreEl.textContent = score;
-      popText(h.x, h.y);
+      const crit = Math.random() < CRIT_CHANCE;
+      const pts = comboPoints(combo) * (crit ? 2 : 1); // killEffect에서 combo가 이미 증가됨
+      score += pts; scoreEl.textContent = score;
+      popText(h.x, h.y, pts, crit);
       playSfx();
       clearTimeout(spawn);
       spawn = setTimeout(spawnMole, 250);
