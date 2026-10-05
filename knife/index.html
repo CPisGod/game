@@ -132,10 +132,8 @@ function draw() {
   ctx.textAlign = 'right'; ctx.fillText('🔪 ' + apples, W - 14, 30);
 
   // 남은 칼 표시
-  for (let i = 0; i < left - flying.length; i++) {
-    {
-      drawKnife(18 + (i % 2) * 22, H - 50 - Math.floor(i / 2) * 22, 0, 0.25);
-  }
+  for (let i = 0; i < left - flying.length; i++)
+    drawKnife(18 + (i % 2) * 22, H - 50 - Math.floor(i / 2) * 22, 0, 0.25);
 
   // 대기 중 칼 / 날아가는 칼
   if (state === 'play') {
