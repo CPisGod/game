@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>나이프 훅</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #2b2b3a; overflow: hidden; touch-action: manipulation; user-select: none; }
+  body { display: flex; justify-content: center; align-items: center; font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+  #wrap { position: relative; height: 100vh; max-height: 100%; aspect-ratio: 9 / 16; max-width: 100vw; background: linear-gradient(#f3a48b, #e86a6a); }
+  canvas { width: 100%; height: 100%; display: block; }
+  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    background: #000a; color: #fff; text-align: center; gap: 12px; }
+  .overlay.hidden { display: none; }
+  .overlay h1 { margin: 0; font-size: 34px; }
+  .overlay p { margin: 0; line-height: 1.5; }
+  .overlay button { padding: 12px 32px; font-size: 20px; font-weight: 700; border: 0; border-radius: 999px; background: #ffd23f; cursor: pointer; }
+  .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
+    background: #000a; color: #fff; font: 700 14px/1 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    text-decoration: none; border: 1px solid #fff6; }
+  .home-btn:active { transform: translateY(2px); }
+</style>
+</head>
+<body>
+<a class="home-btn" href="../">🏠 메인 메뉴</a>
+<div id="wrap">
+  <canvas id="c" width="360" height="640"></canvas>
+  <div id="start" class="overlay">
+    <h1>🔪 나이프 훅</h1>
+    <p>화면을 눌러 칼을 던지세요!<br>돌아가는 얼굴에 칼을 모두 꽂으면 다음 라운드<br>다른 칼에 닿으면 끝!</p>
+    <button id="startBtn">시작</button>
+  </div>
+  <div id="end" class="overlay hidden">
+    <h1>게임 종료!</h1>
+    <p id="result"></p>
+    <button id="retryBtn">다시 하기</button>
+  </div>
+</div>
+<script>
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const W = 360, H = 640, CX = W / 2, CY = 230, R = 80, KLEN = 70, HIT = 0.17;
+const face = new Image(); face.src = 'face.png';
+
+let state = 'idle', round = 1, rot = 0, speed = 0, stuck = [], left = 0, total = 0;
+let flying = null, falling = [], hitFlash = 0, nextTimer = 0, shake = 0, apples = 0;
+
+function setupRound() {
+  total = round + 2;           // 라운드마다 1개씩 증가
+  left = total;
+  stuck = [];
+  const pre = Math.min(Math.floor(round / 2), 5);
+  for (let i = 0; i < pre; i++) stuck.push({ a: (i / pre) * Math.PI * 2 + Math.random() * 0.3 });
+  const dir = round % 2 ? 1 : -1;
+  speed = dir * (1.3 + Math.min(round, 12) * 0.12);
+  flying = null;
+}
+
+function start() {
+  round = 1; rot = 0; falling = [];
+  state = 'play';
+  setupRound();
+  document.getElementById('start').classList.add('hidden');
+  document.getElementById('end').classList.add('hidden');
+}
+
+function throwKnife() {
+  if (state !== 'play' || flying || left <= 0) return;
+  flying = { y: H - 90 };
+}
+addEventListener('pointerdown', e => { if (e.target.tagName !== 'BUTTON' && !e.target.closest('a')) throwKnife(); });
+addEventListener('keydown', e => { if (e.code === 'Space') throwKnife(); });
+document.getElementById('startBtn').onclick = start;
+document.getElementById('retryBtn').onclick = start;
+
+function gameOver(knifeY) {
+  state = 'dying';
+  shake = 12;
+  falling.push({ x: CX, y: knifeY, vx: (Math.random() < .5 ? -1 : 1) * (3 + Math.random() * 3), vy: 7, r: 0, vr: 0.4 });
+  setTimeout(() => {
+    document.getElementById('result').innerHTML = '라운드 ' + round + ' 도달<br>꽂은 칼 ' + apples + '개';
+    document.getElementById('end').classList.remove('hidden');
+    state = 'over';
+  }, 1100);
+}
+
+function angDiff(a, b) {
+  let d = Math.abs(a - b) % (Math.PI * 2);
+  return d > Math.PI ? Math.PI * 2 - d : d;
+}
+
+function update() {
+  if (state === 'play' || state === 'dying' || state === 'next') rot += speed * 0.02 * (state === 'dying' ? 0.3 : 1);
+  if (state === 'play' && flying) {
+    flying.y -= 22;
+    if (flying.y <= CY + R + 26) {
+      // 칼이 꽂히는 위치 = 화면 아래쪽(π/2)을 회전 좌표계로 변환
+      const a = Math.PI / 2 - rot;
+      if (stuck.some(s => angDiff(s.a, a) < HIT)) { const y = flying.y; flying = null; gameOver(y); }
+      else {
+        stuck.push({ a }); flying = null; left--; apples++; shake = 4;
+        if (left === 0) { state = 'next'; nextTimer = 50; }
+      }
+    }
+  }
+  if (state === 'next' && --nextTimer <= 0) { round++; state = 'play'; setupRound(); }
+  for (const f of falling) { f.x += f.vx; f.y += f.vy; f.vy += 0.6; f.r += f.vr; }
+  falling = falling.filter(f => f.y < H + 100);
+  if (shake > 0) shake *= 0.85;
+}
+
+function drawKnife(x, y, ang, scale) {
+  // ang: 칼끝 방향 기준 회전. 기본은 위쪽(칼끝이 위)
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(scale || 1, scale || 1);
+  ctx.fillStyle = '#d9dde3'; ctx.beginPath();
+  ctx.moveTo(0, -KLEN * 0.55); ctx.lineTo(7, -8); ctx.lineTo(7, KLEN * 0.1); ctx.lineTo(-7, KLEN * 0.1); ctx.lineTo(-7, -8); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff8'; ctx.fillRect(-1, -KLEN * 0.4, 3, KLEN * 0.45);
+  ctx.fillStyle = '#e8ecef'; ctx.fillRect(-11, KLEN * 0.1, 22, 5);
+  ctx.fillStyle = '#c0571f'; ctx.fillRect(-5, KLEN * 0.1 + 5, 10, KLEN * 0.45);
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  if (shake > 0.5) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
+
+  // HUD
+  ctx.fillStyle = '#fff'; ctx.font = '700 20px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('라운드 ' + round, 14, 30);
+  ctx.textAlign = 'right'; ctx.fillText('🔪 ' + apples, W - 14, 30);
+
+  // 남은 칼 표시
+  for (let i = 0; i < left; i++) {
+    const used = flying ? i === 0 : false;
+    if (!used) drawKnife(18 + (i % 2) * 22, H - 50 - Math.floor(i / 2) * 22, 0, 0.25);
+  }
+
+  // 대기 중 칼 / 날아가는 칼
+  if (state === 'play' && left > 0) drawKnife(CX, flying ? flying.y : H - 90, 0, 1);
+
+  // 회전체
+  ctx.save(); ctx.translate(CX, CY);
+  ctx.rotate(rot);
+  for (const s of stuck) {
+    ctx.save(); ctx.rotate(s.a - Math.PI / 2); // 로컬 +y(손잡이)가 바깥쪽
+    drawKnife(0, R + 26, 0, 1);
+    ctx.restore();
+  }
+  ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.closePath();
+  ctx.save(); ctx.clip();
+  ctx.fillStyle = '#f2c9a0'; ctx.fillRect(-R, -R, R * 2, R * 2);
+  if (face.complete && face.naturalWidth) ctx.drawImage(face, -R, -R, R * 2, R * 2);
+  ctx.restore();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#0003'; ctx.stroke();
+  ctx.restore();
+
+  for (const f of falling) drawKnife(f.x, f.y, f.r, 1);
+
+  if (state === 'next') {
+    ctx.fillStyle = '#fff'; ctx.font = '700 32px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('라운드 클리어!', CX, CY + R + 60);
+  }
+  ctx.restore();
+}
+
+(function loop() { update(); draw(); requestAnimationFrame(loop); })();
+</script>
+</body>
+</html>
