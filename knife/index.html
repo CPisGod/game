@@ -40,6 +40,8 @@
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const W = 360, H = 640, CX = W / 2, CY = 230, R = 80, KLEN = 70, HIT = 0.17;
 const face = new Image(); face.src = 'face.png';
+const faceDead = new Image(); faceDead.src = 'face_dead.png';
+let hurt = 0;
 
 let state = 'idle', round = 1, rot = 0, speed = 0, stuck = [], left = 0, total = 0;
 let flying = [], falling = [], hitFlash = 0, nextTimer = 0, shake = 0, apples = 0;
@@ -56,7 +58,7 @@ function setupRound() {
 }
 
 function start() {
-  round = 1; rot = 0; falling = []; apples = 0;
+  hurt = 0; round = 1; rot = 0; falling = []; apples = 0;
   state = 'play';
   setupRound();
   document.getElementById('start').classList.add('hidden');
@@ -99,7 +101,7 @@ function update() {
       const a = Math.PI / 2 - rot;
       if (stuck.some(s => angDiff(s.a, a) < HIT)) gameOver(k.y);
       else {
-        stuck.push({ a }); left--; apples++; shake = 4;
+        stuck.push({ a }); left--; apples++; shake = 4; hurt = 30;
         if (left === 0) { state = 'next'; nextTimer = 50; flying = []; }
       }
     }
@@ -108,6 +110,7 @@ function update() {
   for (const f of falling) { f.x += f.vx; f.y += f.vy; f.vy += 0.6; f.r += f.vr; }
   falling = falling.filter(f => f.y < H + 100);
   if (shake > 0) shake *= 0.85;
+  if (hurt > 0) hurt--;
 }
 
 function drawKnife(x, y, ang, scale) {
@@ -149,12 +152,8 @@ function draw() {
     drawKnife(0, R + 26, 0, 1);
     ctx.restore();
   }
-  ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.closePath();
-  ctx.save(); ctx.clip();
-  ctx.fillStyle = '#f2c9a0'; ctx.fillRect(-R, -R, R * 2, R * 2);
-  if (face.complete && face.naturalWidth) ctx.drawImage(face, -R, -R, R * 2, R * 2);
-  ctx.restore();
-  ctx.lineWidth = 3; ctx.strokeStyle = '#0003'; ctx.stroke();
+  const img = hurt > 0 ? faceDead : face;
+  if (img.complete && img.naturalWidth) ctx.drawImage(img, -R, -R * img.naturalHeight / img.naturalWidth, R * 2, R * 2 * img.naturalHeight / img.naturalWidth);
   ctx.restore();
 
   for (const f of falling) drawKnife(f.x, f.y, f.r, 1);
