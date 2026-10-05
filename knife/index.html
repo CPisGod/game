@@ -42,7 +42,7 @@ const W = 360, H = 640, CX = W / 2, CY = 230, R = 80, KLEN = 70, HIT = 0.17;
 const face = new Image(); face.src = 'face.png';
 
 let state = 'idle', round = 1, rot = 0, speed = 0, stuck = [], left = 0, total = 0;
-let flying = null, falling = [], hitFlash = 0, nextTimer = 0, shake = 0, apples = 0;
+let flying = [], falling = [], hitFlash = 0, nextTimer = 0, shake = 0, apples = 0;
 
 function setupRound() {
   total = round + 2;           // 라운드마다 1개씩 증가
@@ -52,7 +52,7 @@ function setupRound() {
   for (let i = 0; i < pre; i++) stuck.push({ a: (i / pre) * Math.PI * 2 + Math.random() * 0.3 });
   const dir = round % 2 ? 1 : -1;
   speed = dir * (1.3 + Math.min(round, 12) * 0.12);
-  flying = null;
+  flying = [];
 }
 
 function start() {
@@ -64,8 +64,8 @@ function start() {
 }
 
 function throwKnife() {
-  if (state !== 'play' || flying || left <= 0) return;
-  flying = { y: H - 90 };
+  if (state !== 'play' || left - flying.length <= 0) return;
+  flying.push({ y: H - 90 });
 }
 addEventListener('pointerdown', e => { if (e.target.tagName !== 'BUTTON' && !e.target.closest('a')) throwKnife(); });
 addEventListener('keydown', e => { if (e.code === 'Space') throwKnife(); });
@@ -90,15 +90,17 @@ function angDiff(a, b) {
 
 function update() {
   if (state === 'play' || state === 'dying' || state === 'next') rot += speed * 0.02 * (state === 'dying' ? 0.3 : 1);
-  if (state === 'play' && flying) {
-    flying.y -= 22;
-    if (flying.y <= CY + R + 26) {
+  if (state === 'play') {
+    for (const k of flying) k.y -= 60;
+    for (const k of flying.slice()) {
+      if (state !== 'play' || k.y > CY + R + 26) continue;
+      flying.splice(flying.indexOf(k), 1);
       // 칼이 꽂히는 위치 = 화면 아래쪽(π/2)을 회전 좌표계로 변환
       const a = Math.PI / 2 - rot;
-      if (stuck.some(s => angDiff(s.a, a) < HIT)) { const y = flying.y; flying = null; gameOver(y); }
+      if (stuck.some(s => angDiff(s.a, a) < HIT)) gameOver(k.y);
       else {
-        stuck.push({ a }); flying = null; left--; apples++; shake = 4;
-        if (left === 0) { state = 'next'; nextTimer = 50; }
+        stuck.push({ a }); left--; apples++; shake = 4;
+        if (left === 0) { state = 'next'; nextTimer = 50; flying = []; }
       }
     }
   }
@@ -130,13 +132,16 @@ function draw() {
   ctx.textAlign = 'right'; ctx.fillText('🔪 ' + apples, W - 14, 30);
 
   // 남은 칼 표시
-  for (let i = 0; i < left; i++) {
-    const used = flying ? i === 0 : false;
-    if (!used) drawKnife(18 + (i % 2) * 22, H - 50 - Math.floor(i / 2) * 22, 0, 0.25);
+  for (let i = 0; i < left - flying.length; i++) {
+    {
+      drawKnife(18 + (i % 2) * 22, H - 50 - Math.floor(i / 2) * 22, 0, 0.25);
   }
 
   // 대기 중 칼 / 날아가는 칼
-  if (state === 'play' && left > 0) drawKnife(CX, flying ? flying.y : H - 90, 0, 1);
+  if (state === 'play') {
+    for (const k of flying) drawKnife(CX, k.y, 0, 1);
+    if (left - flying.length > 0) drawKnife(CX, H - 90, 0, 1);
+  }
 
   // 회전체
   ctx.save(); ctx.translate(CX, CY);
