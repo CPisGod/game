@@ -131,22 +131,22 @@ function putTrap(kind, dist, life, dmg, opts, max) {
 // startup(준비) → active(타격) → rec(마무리). 준비=프레임2, 타격=프레임3, 마무리=프레임4
 const SKILLS = {
   buta: [
-    { name: '방구가스', cd: 3, startup: .28, active: .12, rec: .3, ...shoot({ kind: 'gas', speed: 230, dmg: 9, w: 40, h: 70, life: 2.2, pierce: false, opts: { slow: 1.8, kb: 60 } }) },
-    { name: '깔아뭉개기', cd: 1, startup: .25, active: .4, rec: .35,
+    { name: '방구가스', poses: ['fart_wind','fart_go','fart_rec'], cd: 3, startup: .28, active: .12, rec: .3, ...shoot({ kind: 'gas', speed: 230, dmg: 9, w: 40, h: 70, life: 2.2, pierce: false, opts: { slow: 1.8, kb: 60 } }) },
+    { name: '깔아뭉개기', poses: ['stomp_wind','stomp_air','stomp_land'], cd: 1, startup: .25, active: .4, rec: .35,
       onActive(f) { f.vars.x0 = f.x; const d = foe(f); f.vars.x1 = Math.max(MINX, Math.min(MAXX, d.x - f.face * 60)); f.vars.dist = Math.min(380, Math.abs(f.vars.x1 - f.x)); f.vars.x1 = f.x + f.face * f.vars.dist; },
       tick(f, ph, p) { if (ph === 'active') { f.x = f.vars.x0 + (f.vars.x1 - f.vars.x0) * p; f.z = Math.sin(p * Math.PI) * 170; } else if (ph === 'startup') f.z = 0; },
       onRec(f) { f.z = 0; shake = 8; fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .35, col: '#ffe9a0' });
         const d = foe(f); if (Math.abs(d.x - f.x) < 120 && d.z < 40) hit(f, d, 12, { stun: .5, kb: 140 }); } },
-    { name: '삐진척', cd: 11, startup: .25, active: .6, rec: .3,
+    { name: '삐진척', poses: ['pout1','pout2','pout2'], cd: 11, startup: .25, active: .6, rec: .3,
       onActive(f) { const d = foe(f); d.st.pity = 5; d.st.slow = Math.max(d.st.slow, 2); fx.push({ k: 'text', x: d.x, y: GROUND - 200, text: 'T_T', t: 0, life: 1 }); f.vars.pout = 1; } },
   ],
   chuk: [
-    { name: '척추 휘두르기', cd: 1, startup: .26, active: .12, rec: .34, ...melee(185, 10, 140) },
-    { name: '척추 던지기', cd: 4.5, startup: .3, active: .1, rec: .35, ...shoot({ kind: 'spine', speed: 560, dmg: 19, w: 34, h: 100, life: 1.8, opts: { kb: 120 }, self: 3 }) },
-    { name: '가시목털 함정', cd: 15, startup: .3, active: .1, rec: .3, ...putTrap('thorn', 260, 10, 13, { slow: 2, kb: 60 }, 2) },
+    { name: '척추 휘두르기', poses: ['windup','strike','recover'], cd: 1, startup: .26, active: .12, rec: .34, ...melee(185, 10, 140) },
+    { name: '척추 던지기', poses: ['spine_wind','throw_go','throw_rec'], cd: 4.5, startup: .3, active: .1, rec: .35, ...shoot({ kind: 'spine', speed: 560, dmg: 19, w: 34, h: 100, life: 1.8, opts: { kb: 120 }, self: 3 }) },
+    { name: '가시목털 함정', poses: ['spike_wind','spike_go','throw_rec'], cd: 15, startup: .3, active: .1, rec: .3, ...putTrap('thorn', 260, 10, 13, { slow: 2, kb: 60 }, 2) },
   ],
   monkey: [
-    { name: '나무 춤', cd: 10, startup: .28, active: 1.7, rec: .35,
+    { name: '나무 춤', poses: ['climb','dance1','fall'], cd: 10, startup: .28, active: 1.7, rec: .35,
       onStart(f) { f.vars.x0 = f.x; f.untouch = true; f.dance = false; },
       tick(f, ph, p) { const tr = trees.find(t => t.owner === f.side); const tx = tr ? tr.x : f.x;
         if (ph === 'startup') { f.x = f.vars.x0 + (tx - f.vars.x0) * p; f.z = 150 * p; f.dance = false; }
@@ -154,7 +154,7 @@ const SKILLS = {
         else { f.dance = false; f.x = tx + (f.vars.x0 > tx ? 1 : -1) * 50 * p; f.z = 150 * (1 - p); } },
       onActive(f) { const d = foe(f); if (Math.abs(d.x - f.x) < 460) { d.st.confuse = Math.max(d.st.confuse, 1.8); fx.push({ k: 'text', x: d.x, y: GROUND - 200, text: '♪♬', t: 0, life: 1 }); } },
       onRec(f) { f.untouch = false; f.z = 0; f.dance = false; } },
-    { name: '떨어지는 척', cd: 1, startup: .8, active: .25, rec: .3,
+    { name: '떨어지는 척', poses: ['climb','fall','land'], cd: 1, startup: .8, active: .25, rec: .3,
       onStart(f) { f.vars.x0 = f.x; f.untouch = true; f.ghost = false; f.vars.tx = Math.max(MINX, Math.min(MAXX, foe(f).x)); },
       tick(f, ph, p) { const tr = trees.find(t => t.owner === f.side); const tx = tr ? tr.x : f.x;
         if (ph === 'startup') { f.x = f.vars.x0 + (tx - f.vars.x0) * Math.min(1, p * 1.6); f.z = 520 * p; f.ghost = p > .3; }
@@ -162,22 +162,22 @@ const SKILLS = {
         else f.z = 0; },
       onRec(f) { f.untouch = false; f.z = 0; f.ghost = false; shake = 7; fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .3, col: '#ffffff' });
         const d = foe(f); if (Math.abs(d.x - f.x) < 95 && d.z < 40) hit(f, d, 10, { kb: 150 }); } },
-    { name: '바나나 껍질', cd: 4, startup: .2, active: .1, rec: .25, ...shoot({ kind: 'peel', speed: 380, dmg: 7, w: 30, h: 60, life: 1.8, opts: { stun: .9, kb: 0 } }) },
+    { name: '바나나 껍질', poses: ['banana_wind','throw_go','throw_rec'], cd: 4, startup: .2, active: .1, rec: .25, ...shoot({ kind: 'peel', speed: 380, dmg: 7, w: 30, h: 60, life: 1.8, opts: { stun: .9, kb: 0 } }) },
   ],
   apple: [
-    { name: '초록사과', cd: 1.7, startup: .3, active: .1, rec: .3, ...shoot({ kind: 'apple', speed: 440, dmg: 10, w: 24, h: 120, life: 1.6, opts: { kb: 80 } }) },
-    { name: '노래', cd: 10, startup: .55, active: .2, rec: .3,
+    { name: '초록사과', poses: ['apple_wind','throw_go','throw_rec'], cd: 1.7, startup: .3, active: .1, rec: .3, ...shoot({ kind: 'apple', speed: 440, dmg: 10, w: 24, h: 120, life: 1.6, opts: { kb: 80 } }) },
+    { name: '노래', poses: ['sing_in','sing','sing_out'], cd: 10, startup: .55, active: .2, rec: .3,
       onActive(f) { fx.push({ k: 'notes', x: f.x, y: GROUND - 160, face: f.face, t: 0, life: .9 });
         if (inFront(f, 420)) { const d = foe(f);
           if (Math.random() < .5) hit(f, d, 3, { stun: 1.3, kb: 0, noInv: true }); else hit(f, d, 3, { defdown: 5, kb: 0, noInv: true }); } } },
-    { name: '소설책', cd: 1, startup: .28, active: .12, rec: .34, ...melee(130, 10, 90) },
+    { name: '소설책', poses: ['windup','strike','recover'], cd: 1, startup: .28, active: .12, rec: .34, ...melee(130, 10, 90) },
   ],
   baker: [
-    { name: '이스트 투척', cd: 6.5, startup: .25, active: .1, rec: .3, ...shoot({ kind: 'yeast', speed: 400, dmg: 3, w: 30, h: 110, life: 1.8, opts: { blind: 3.5, kb: 30 } }) },
-    { name: '수학 공식', cd: 10, startup: .5, active: .2, rec: .3,
+    { name: '이스트 투척', poses: ['yeast_wind','throw_go','throw_rec'], cd: 6.5, startup: .25, active: .1, rec: .3, ...shoot({ kind: 'yeast', speed: 400, dmg: 3, w: 30, h: 110, life: 1.8, opts: { blind: 3.5, kb: 30 } }) },
+    { name: '수학 공식', poses: ['lecture1','lecture2','lecture3'], cd: 10, startup: .5, active: .2, rec: .3,
       onActive(f) { const d = foe(f); if (Math.abs(d.x - f.x) < 440 && !d.untouch) { d.st.confuse = Math.max(d.st.confuse, 3); }
         fx.push({ k: 'math', x: d.x, y: GROUND - 220, t: 0, life: 1.4 }); } },
-    { name: '바게트 휘두르기', cd: 1, startup: .25, active: .12, rec: .33, ...melee(170, 10, 100) },
+    { name: '바게트 휘두르기', poses: ['windup','strike','recover'], cd: 1, startup: .25, active: .12, rec: .33, ...melee(170, 10, 100) },
   ],
 };
 
@@ -322,12 +322,11 @@ function drawLandingMark(f) {
 function drawFighter(f) {
   if (f.dead && f.dead > 1) return;
   const sw = SF.W * SC, sh = SF.H * SC;
-  let fr = 0;
-  if (f.act) fr = { startup: 2, active: 3, rec: 4 }[f.act.ph] || 2;
-  else if (f.hurt > 0 || f.st.stun > 0) fr = 4;
-  else fr = (Math.floor(f.anim * (f.walk ? 7 : 2.5)) % 2);
-  if (f.dance) fr = [0, 2, 3, 4][Math.floor(f.anim * 8) % 4];
-  if (f.dead) fr = 4;
+  let fr = 'idle';
+  if (f.act) { const ph = { startup: 0, active: 1, rec: 2 }[f.act.ph] ?? 0; fr = f.act.sk.poses[ph]; }
+  else if (f.hurt > 0 || f.st.stun > 0 || f.dead) fr = 'hurt';
+  else fr = Math.floor(f.anim * (f.walk ? 7 : 2.5)) % 2 ? 'idle2' : 'idle';
+  if (f.dance) fr = ['dance1', 'dance3', 'dance2', 'dance3'][Math.floor(f.anim * 8) % 4];
   const img = SF.canvas(SPR[f.kind], fr);
   const cx = SF.CX * SC;
   const y = GROUND - sh - f.z;

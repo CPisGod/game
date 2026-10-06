@@ -5,23 +5,16 @@ canvas{image-rendering:pixelated;display:block}</style></head>
 <body><canvas id="c"></canvas>
 <script src="sprites.js"></script>
 <script>
-const S=4, cw=SF.W*S, ch=SF.H*S, padL=110, oy=30;
-const c=document.getElementById('c'); c.width=padL+cw*5+cw+20; c.height=oy+ch*SF.CHARS.length;
+const S=3, cw=SF.W*S, ch=SF.H*S, padL=100, oy=26, N=11;
+const c=document.getElementById('c'); c.width=padL+cw*N; c.height=oy+ch*SF.CHARS.length;
 const x=c.getContext('2d'); x.imageSmoothingEnabled=false;
 x.fillStyle='#2e2b50'; x.fillRect(0,0,c.width,c.height);
-x.font='14px sans-serif'; x.fillStyle='#ffd866';
-SF.FRAMES.forEach((n,i)=>x.fillText(n,padL+i*cw+cw/2-14,20));
-x.fillText('공격 애니(재생)',padL+cw*5+8,20);
+x.font='12px sans-serif';
 SF.CHARS.forEach((chr,r)=>{
   x.fillStyle='#fff'; x.fillText(chr.name,8,oy+r*ch+ch/2);
-  x.fillStyle='#3a3763'; x.fillRect(padL,oy+r*ch+ch-6,cw*5,2);
-  for(let f=0;f<5;f++) SF.draw(x,chr,f,padL+f*cw,oy+r*ch,S);
+  chr.poses.forEach((p,i)=>{
+    x.drawImage(SF.canvas(chr,p),padL+i*cw,oy+r*ch,cw,ch);
+    x.fillStyle='#ffd866'; x.fillText(p,padL+i*cw+4,oy+r*ch+10);
+  });
 });
-const seq=[0,2,3,4]; let t=0;
-setInterval(()=>{
-  SF.CHARS.forEach((chr,r)=>{
-    x.fillStyle='#2e2b50'; x.fillRect(padL+cw*5,oy+r*ch,cw+20,ch);
-    SF.draw(x,chr,seq[t%4],padL+cw*5,oy+r*ch,S);
-  }); t++;
-},180);
 </script></body></html>
