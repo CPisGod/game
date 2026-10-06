@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>스프라이트 미리보기</title>
+<style>body{background:#22203a;color:#fff;font-family:sans-serif;margin:16px}
+canvas{image-rendering:pixelated;display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script src="sprites.js"></script>
+<script>
+const S=3, cw=SF.W*S, ch=SF.H*S, padL=100, oy=26, N=11;
+const c=document.getElementById('c'); c.width=padL+cw*N; c.height=oy+ch*SF.CHARS.length;
+const x=c.getContext('2d'); x.imageSmoothingEnabled=false;
+x.fillStyle='#2e2b50'; x.fillRect(0,0,c.width,c.height);
+x.font='12px sans-serif';
+SF.CHARS.forEach((chr,r)=>{
+  x.fillStyle='#fff'; x.fillText(chr.name,8,oy+r*ch+ch/2);
+  chr.poses.forEach((p,i)=>{
+    x.drawImage(SF.canvas(chr,p),padL+i*cw,oy+r*ch,cw,ch);
+    x.fillStyle='#ffd866'; x.fillText(p,padL+i*cw+4,oy+r*ch+10);
+  });
+});
+</script></body></html>
