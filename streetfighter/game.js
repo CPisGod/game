@@ -154,7 +154,7 @@ const SKILLS = {
         else { f.dance = false; f.x = tx + (f.vars.x0 > tx ? 1 : -1) * 50 * p; f.z = 150 * (1 - p); } },
       onActive(f) { const d = foe(f); if (Math.abs(d.x - f.x) < 460) { d.st.confuse = Math.max(d.st.confuse, 1.8); fx.push({ k: 'text', x: d.x, y: GROUND - 200, text: '♪♬', t: 0, life: 1 }); } },
       onRec(f) { f.untouch = false; f.z = 0; f.dance = false; } },
-    { name: '떨어지는 척', poses: ['climb','fall','land'], cd: 1, startup: .8, active: .25, rec: .3,
+    { name: '떨어지는 척', poses: ['climb','fall','land'], cd: 2, startup: .8, active: .25, rec: 1.3,
       onStart(f) { f.vars.x0 = f.x; f.untouch = true; f.ghost = false; f.vars.tx = Math.max(MINX, Math.min(MAXX, foe(f).x)); },
       tick(f, ph, p) { const tr = trees.find(t => t.owner === f.side); const tx = tr ? tr.x : f.x;
         if (ph === 'startup') { f.x = f.vars.x0 + (tx - f.vars.x0) * Math.min(1, p * 1.6); f.z = 520 * p; f.ghost = p > .3; }
