@@ -7,12 +7,12 @@ const FONT = '"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
 // ───────── 입력 ─────────
 // 앞 = 상대 쪽, 뒤 = 반대쪽
 const KEYS = [
-  { fwd: 'KeyD', back: 'KeyA', s: ['KeyQ', 'KeyW', 'KeyE'], label: ['Q', 'W', 'E'], left: 'KeyA', right: 'KeyD', ok: 'KeyQ' },
-  { fwd: 'Numpad4', back: 'Numpad6', s: ['Numpad7', 'Numpad8', 'Numpad9'], label: ['7', '8', '9'], left: 'Numpad4', right: 'Numpad6', ok: 'Numpad7' },
+  { jump: 'KeyS', s: ['KeyQ', 'KeyW', 'KeyE'], label: ['Q', 'W', 'E'], jlabel: 'S', left: 'KeyA', right: 'KeyD', ok: 'KeyQ' },
+  { jump: 'Numpad5', s: ['Numpad7', 'Numpad8', 'Numpad9'], label: ['7', '8', '9'], jlabel: '5', left: 'Numpad4', right: 'Numpad6', ok: 'Numpad7' },
 ];
 const down = {};
 addEventListener('keydown', e => {
-  if (/^(Numpad|Key[ADQWE]|Arrow|Space|Enter)/.test(e.code)) e.preventDefault();
+  if (/^(Numpad|Key[ADQWES]|Arrow|Space|Enter)/.test(e.code)) e.preventDefault();
   if (down[e.code]) return; down[e.code] = true; onPress(e.code);
 });
 addEventListener('keyup', e => { down[e.code] = false; });
@@ -20,11 +20,11 @@ addEventListener('blur', () => { for (const k in down) down[k] = false; });
 
 // ───────── 캐릭터/스킬 데이터 ─────────
 const CH = {
-  buta:   { name: '부타',         hp: 100, speed: 170 },
-  chuk:   { name: '척추',         hp: 100, speed: 150 },
-  monkey: { name: '원숭이',       hp: 100, speed: 215 },
-  apple:  { name: '초록사과나무', hp: 125, speed: 115 },
-  baker:  { name: '제빵사',       hp: 100, speed: 160 },
+  buta:   { name: '부타',         hp: 100, speed: 510 },
+  chuk:   { name: '척추',         hp: 100, speed: 450 },
+  monkey: { name: '원숭이',       hp: 100, speed: 645 },
+  apple:  { name: '초록사과나무', hp: 125, speed: 345 },
+  baker:  { name: '제빵사',       hp: 100, speed: 480 },
 };
 const SPR = {}; SF.CHARS.forEach(c => SPR[c.id] = c);
 
@@ -55,12 +55,12 @@ function onPress(code) {
 function mkFighter(side, picks) {
   const f = { side, picks, idx: 0, x: side ? 720 : 240, z: 0, vx: 0, face: side ? -1 : 1, hp: 0, maxhp: 0, kind: '',
     act: null, t: 0, cd: [0, 0, 0], st: { stun: 0, confuse: 0, blind: 0, slow: 0, defdown: 0, pity: 0 },
-    hurt: 0, inv: 0, ghost: false, dead: 0, flash: 0, vars: {}, anim: 0, dance: false };
+    hurt: 0, inv: 0, jt: -1, ghost: false, dead: 0, flash: 0, vars: {}, anim: 0, dance: false };
   loadChar(f); return f;
 }
 function loadChar(f) {
   f.kind = f.picks[f.idx]; f.maxhp = f.hp = CH[f.kind].hp; f.act = null; f.cd = [0, 0, 0]; f.z = 0;
-  f.hurt = 0; f.inv = 1.2; f.dead = 0; f.dance = false; f.ghost = false;
+  f.hurt = 0; f.jt = -1; f.inv = 1.2; f.dead = 0; f.dance = false; f.ghost = false;
   for (const k in f.st) f.st[k] = 0;
   if (f.kind === 'monkey') growTree(f, true);
 }
@@ -99,7 +99,7 @@ function hit(a, d, dmg, o = {}) {
   if (o.blind) d.st.blind = Math.max(d.st.blind, o.blind);
   if (o.slow) d.st.slow = Math.max(d.st.slow, o.slow);
   if (o.defdown) d.st.defdown = Math.max(d.st.defdown, o.defdown);
-  if (!o.noHurt) { d.act = null; d.hurt = Math.max(d.hurt, 0.28); d.dance = false; d.ghost = false; if (d.z > 0) d.z = 0; }
+  if (!o.noHurt) { d.act = null; d.hurt = Math.max(d.hurt, 0.28); d.dance = false; d.ghost = false; d.jt = -1; if (d.z > 0) d.z = 0; }
   d.vx = (o.kb || 0) * a.face;
   if (d.hp <= 0) { d.hp = 0; d.dead = 0.01; d.act = null; d.vx = 220 * a.face; shake = 10; }
   return true;
@@ -115,7 +115,7 @@ function melee(reach, dmg, kb, extra) {
 }
 function shoot(o) {
   return { onActive(f) {
-    projs.push({ owner: f.side, kind: o.kind, x: f.x + f.face * 60, h: o.h || 100, vx: f.face * (o.speed * (f.st.blind > 0 ? .8 : 1)), life: o.life || 2, dmg: o.dmg, w: o.w || 26, pierce: !!o.pierce, hitDone: false, opts: o.opts || {}, t: 0, selfDmg: 0 });
+    projs.push({ owner: f.side, kind: o.kind, x: f.x + f.face * 60, h: o.h || 100, vx: f.face * (o.speed * (f.st.blind > 0 ? .8 : 1)), life: o.life || 2, dmg: o.dmg, w: o.w || 26, pierce: !!o.pierce, hitDone: false, opts: o.opts || {}, t: 0, hz: o.hz || 80 });
     if (o.self) { f.hp = Math.max(1, f.hp - o.self); addFloat(f.x, GROUND - 190, o.self, '#ff7777'); }
   } };
 }
@@ -132,18 +132,18 @@ function putTrap(kind, dist, life, dmg, opts, max) {
 const SKILLS = {
   buta: [
     { name: '방구가스', cd: 3, startup: .28, active: .12, rec: .3, ...shoot({ kind: 'gas', speed: 230, dmg: 9, w: 40, h: 70, life: 2.2, pierce: false, opts: { slow: 1.8, kb: 60 } }) },
-    { name: '깔아뭉개기', cd: 6.5, startup: .32, active: .45, rec: .45,
+    { name: '깔아뭉개기', cd: 1, startup: .25, active: .4, rec: .35,
       onActive(f) { f.vars.x0 = f.x; const d = foe(f); f.vars.x1 = Math.max(MINX, Math.min(MAXX, d.x - f.face * 60)); f.vars.dist = Math.min(380, Math.abs(f.vars.x1 - f.x)); f.vars.x1 = f.x + f.face * f.vars.dist; },
       tick(f, ph, p) { if (ph === 'active') { f.x = f.vars.x0 + (f.vars.x1 - f.vars.x0) * p; f.z = Math.sin(p * Math.PI) * 170; } else if (ph === 'startup') f.z = 0; },
       onRec(f) { f.z = 0; shake = 8; fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .35, col: '#ffe9a0' });
-        const d = foe(f); if (Math.abs(d.x - f.x) < 120 && d.z < 40) hit(f, d, 17, { stun: .5, kb: 140 }); } },
+        const d = foe(f); if (Math.abs(d.x - f.x) < 120 && d.z < 40) hit(f, d, 12, { stun: .5, kb: 140 }); } },
     { name: '삐진척', cd: 11, startup: .25, active: .6, rec: .3,
-      onActive(f) { f.hp = Math.min(f.maxhp, f.hp + 12); addFloat(f.x, GROUND - 190, '+12', '#66ff99'); const d = foe(f); d.st.pity = 5; d.st.slow = Math.max(d.st.slow, 2); fx.push({ k: 'text', x: d.x, y: GROUND - 200, text: 'T_T', t: 0, life: 1 }); f.vars.pout = 1; } },
+      onActive(f) { const d = foe(f); d.st.pity = 5; d.st.slow = Math.max(d.st.slow, 2); fx.push({ k: 'text', x: d.x, y: GROUND - 200, text: 'T_T', t: 0, life: 1 }); f.vars.pout = 1; } },
   ],
   chuk: [
-    { name: '척추 휘두르기', cd: 1.6, startup: .26, active: .12, rec: .34, ...melee(185, 14, 140) },
+    { name: '척추 휘두르기', cd: 1, startup: .26, active: .12, rec: .34, ...melee(185, 10, 140) },
     { name: '척추 던지기', cd: 4.5, startup: .3, active: .1, rec: .35, ...shoot({ kind: 'spine', speed: 560, dmg: 19, w: 34, h: 100, life: 1.8, opts: { kb: 120 }, self: 3 }) },
-    { name: '가시목털 함정', cd: 7.5, startup: .3, active: .1, rec: .3, ...putTrap('thorn', 260, 9, 13, { slow: 2, kb: 60 }, 2) },
+    { name: '가시목털 함정', cd: 15, startup: .3, active: .1, rec: .3, ...putTrap('thorn', 260, 10, 13, { slow: 2, kb: 60 }, 2) },
   ],
   monkey: [
     { name: '나무 춤', cd: 10, startup: .28, active: 1.7, rec: .35,
@@ -152,17 +152,17 @@ const SKILLS = {
         if (ph === 'startup') { f.x = f.vars.x0 + (tx - f.vars.x0) * p; f.z = 150 * p; f.dance = false; }
         else if (ph === 'active') { f.x = tx; f.z = 150; f.dance = true; }
         else { f.dance = false; f.x = tx + (f.vars.x0 > tx ? 1 : -1) * 50 * p; f.z = 150 * (1 - p); } },
-      onActive(f) { f.hp = Math.min(f.maxhp, f.hp + 8); addFloat(f.x, GROUND - 330, '+8', '#66ff99'); const d = foe(f); if (Math.abs(d.x - f.x) < 460) { d.st.confuse = Math.max(d.st.confuse, 1.8); fx.push({ k: 'text', x: d.x, y: GROUND - 200, text: '♪♬', t: 0, life: 1 }); } },
+      onActive(f) { const d = foe(f); if (Math.abs(d.x - f.x) < 460) { d.st.confuse = Math.max(d.st.confuse, 1.8); fx.push({ k: 'text', x: d.x, y: GROUND - 200, text: '♪♬', t: 0, life: 1 }); } },
       onRec(f) { f.untouch = false; f.z = 0; f.dance = false; } },
-    { name: '떨어지는 척', cd: 6.5, startup: .5, active: .3, rec: .4,
+    { name: '떨어지는 척', cd: 1, startup: .45, active: .25, rec: .3,
       onStart(f) { f.vars.x0 = f.x; f.untouch = true; f.ghost = false; },
       tick(f, ph, p) { const tr = trees.find(t => t.owner === f.side); const tx = tr ? tr.x : f.x;
         if (ph === 'startup') { f.x = f.vars.x0 + (tx - f.vars.x0) * Math.min(1, p * 1.6); f.z = 520 * p; f.ghost = p > .5; f.vars.tx = foe(f).x; }
         else if (ph === 'active') { f.ghost = false; const tx2 = f.vars.tx; f.x = tx + (tx2 - tx) * p; f.z = 520 * (1 - p * p); }
         else f.z = 0; },
       onRec(f) { f.untouch = false; f.z = 0; f.ghost = false; shake = 7; fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .3, col: '#ffffff' });
-        const d = foe(f); if (Math.abs(d.x - f.x) < 95 && d.z < 40) hit(f, d, 16, { kb: 150 }); } },
-    { name: '바나나 껍질', cd: 4, startup: .2, active: .1, rec: .25, ...putTrap('peel', 140, 10, 7, { stun: 1.0, kb: 0 }, 3) },
+        const d = foe(f); if (Math.abs(d.x - f.x) < 95 && d.z < 40) hit(f, d, 10, { kb: 150 }); } },
+    { name: '바나나 껍질', cd: 4, startup: .2, active: .1, rec: .25, ...shoot({ kind: 'peel', speed: 380, dmg: 7, w: 30, h: 60, life: 1.8, opts: { stun: .9, kb: 0 } }) },
   ],
   apple: [
     { name: '초록사과', cd: 1.7, startup: .3, active: .1, rec: .3, ...shoot({ kind: 'apple', speed: 440, dmg: 10, w: 24, h: 120, life: 1.6, opts: { kb: 80 } }) },
@@ -170,20 +170,20 @@ const SKILLS = {
       onActive(f) { fx.push({ k: 'notes', x: f.x, y: GROUND - 160, face: f.face, t: 0, life: .9 });
         if (inFront(f, 420)) { const d = foe(f);
           if (Math.random() < .5) hit(f, d, 3, { stun: 1.3, kb: 0, noInv: true }); else hit(f, d, 3, { defdown: 5, kb: 0, noInv: true }); } } },
-    { name: '소설책', cd: 1.9, startup: .28, active: .12, rec: .34, ...melee(130, 13, 90) },
+    { name: '소설책', cd: 1, startup: .28, active: .12, rec: .34, ...melee(130, 10, 90) },
   ],
   baker: [
     { name: '이스트 투척', cd: 6.5, startup: .25, active: .1, rec: .3, ...shoot({ kind: 'yeast', speed: 400, dmg: 3, w: 30, h: 110, life: 1.8, opts: { blind: 3.5, kb: 30 } }) },
     { name: '수학 공식', cd: 10, startup: .5, active: .2, rec: .3,
       onActive(f) { const d = foe(f); if (Math.abs(d.x - f.x) < 440 && !d.untouch) { d.st.confuse = Math.max(d.st.confuse, 3); }
         fx.push({ k: 'math', x: d.x, y: GROUND - 220, t: 0, life: 1.4 }); } },
-    { name: '바게트 휘두르기', cd: 1.5, startup: .25, active: .12, rec: .33, ...melee(170, 12, 100) },
+    { name: '바게트 휘두르기', cd: 1, startup: .25, active: .12, rec: .33, ...melee(170, 10, 100) },
   ],
 };
 
 function tryUse(f, i) {
   const sk = SKILLS[f.kind][i];
-  if (f.act || f.hurt > 0 || f.st.stun > 0 || f.dead || f.cd[i] > 0 || banner && banner.t > .3) return;
+  if (f.act || f.jt >= 0 || f.hurt > 0 || f.st.stun > 0 || f.dead || f.cd[i] > 0 || banner && banner.t > .3) return;
   f.act = { sk, i, t: 0, ph: '', fired: { active: false, rec: false } }; f.cd[i] = sk.cd; f.vx = 0; f.vars = {};
   if (sk.onStart) sk.onStart(f);
 }
@@ -225,15 +225,17 @@ function update(dt) {
     else if (f.st.stun > 0) { /* 기절 */ }
     else if (!(banner && banner.t > .3)) {
       let dir = 0;
-      if (down[k.fwd]) dir += 1; if (down[k.back]) dir -= 1;
+      if (down[k.right]) dir += 1; if (down[k.left]) dir -= 1;
       if (f.st.confuse > 0) dir = -dir;
-      f.x += dir * f.face * speedOf(f) * dt;
+      f.x += dir * speedOf(f) * dt;
       f.walk = dir !== 0;
+      if (f.jt < 0 && down[k.jump]) f.jt = 0;
+      if (f.jt >= 0) { f.jt += dt; const p = f.jt / .7; if (p >= 1) { f.jt = -1; f.z = 0; } else f.z = 230 * 4 * p * (1 - p); }
       for (let i = 0; i < 3; i++) if (down[k.s[i]]) { tryUse(f, i); if (f.act) break; }
     }
     if (!f.act) { f.untouch = false; }
     f.x = Math.max(MINX, Math.min(MAXX, f.x));
-    if (!f.act && !f.dead) f.z = 0;
+    if (!f.act && !f.dead && f.jt < 0) f.z = 0;
     if (f.kind === 'monkey' && !f.dead) growTree(f);
   });
   // 서로 겹치지 않게
@@ -249,7 +251,7 @@ function update(dt) {
   projs.forEach(p => {
     p.t += dt; p.x += p.vx * dt; p.life -= dt;
     const d = fighters[1 - p.owner];
-    if (!p.hitDone && !d.dead && Math.abs(p.x - d.x) < 40 + p.w / 2 && d.z < 120) {
+    if (!p.hitDone && !d.dead && Math.abs(p.x - d.x) < 40 + p.w / 2 && d.z < p.hz) {
       const att = fighters[p.owner];
       if (hit(att, d, p.dmg, p.opts)) { if (!p.pierce) p.hitDone = true; }
       if (p.hitDone) p.life = 0;
@@ -347,6 +349,7 @@ function drawProj(p) {
   if (p.kind === 'gas') { for (let i = 0; i < 4; i++) { ctx.fillStyle = ['#9be34a', '#6cc02d', '#c8f27a', '#7fd13a'][i]; const r = 14 + Math.sin(p.t * 8 + i) * 4; ctx.beginPath(); ctx.arc(x - i * 14 * Math.sign(p.vx), y + Math.sin(p.t * 6 + i * 2) * 6, r, 0, 7); ctx.fill(); } }
   else if (p.kind === 'apple') { ctx.fillStyle = '#6fb81f'; ctx.beginPath(); ctx.arc(x, y, 14, 0, 7); ctx.fill(); ctx.fillStyle = '#c4f060'; ctx.fillRect(x - 8, y - 8, 6, 6); ctx.fillStyle = '#5e3a18'; ctx.fillRect(x - 1, y - 20, 4, 8); }
   else if (p.kind === 'yeast') { for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? '#f1e2b0' : '#d8c38a'; ctx.fillRect(x - i * 7 * Math.sign(p.vx) - 5, y + Math.sin(p.t * 20 + i) * 10 - 5, 10, 10); } }
+  else if (p.kind === 'peel') { ctx.save(); ctx.translate(x, y); ctx.rotate(p.t * 14); ctx.fillStyle = '#ffe135'; ctx.fillRect(-16, -5, 32, 10); ctx.fillStyle = '#f2c200'; ctx.fillRect(-12, 1, 24, 4); ctx.fillStyle = '#6e5a10'; ctx.fillRect(14, -7, 6, 6); ctx.restore(); }
   else if (p.kind === 'spine') { ctx.save(); ctx.translate(x, y); ctx.rotate(p.t * 18 * Math.sign(p.vx));
     for (let i = -3; i <= 3; i++) { ctx.fillStyle = i % 2 ? '#f3ecd2' : '#fffbe6'; ctx.fillRect(i * 9 - 5, -6, 10, 12); ctx.fillStyle = '#b9ad84'; ctx.fillRect(i * 9 - 5, 3, 10, 3); } ctx.restore(); }
 }
@@ -377,6 +380,7 @@ function drawHUD() {
     const nx = f.idx === 0 ? f.picks[1] : null;
     if (nx) { txt('다음', left ? bx + 20 : bx + bw - 20, by + 46, 13, '#aaa'); const im = SF.canvas(SPR[nx], 0); ctx.drawImage(im, left ? bx + 40 : bx + bw - 40 - 56, by + 30, 56, 40); txt(CH[nx].name, left ? bx + 110 : bx + bw - 110, by + 50, 14, '#ddd', left ? 'left' : 'right'); }
     else txt('마지막 캐릭터!', left ? bx : bx + bw, by + 46, 14, '#ff9a8a', left ? 'left' : 'right');
+    txt(`점프 ${KEYS[i].jlabel}`, left ? 30 : W - 150, H - 74, 13, '#9fd0ff', left ? 'left' : 'right');
     // 스킬 쿨타임
     SKILLS[f.kind].forEach((sk, j) => {
       const sx = (left ? 30 : W - 150 - 3 * 126 - 2 * 6) + j * 132, sy = H - 62;
@@ -413,7 +417,7 @@ function drawSelect() {
   });
   txt(`P1: A/D 이동 · Q 선택 · E 취소      P2: 4/6 이동 · 7 선택 · 9 취소`, W / 2, 500, 15, '#aab');
   if (sel[0].done && sel[1].done) txt('Enter 또는 Space 로 시작!', W / 2, 525, 20, '#ffd866');
-  else txt('조작: 앞/뒤 이동 · 스킬 3개 (P1 Q W E / P2 넘버패드 7 8 9)', W / 2, 525, 15, '#889');
+  else txt('조작: 좌/우 이동 · 점프(P1 S / P2 5) · 스킬 3개 (P1 Q W E / P2 넘버패드 7 8 9)', W / 2, 525, 15, '#889');
 }
 function drawOver() {
   ctx.fillStyle = '#000a'; ctx.fillRect(0, 0, W, H);
