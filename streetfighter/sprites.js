@@ -1,15 +1,15 @@
 // 레트로 도트 스프라이트 (코드로 그림). 40x40 픽셀, 오른쪽을 바라봄.
 // 프레임: 0 대기, 1 대기2, 2 준비동작, 3 타격, 4 마무리
 const SF = (() => {
-  const W = 40, H = 40;
+  const W = 56, H = 40, OX = 8;
   const FRAMES = ['대기', '대기2', '준비', '타격', '마무리'];
   const LEAN = [0, 0, -2, 3, 1];
-  const HAND = [[6, 9], [6, 10], [-3, -8], [14, 2], [9, 7]];
+  const HAND = [[6, 9], [6, 10], [-9, -1], [14, 2], [9, 7]];
   const BACK = [[-5, 9], [-5, 10], [-6, 6], [-4, 6], [-5, 8]];
-  const WDIR = [[1, 3], [1, 3], [-1, -4], [4, 0], [2, 2]];
+  const WDIR = [[1, 3], [1, 3], [-2, -3], [4, 0], [2, 2]];
 
   const mk = () => new Array(W * H).fill(null);
-  const px = (g, x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < W && y < H) g[y * W + x] = c; };
+  const px = (g, x, y, c) => { x = Math.round(x) + OX; y = Math.round(y); if (x >= 0 && y >= 0 && x < W && y < H) g[y * W + x] = c; };
   const rect = (g, x, y, w, h, c) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) px(g, x + i, y + j, c); };
   const ell = (g, cx, cy, rx, ry, c) => {
     for (let y = -ry; y <= ry; y++) for (let x = -rx; x <= rx; x++)
@@ -232,5 +232,13 @@ const SF = (() => {
     }
     ctx.restore();
   };
-  return { W, H, FRAMES, CHARS, draw };
+  const cache = {};
+  const canvas = (ch, f) => {
+    const k = ch.id + f; if (cache[k]) return cache[k];
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d'), g = frame(ch, f);
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const col = g[j * W + i]; if (col) { x.fillStyle = col; x.fillRect(i, j, 1, 1); } }
+    return cache[k] = c;
+  };
+  return { W, H, CX: 20 + OX, FRAMES, CHARS, draw, canvas };
 })();
