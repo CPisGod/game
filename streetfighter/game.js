@@ -154,10 +154,10 @@ const SKILLS = {
         else { f.dance = false; f.x = tx + (f.vars.x0 > tx ? 1 : -1) * 50 * p; f.z = 150 * (1 - p); } },
       onActive(f) { const d = foe(f); if (Math.abs(d.x - f.x) < 460) { d.st.confuse = Math.max(d.st.confuse, 1.8); fx.push({ k: 'text', x: d.x, y: GROUND - 200, text: '♪♬', t: 0, life: 1 }); } },
       onRec(f) { f.untouch = false; f.z = 0; f.dance = false; } },
-    { name: '떨어지는 척', cd: 1, startup: .45, active: .25, rec: .3,
-      onStart(f) { f.vars.x0 = f.x; f.untouch = true; f.ghost = false; },
+    { name: '떨어지는 척', cd: 1, startup: .8, active: .25, rec: .3,
+      onStart(f) { f.vars.x0 = f.x; f.untouch = true; f.ghost = false; f.vars.tx = Math.max(MINX, Math.min(MAXX, foe(f).x)); },
       tick(f, ph, p) { const tr = trees.find(t => t.owner === f.side); const tx = tr ? tr.x : f.x;
-        if (ph === 'startup') { f.x = f.vars.x0 + (tx - f.vars.x0) * Math.min(1, p * 1.6); f.z = 520 * p; f.ghost = p > .5; f.vars.tx = foe(f).x; }
+        if (ph === 'startup') { f.x = f.vars.x0 + (tx - f.vars.x0) * Math.min(1, p * 1.6); f.z = 520 * p; f.ghost = p > .3; }
         else if (ph === 'active') { f.ghost = false; const tx2 = f.vars.tx; f.x = tx + (tx2 - tx) * p; f.z = 520 * (1 - p * p); }
         else f.z = 0; },
       onRec(f) { f.untouch = false; f.z = 0; f.ghost = false; shake = 7; fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .3, col: '#ffffff' });
@@ -310,6 +310,15 @@ function drawTree(t) {
   ctx.fillStyle = '#ffe135'; [[-36, -235], [26, -265], [48, -222]].forEach(([dx, dy]) => ctx.fillRect(x + dx, b + dy, 14, 18));
   ctx.restore();
 }
+function drawLandingMark(f) {
+  if (!f.act || f.act.sk.name !== '떨어지는 척' || f.act.ph === 'rec' || f.vars.tx === undefined) return;
+  const x = f.vars.tx, sk = f.act.sk, left = Math.max(0, sk.startup + sk.active - f.act.t);
+  const blink = left < .4 ? Math.floor(time * 16) % 2 : 1;
+  ctx.save(); ctx.globalAlpha = blink ? .85 : .35;
+  ctx.fillStyle = '#ff3b30'; ctx.beginPath(); ctx.ellipse(x, GROUND + 6, 95, 17, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, GROUND + 6, 95 * (.25 + .75 * left / (sk.startup + sk.active)), 17 * (.25 + .75 * left / (sk.startup + sk.active)), 0, 0, 7); ctx.stroke();
+  ctx.restore(); txt('!', x, GROUND - 14, 34, '#ff3b30');
+}
 function drawFighter(f) {
   if (f.dead && f.dead > 1) return;
   const sw = SF.W * SC, sh = SF.H * SC;
@@ -432,6 +441,7 @@ function render() {
   drawStage();
   trees.forEach(drawTree);
   traps.forEach(drawTrap);
+  fighters.forEach(drawLandingMark);
   [...fighters].sort((a, b) => a.z - b.z).forEach(drawFighter);
   projs.forEach(drawProj);
   fx.forEach(drawFx);
