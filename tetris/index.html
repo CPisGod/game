@@ -118,7 +118,7 @@ function spawn(type) {
   pieces++;
   if (collide(cur)) {                         // 쌓임 → 젠 모드: 보드를 비우고 계속
     popups.push({ t: '보드 리셋', x: BX + W * CELL / 2, y: BY + 8 * CELL, life: 1.4, max: 1.4, c: '#ff6b6b', s: 30 });
-    for (let y = 0; y < H + HID; y++) for (let x = 0; x < W; x++) if (board[y][x]) burst(x, y - HID, board[y][x], 2);
+    for (let y = 0; y < H + HID; y++) for (let x = 0; x < W; x++) if (board[y][x]) burst(x, y - HID, board[y][x].t, 2);
     board = Array.from({ length: H + HID }, () => Array(W).fill(null));
     shake = 14; combo = -1; b2b = false;
     cur.y = type === 'I' ? HID - 1 : HID - 2;
@@ -127,7 +127,7 @@ function spawn(type) {
 
 function cells(p, rot = p.rot, x = p.x, y = p.y) {
   const m = ROT[p.type][rot], out = [];
-  for (let r = 0; r < m.length; r++) for (let c = 0; c < m.length; c++) if (m[r][c]) out.push([x + c, y + r]);
+  for (let r = 0; r < m.length; r++) for (let c = 0; c < m.length; c++) if (m[r][c]) out.push([x + c, y + r, c, r]);
   return out;
 }
 function collide(p, rot = p.rot, x = p.x, y = p.y) {
@@ -189,7 +189,7 @@ function tSpinKind() {
 
 function lock() {
   const spin = tSpinKind();
-  for (const [cx, cy] of cells(cur)) if (cy >= 0) board[cy][cx] = cur.type;
+  for (const [cx, cy, c, r] of cells(cur)) if (cy >= 0) board[cy][cx] = { t: cur.type, rot: cur.rot, c, r };
   const full = [];
   for (let y = 0; y < H + HID; y++) if (board[y].every(Boolean)) full.push(y);
   if (full.length) clearLines(full, spin);
@@ -205,7 +205,7 @@ function clearLines(full, spin) {
   const n = full.length;
   for (const y of full) {
     effects.push({ y: y - HID, t: 0, row: board[y].slice() });
-    for (let x = 0; x < W; x++) burst(x, y - HID, board[y][x], 4);
+    for (let x = 0; x < W; x++) burst(x, y - HID, board[y][x].t, 4);
   }
   board = board.filter((_, y) => !full.includes(y));
   while (board.length < H + HID) board.unshift(Array(W).fill(null));
@@ -324,8 +324,16 @@ function shade(hex, amt) {
   const f = v => Math.max(0, Math.min(255, v + amt));
   return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
 }
-function drawCell(px, py, type, size = CELL, alpha = 1) {
+const atlas = new Image(); let atlasReady = false;
+atlas.onload = () => { atlasReady = true; }; atlas.src = 'atlas.png';
+const ATLAS_ROW = { I: 0, O: 1, T: 2, S: 3, Z: 4, J: 5, L: 6 };   // atlas.png: 행=미노, 열=회전(0~3), 한 칸 64px, 미노당 4x4칸
+function drawCell(px, py, type, size = CELL, alpha = 1, rot = 0, mc = 0, mr = 0) {
   const c = COLORS[type]; ctx.globalAlpha = alpha;
+  if (atlasReady) {
+    ctx.fillStyle = c + '59'; ctx.fillRect(px, py, size, size);
+    ctx.drawImage(atlas, rot * 256 + mc * 64, ATLAS_ROW[type] * 256 + mr * 64, 64, 64, px, py, size, size);
+    ctx.globalAlpha = 1; return;
+  }
   ctx.fillStyle = shade(c, -40); ctx.fillRect(px, py, size, size);
   ctx.fillStyle = c; ctx.fillRect(px + 2, py + 2, size - 4, size - 4);
   ctx.fillStyle = shade(c, 70); ctx.fillRect(px + 2, py + 2, size - 4, Math.max(2, size * .12));
@@ -342,7 +350,7 @@ function drawMini(type, cx, cy, size) {
   let minX = 9, maxX = -1, minY = 9, maxY = -1;
   m.forEach((row, r) => row.forEach((v, c) => { if (v) { minX = Math.min(minX, c); maxX = Math.max(maxX, c); minY = Math.min(minY, r); maxY = Math.max(maxY, r); } }));
   const w = (maxX - minX + 1) * size, h = (maxY - minY + 1) * size;
-  m.forEach((row, r) => row.forEach((v, c) => { if (v) drawCell(cx - w / 2 + (c - minX) * size, cy - h / 2 + (r - minY) * size, type, size); }));
+  m.forEach((row, r) => row.forEach((v, c) => { if (v) drawCell(cx - w / 2 + (c - minX) * size, cy - h / 2 + (r - minY) * size, type, size, 1, 0, c, r); }));
 }
 function label(t, x, y, c = '#8b93a1', size = 14, align = 'left') {
   ctx.fillStyle = c; ctx.font = `700 ${size}px "Noto Sans KR", system-ui, sans-serif`; ctx.textAlign = align; ctx.fillText(t, x, y);
@@ -383,13 +391,13 @@ function draw() {
   ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.strokeRect(BX - 1, BY - 1, W * CELL + 2, H * CELL + 2);
 
   ctx.save(); ctx.beginPath(); ctx.rect(BX, BY - 2 * CELL, W * CELL, H * CELL + 2 * CELL); ctx.clip();
-  for (let y = 0; y < H + HID; y++) for (let x = 0; x < W; x++) if (board[y][x]) drawCell(BX + x * CELL, BY + (y - HID) * CELL, board[y][x]);
+  for (let y = 0; y < H + HID; y++) for (let x = 0; x < W; x++) { const b = board[y][x]; if (b) drawCell(BX + x * CELL, BY + (y - HID) * CELL, b.t, CELL, 1, b.rot, b.c, b.r); }
 
   // 고스트(컬러) + 현재 미노
   const gy = ghostY();
   for (const [cx, cy] of cells(cur, cur.rot, cur.x, gy)) drawGhost(BX + cx * CELL, BY + (cy - HID) * CELL, cur.type);
   const lockFade = onGround() ? 1 - 0.35 * Math.min(1, lockTimer / 500) : 1;
-  for (const [cx, cy] of cells(cur)) drawCell(BX + cx * CELL, BY + (cy - HID) * CELL, cur.type, CELL, lockFade);
+  for (const [cx, cy, c, r] of cells(cur)) drawCell(BX + cx * CELL, BY + (cy - HID) * CELL, cur.type, CELL, lockFade, cur.rot, c, r);
 
   // 줄 지우기 이펙트
   for (const e of effects) {
