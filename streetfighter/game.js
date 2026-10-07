@@ -146,7 +146,7 @@ const SKILLS = {
     { name: '가시목털 함정', poses: ['spike_wind','spike_go','throw_rec'], cd: 15, startup: .3, active: .1, rec: .3, ...putTrap('thorn', 260, 10, 13, { slow: 2, kb: 60 }, 2) },
   ],
   monkey: [
-    { name: '떨어지는 척', poses: ['climb','fall','land'], cd: 1.7, startup: .8, active: .25, rec: 1,
+    { name: '떨어지는 척', poses: ['climb','fall','land'], cd: 1.7, startup: .8, active: .25, rec: .7,
       onStart(f) { f.vars.x0 = f.x; f.untouch = true; f.ghost = false; f.vars.tx = Math.max(MINX, Math.min(MAXX, foe(f).x)); },
       tick(f, ph, p) { const tr = trees.find(t => t.owner === f.side); const tx = tr ? tr.x : f.x;
         if (ph === 'startup') { f.x = f.vars.x0 + (tx - f.vars.x0) * Math.min(1, p * 1.6); f.z = 520 * p; f.ghost = p > .3; }
