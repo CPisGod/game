@@ -1,7 +1,7 @@
 (() => {
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 ctx.imageSmoothingEnabled = false;
-const W = 960, H = 540, GROUND = 470, SC = 5, MINX = 70, MAXX = 890;
+const W = 960, H = 600, GROUND = 470, SC = 5, MINX = 70, MAXX = 890;
 const FONT = '"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
 
 // ───────── 입력 ─────────
@@ -452,10 +452,10 @@ function drawHUD() {
     const nx = f.idx === 0 ? f.picks[1] : null;
     if (nx) { txt('다음', left ? bx + 20 : bx + bw - 20, by + 46, 13, '#aaa'); const im = SF.canvas(SPR[nx], 0); ctx.drawImage(im, left ? bx + 30 : bx + bw - 30 - SF.W, by + 30, SF.W, SF.H); txt(CH[nx].name, left ? bx + 110 : bx + bw - 110, by + 50, 14, '#ddd', left ? 'left' : 'right'); }
     else txt('마지막 캐릭터!', left ? bx : bx + bw, by + 46, 14, '#ff9a8a', left ? 'left' : 'right');
-    txt(`점프 ${KEYS[i].jlabel}`, left ? 30 : W - 150, H - 74, 13, '#9fd0ff', left ? 'left' : 'right');
+    txt(`점프 ${KEYS[i].jlabel}`, left ? 30 : W - 30, H - 122, 13, '#9fd0ff', left ? 'left' : 'right');
     // 스킬 쿨타임
     SKILLS[f.kind].forEach((sk, j) => {
-      const sx = (left ? 30 : W - 150 - 3 * 126 - 2 * 6) + j * 132, sy = H - 62;
+      const sx = (left ? 30 : W - 30 - 3 * 126 - 2 * 6) + j * 132, sy = H - 110;
       ctx.fillStyle = '#000b'; ctx.fillRect(sx, sy, 126, 46);
       const ready = f.cd[j] <= 0; ctx.fillStyle = ready ? '#2f6bff' : '#444'; ctx.fillRect(sx, sy, 34, 46);
       txt(KEYS[i].label[j], sx + 17, sy + 23, 22, '#fff');
