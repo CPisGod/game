@@ -299,7 +299,7 @@ const SF = (() => {
     { id: 'buta', name: '부타', fn: buta, poses: ['idle', 'idle2', 'fart_wind', 'fart_go', 'fart_rec', 'stomp_wind', 'stomp_air', 'stomp_land', 'pout1', 'pout2', 'hurt'] },
     { id: 'chuk', name: '척추', fn: chuk, poses: ['idle', 'idle2', 'windup', 'strike', 'recover', 'spine_wind', 'throw_go', 'throw_rec', 'spike_wind', 'spike_go', 'hurt'] },
     { id: 'monkey', name: '원숭이', fn: monkey, poses: ['idle', 'idle2', 'climb', 'dance1', 'dance2', 'dance3', 'fall', 'land', 'banana_wind', 'throw_go', 'hurt'] },
-    { id: 'apple', name: '초록사과나무', fn: apple, poses: ['idle', 'idle2', 'apple_wind', 'throw_go', 'sing_in', 'sing', 'sing_out', 'windup', 'strike', 'recover', 'hurt'] },
+    { id: 'apple', name: '청사과나무', fn: apple, poses: ['idle', 'idle2', 'apple_wind', 'throw_go', 'sing_in', 'sing', 'sing_out', 'windup', 'strike', 'recover', 'hurt'] },
     { id: 'baker', name: '제빵사', fn: baker, poses: ['idle', 'idle2', 'yeast_wind', 'throw_go', 'lecture1', 'lecture2', 'lecture3', 'windup', 'strike', 'recover', 'hurt'] },
   ];
 
