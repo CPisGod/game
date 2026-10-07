@@ -169,7 +169,7 @@ const SF = (() => {
     else if (name === 'yeast') { rect(g, hx - 2, hy - 8, 6, 8, '#e8d29a'); rect(g, hx - 2, hy - 8, 6, 2, '#d8452e'); rect(g, hx, hy - 5, 2, 2, '#8a6a2a'); }
     else if (name === 'spikes') { [[-3, 0], [0, -2], [3, 0]].forEach(([dx, dy]) => tri(g, hx + dx - 2, hy + 2 + dy, hx + dx, hy - 6 + dy, hx + dx + 2, hy + 2 + dy, '#d8452e')); rect(g, hx - 4, hy + 1, 8, 2, '#a02a1a'); }
     else if (name === 'flag') {
-      const [dx, dy] = P.wdir, m = Math.hypot(dx, dy), ex = hx + dx / m * 20, ey = hy + dy / m * 20;
+      const [dx, dy] = P.wdir, m = Math.hypot(dx, dy), ex = hx + dx / m * 16, ey = hy + dy / m * 16;
       line(g, hx - dx / m * 2, hy - dy / m * 2, ex, ey, '#8a6a3a', 2);
       const fx = dx >= 3 ? Math.round(ex) - 12 : Math.round(ex) + 1, fy = dx >= 3 ? Math.round(ey) + 1 : Math.round(ey);
       rect(g, fx, fy, 12, 8, '#de2910'); rect(g, fx, fy + 7, 12, 1, '#a81d08');
@@ -375,10 +375,18 @@ const SF = (() => {
     rect(g, cx, 18 + b, 1, 14, GOLD); [20, 24, 28].forEach(y => rect(g, cx - 1, y + b, 3, 1, GOLD));
     rect(g, cx - 3, 16 + b, 7, 2, GOLD);
     ell(g, cx + 1, 11 + b, 7, 6, SK);
-    ell(g, cx + 1, 6 + b, 7, 3, HAIR); rect(g, cx - 6, 7 + b, 3, 5, HAIR); rect(g, cx + 1, 7 + b, 8, 1, HAIR);
+    if (!P.hat) { // 변발(기본): 앞머리를 밀고 뒤로 땋은 머리
+      ell(g, cx - 2, 7 + b, 5, 3, HAIR); rect(g, cx - 6, 8 + b, 3, 5, HAIR);
+      line(g, cx - 6, 11 + b, cx - 10, 17 + b, HAIR, 2); line(g, cx - 10, 17 + b, cx - 9, 26 + b, HAIR, 2); rect(g, cx - 10, 26 + b, 3, 2, '#d8281c');
+    } else { ell(g, cx + 1, 6 + b, 7, 3, HAIR); rect(g, cx - 6, 7 + b, 3, 5, HAIR); rect(g, cx + 1, 7 + b, 8, 1, HAIR); }
     eye(g, cx + 1, 10 + b, false); eye(g, cx + 5, 10 + b, false, true);
     if (P.mouth) mouth(g, cx + 2, 15 + b); else rect(g, cx + 3, 15 + b, 3, 1, '#a0522d');
     if (P.expr === 'angry') { rect(g, cx, 8 + b, 4, 1, HAIR); rect(g, cx + 5, 8 + b, 4, 1, HAIR); }
+    if (P.hat) { // 삿갓
+      tri(g, cx + 1, 0 + b, cx - 12, 8 + b, cx + 14, 8 + b, '#d9b868'); rect(g, cx - 12, 8 + b, 27, 1, '#b8924a');
+      line(g, cx - 3, 5 + b, cx - 8, 8 + b, '#b8924a', 1); line(g, cx + 1, 2 + b, cx + 1, 8 + b, '#b8924a', 1); line(g, cx + 5, 5 + b, cx + 11, 8 + b, '#b8924a', 1);
+      rect(g, cx - 5, 9 + b, 1, 7, '#8a2a1a'); rect(g, cx + 7, 9 + b, 1, 7, '#8a2a1a');
+    }
     const h = frontArm(g, cx, sx, sy, RED, SK);
     if (h) prop(g, held('flag'), h[0], h[1]);
     slash(g, sx, sy);
@@ -500,6 +508,10 @@ const SF = (() => {
     { id: 'baker', name: '제빵사', fn: baker, poses: ['idle', 'idle2', 'yeast_wind', 'throw_go', 'lecture1', 'lecture2', 'lecture3', 'windup', 'strike', 'recover', 'hurt'] },
   ];
 
+  const VARIANTS = [
+    { id: 'chinese_q', name: '중국인(변발)', fn: chinese, over: { idle: { queue: true, wdir: [1, -6] }, strike: { queue: true }, refuse2: { queue: true } }, poses: ['idle', 'strike', 'refuse2'] },
+    { id: 'chinese_h', name: '중국인(삿갓)', fn: chinese, over: { idle: { hat: true, wdir: [1, -6] }, strike: { hat: true }, refuse2: { hat: true } }, poses: ['idle', 'strike', 'refuse2'] },
+  ];
   const NEWCHARS = [
     { id: 'chinese', name: '중국인', fn: chinese, over: { idle: { wdir: [1, -6] }, idle2: { wdir: [1, -6] }, recover: { wdir: [2, -4] } }, poses: ['idle', 'idle2', 'windup', 'strike', 'recover', 'noodle_wind', 'throw_go', 'throw_rec', 'refuse1', 'refuse2', 'refuse3', 'hurt'] },
     { id: 'hotbar', name: '핫바', fn: hotbar, poses: ['idle', 'idle2', 'poke_wind', 'poke_go', 'poke_rec', 'skewer_wind', 'skewer_go', 'skewer_rec', 'micro1', 'micro2', 'micro3', 'hurt'] },
@@ -521,5 +533,5 @@ const SF = (() => {
     for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const col = g[j * W + i]; if (col) { x.fillStyle = col; x.fillRect(i, j, 1, 1); } }
     return cache[k] = c;
   };
-  return { W, H, CX: 20 + OX, CHARS, NEWCHARS, canvas, effect, FX: Object.keys(fxList) };
+  return { W, H, CX: 20 + OX, CHARS: CHARS.concat(NEWCHARS), NEWCHARS, VARIANTS, canvas, effect, FX: Object.keys(fxList) };
 })();

@@ -25,6 +25,10 @@ const CH = {
   monkey: { name: '원숭이',       hp: 100, speed: 645 },
   apple:  { name: '청사과나무', hp: 125, speed: 345 },
   baker:  { name: '제빵사',       hp: 100, speed: 480 },
+  chinese: { name: '중국인',       hp: 105, speed: 450 },
+  hotbar:  { name: '핫바',         hp: 100, speed: 480 },
+  tissue:  { name: '곽티슈',       hp: 90,  speed: 510 },
+  devil:   { name: '미술의 악마',  hp: 100, speed: 470 },
 };
 const SPR = {}; SF.CHARS.forEach(c => SPR[c.id] = c);
 
@@ -40,8 +44,8 @@ function onPress(code) {
   if (phase === 'select') {
     sel.forEach((s, i) => {
       const k = KEYS[i]; if (s.done) return;
-      if (code === k.left) s.cur = (s.cur + 4) % 5;
-      else if (code === k.right) s.cur = (s.cur + 1) % 5;
+      if (code === k.left) s.cur = (s.cur + ORDER.length - 1) % ORDER.length;
+      else if (code === k.right) s.cur = (s.cur + 1) % ORDER.length;
       else if (code === k.ok) { s.picks.push(ORDER[s.cur]); if (s.picks.length === 2) s.done = true; }
       else if (code === k.s[2] && s.picks.length) s.picks.pop();
     });
@@ -54,13 +58,13 @@ function onPress(code) {
 // ───────── 파이터 ─────────
 function mkFighter(side, picks) {
   const f = { side, picks, idx: 0, x: side ? 720 : 240, z: 0, vx: 0, face: side ? -1 : 1, hp: 0, maxhp: 0, kind: '',
-    act: null, t: 0, cd: [0, 0, 0], st: { stun: 0, confuse: 0, blind: 0, slow: 0, defdown: 0, pity: 0 },
+    act: null, t: 0, cd: [0, 0, 0], st: { stun: 0, confuse: 0, blind: 0, slow: 0, defdown: 0, pity: 0, weak: 0, lure: 0 }, micro: 0, microBy: 0, lureBy: 0,
     hurt: 0, inv: 0, jt: -1, ghost: false, dead: 0, flash: 0, vars: {}, anim: 0, dance: false };
   loadChar(f); return f;
 }
 function loadChar(f) {
   f.kind = f.picks[f.idx]; f.maxhp = f.hp = CH[f.kind].hp; f.act = null; f.cd = [0, 0, 0]; f.z = 0;
-  f.hurt = 0; f.jt = -1; f.inv = 1.2; f.dead = 0; f.dance = false; f.ghost = false;
+  f.hurt = 0; f.jt = -1; f.micro = 0; f.inv = 1.2; f.dead = 0; f.dance = false; f.ghost = false;
   for (const k in f.st) f.st[k] = 0;
   if (f.kind === 'monkey') growTree(f, true);
 }
@@ -85,8 +89,9 @@ const speedOf = f => CH[f.kind].speed * (f.st.slow > 0 ? 0.5 : 1);
 // ───────── 데미지/상태 ─────────
 function addFloat(x, y, text, col) { floats.push({ x, y, text, col, t: 0 }); }
 function hit(a, d, dmg, o = {}) {
-  if (d.dead || d.inv > 0 || d.untouch) return false;
+  if (d.dead || d.inv > 0 || d.untouch || d.micro > 0) return false;
   if (a.st.blind > 0) dmg *= 0.5;
+  if (a.st.weak > 0) dmg *= 0.75;
   if (a.st.pity > 0) dmg *= 0.7;
   if (d.st.defdown > 0) dmg *= 1.3;
   dmg = Math.round(dmg);
@@ -179,6 +184,39 @@ const SKILLS = {
       onActive(f) { const d = foe(f); if (Math.abs(d.x - f.x) < 440 && !d.untouch) { d.st.confuse = Math.max(d.st.confuse, 3); }
         fx.push({ k: 'math', x: d.x, y: GROUND - 220, t: 0, life: 1.4 }); } },
   ],
+  chinese: [
+    { name: '중국 국기 휘날리기', poses: ['windup','strike','recover'], cd: 1, startup: .26, active: .12, rec: .34, ...melee(175, 8, 110) },
+    { name: '짜장면 던지기', poses: ['noodle_wind','throw_go','throw_rec'], cd: 4, startup: .28, active: .1, rec: .3, ...shoot({ kind: 'noodle', speed: 390, dmg: 11, w: 36, h: 90, life: 1.9, opts: { kb: 70 } }) },
+    { name: '야자 거부', poses: ['refuse1','refuse2','refuse3'], cd: 14, startup: .5, active: .25, rec: .35,
+      onActive(f) { const d = foe(f); if (d.untouch || d.micro > 0) return;
+        const t = d.kind === 'apple' ? 2 : 1; d.st.stun = Math.max(d.st.stun, t); d.act = null; d.dance = false; d.vx = 0; d.jt = -1; d.z = 0; d.hurt = 0;
+        fx.push({ k: 'text', x: d.x, y: GROUND - 215, text: d.kind === 'apple' ? '야자 거부?! (충격 x2)' : '야자 거부?!', t: 0, life: 1.1 });
+        fx.push({ k: 'ring', x: d.x, y: GROUND, t: 0, life: .4, col: '#ffd23f' }); shake = Math.max(shake, 5); } },
+  ],
+  hotbar: [
+    { name: '지건', poses: ['poke_wind','poke_go','poke_rec'], cd: 1, startup: .2, active: .1, rec: .3, ...melee(150, 8, 70) },
+    { name: '꼬치 날리기', poses: ['skewer_wind','skewer_go','skewer_rec'], cd: 3.5, startup: .28, active: .1, rec: .3, ...shoot({ kind: 'skewer', speed: 640, dmg: 13, w: 30, h: 95, life: 1.6, opts: { kb: 90 } }) },
+    { name: '전자레인지', poses: ['micro1','micro2','micro3'], cd: 14, startup: .45, active: .25, rec: .4,
+      onActive(f) { const d = foe(f); if (d.untouch || d.micro > 0) return;
+        d.micro = 2; d.microBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.vx = 0; d.hurt = 0; d.st.stun = 0;
+        fx.push({ k: 'ring', x: d.x, y: GROUND, t: 0, life: .35, col: '#ffb347' }); } },
+  ],
+  tissue: [
+    { name: '곽티슈로 찌르기', poses: ['windup','strike','recover'], cd: 1, startup: .24, active: .12, rec: .34, ...melee(165, 8, 80) },
+    { name: '곽티슈 뭉쳐 날리기', poses: ['tball_wind','throw_go','throw_rec'], cd: 2.2, startup: .25, active: .1, rec: .3, ...shoot({ kind: 'tball', speed: 430, dmg: 9, w: 28, h: 95, life: 1.7, opts: { kb: 60 } }) },
+    { name: '유혹하기', poses: ['seduce1','seduce2','seduce3'], cd: 12, startup: .4, active: .3, rec: .3,
+      onActive(f) { const d = foe(f); if (d.untouch || d.micro > 0) return;
+        d.st.lure = 1.3; d.lureBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.hurt = 0;
+        for (let i = 0; i < 4; i++) fx.push({ k: 'sprite', name: 'heart', x: d.x + (i - 1.5) * 26, y: GROUND - 170 - i * 8, t: -i * .08, life: 1, scale: 4, rise: 50 }); } },
+  ],
+  devil: [
+    { name: '캔버스 후려치기', poses: ['windup','strike','recover'], cd: 1, startup: .28, active: .12, rec: .36, ...melee(150, 8, 130) },
+    { name: '조각칼 날리기', poses: ['knife_wind','throw_go','throw_rec'], cd: 3.5, startup: .26, active: .1, rec: .3, ...shoot({ kind: 'chisel', speed: 680, dmg: 13, w: 24, h: 95, life: 1.5, opts: { kb: 90 } }) },
+    { name: '성취도 B', poses: ['grade1','grade2','grade3'], cd: 12, startup: .45, active: .45, rec: .3,
+      onActive(f) { const d = foe(f); if (d.untouch || d.micro > 0) return;
+        d.st.slow = Math.max(d.st.slow, 4); d.st.weak = Math.max(d.st.weak, 4);
+        fx.push({ k: 'sprite', name: 'bstamp', x: d.x, y: GROUND - 120, t: 0, life: 1.2, scale: 7, rise: 0 }); shake = Math.max(shake, 4); } },
+  ],
 };
 
 function tryUse(f, i) {
@@ -220,7 +258,17 @@ function update(dt) {
       }
       return;
     }
-    if (f.hurt > 0) { f.hurt -= dt; f.x += f.vx * dt; f.vx *= .9; if (f.hurt <= 0) f.vx = 0; }
+    if (f.micro > 0) {
+      f.micro -= dt; f.walk = false; f.vx = 0; f.act = null;
+      if (f.micro <= 0) { f.micro = 0; const by = fighters[f.microBy];
+        fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .4, col: '#ff6a2a' }); fx.push({ k: 'text', x: f.x, y: GROUND - 220, text: '띵!', t: 0, life: .9 });
+        hit(by, f, 14, { kb: 0 }); }
+    }
+    else if (f.hurt > 0) { f.hurt -= dt; f.x += f.vx * dt; f.vx *= .9; if (f.hurt <= 0) f.vx = 0; }
+    else if (f.st.lure > 0) {
+      const tg = fighters[f.lureBy], dx = tg.x - f.x; f.act = null; f.dance = false; f.jt = -1; f.z = 0; f.walk = true;
+      if (Math.abs(dx) > 85) f.x += Math.sign(dx) * Math.min(Math.abs(dx) - 85, 850 * dt); else f.st.lure = 0;
+    }
     else if (f.act) { updateAct(f, dt); }
     else if (f.st.stun > 0) { /* 기절 */ }
     else if (!(banner && banner.t > .3)) {
@@ -251,7 +299,8 @@ function update(dt) {
   projs.forEach(p => {
     p.t += dt; p.x += p.vx * dt; p.life -= dt;
     const d = fighters[1 - p.owner];
-    if (!p.hitDone && !d.dead && Math.abs(p.x - d.x) < 40 + p.w / 2 && d.z < p.hz) {
+    if (d.micro > 0 && Math.abs(p.x - d.x) < 110) { p.life = 0; fx.push({ k: 'ring', x: p.x, y: GROUND - p.h, t: 0, life: .2, col: '#ffffff' }); }
+    else if (!p.hitDone && !d.dead && Math.abs(p.x - d.x) < 40 + p.w / 2 && d.z < p.hz) {
       const att = fighters[p.owner];
       if (hit(att, d, p.dmg, p.opts)) { if (!p.pierce) p.hitDone = true; }
       if (p.hitDone) p.life = 0;
@@ -283,9 +332,9 @@ function update(dt) {
 }
 
 // ───────── 그리기 ─────────
-function txt(s, x, y, size, col, align = 'center', bold = true) {
+function txt(s, x, y, size, col, align = 'center', bold = true, maxW) {
   ctx.font = `${bold ? '700 ' : ''}${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#000'; ctx.fillText(s, x + 2, y + 2); ctx.fillStyle = col; ctx.fillText(s, x, y);
+  ctx.fillStyle = '#000'; maxW ? ctx.fillText(s, x + 2, y + 2, maxW) : ctx.fillText(s, x + 2, y + 2); ctx.fillStyle = col; maxW ? ctx.fillText(s, x, y, maxW) : ctx.fillText(s, x, y);
 }
 function drawStage() {
   const g = ctx.createLinearGradient(0, 0, 0, GROUND);
@@ -341,6 +390,11 @@ function drawFighter(f) {
   if (f.face < 0) ctx.scale(-1, 1);
   ctx.drawImage(img, -cx, 0, sw, sh);
   ctx.restore();
+  if (f.micro > 0) {
+    const im = SF.effect('microwave'), sc = 8, w = im.width * sc, h = im.height * sc;
+    ctx.save(); ctx.globalAlpha = .55; ctx.drawImage(im, f.x - w / 2, GROUND + 8 - h, w, h); ctx.restore();
+    ctx.fillStyle = `rgba(255,150,40,${0.10 + 0.08 * Math.sin(time * 20)})`; ctx.fillRect(f.x - w / 2 + 16, GROUND + 8 - h + 24, w - 90, h - 70);
+  }
   // 상태 아이콘
   const tags = [];
   if (f.st.stun > 0) tags.push(['기절', '#ffd23f']);
@@ -349,6 +403,9 @@ function drawFighter(f) {
   if (f.st.slow > 0) tags.push(['둔화', '#6ec6ff']);
   if (f.st.defdown > 0) tags.push(['방어↓', '#ff7a7a']);
   if (f.st.pity > 0) tags.push(['동정', '#ffa6c9']);
+  if (f.st.weak > 0) tags.push(['약화', '#b0b0ff']);
+  if (f.st.lure > 0) tags.push(['유혹', '#ff7aa8']);
+  if (f.micro > 0) tags.push(['가둠', '#ffb347']);
   tags.forEach((t, i) => txt(t[0], f.x, y - 12 - i * 18, 14, t[1]));
   if (f.st.stun > 0) for (let i = 0; i < 3; i++) { const a = f.anim * 6 + i * 2.1; ctx.fillStyle = '#ffe066'; ctx.fillRect(f.x + Math.cos(a) * 34 - 4, y + 18 + Math.sin(a) * 8 - 4, 8, 8); }
 }
@@ -357,6 +414,11 @@ function drawProj(p) {
   if (p.kind === 'gas') { for (let i = 0; i < 4; i++) { ctx.fillStyle = ['#9be34a', '#6cc02d', '#c8f27a', '#7fd13a'][i]; const r = 14 + Math.sin(p.t * 8 + i) * 4; ctx.beginPath(); ctx.arc(x - i * 14 * Math.sign(p.vx), y + Math.sin(p.t * 6 + i * 2) * 6, r, 0, 7); ctx.fill(); } }
   else if (p.kind === 'apple') { ctx.fillStyle = '#6fb81f'; ctx.beginPath(); ctx.arc(x, y, 14, 0, 7); ctx.fill(); ctx.fillStyle = '#c4f060'; ctx.fillRect(x - 8, y - 8, 6, 6); ctx.fillStyle = '#5e3a18'; ctx.fillRect(x - 1, y - 20, 4, 8); }
   else if (p.kind === 'yeast') { for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? '#f1e2b0' : '#d8c38a'; ctx.fillRect(x - i * 7 * Math.sign(p.vx) - 5, y + Math.sin(p.t * 20 + i) * 10 - 5, 10, 10); } }
+  else if (['noodle', 'skewer', 'tball', 'chisel'].includes(p.kind)) {
+    const im = SF.effect(p.kind), sc = 3; ctx.save(); ctx.translate(x, y); if (p.vx < 0) ctx.scale(-1, 1);
+    if (p.kind === 'tball' || p.kind === 'noodle') ctx.rotate(p.t * 10);
+    ctx.drawImage(im, -im.width * sc / 2, -im.height * sc / 2, im.width * sc, im.height * sc); ctx.restore();
+  }
   else if (p.kind === 'peel') { ctx.save(); ctx.translate(x, y); ctx.rotate(p.t * 14); ctx.fillStyle = '#ffe135'; ctx.fillRect(-16, -5, 32, 10); ctx.fillStyle = '#f2c200'; ctx.fillRect(-12, 1, 24, 4); ctx.fillStyle = '#6e5a10'; ctx.fillRect(14, -7, 6, 6); ctx.restore(); }
   else if (p.kind === 'spine') { ctx.save(); ctx.translate(x, y); ctx.rotate(p.t * 18 * Math.sign(p.vx));
     for (let i = -3; i <= 3; i++) { ctx.fillStyle = i % 2 ? '#f3ecd2' : '#fffbe6'; ctx.fillRect(i * 9 - 5, -6, 10, 12); ctx.fillStyle = '#b9ad84'; ctx.fillRect(i * 9 - 5, 3, 10, 3); } ctx.restore(); }
@@ -372,6 +434,8 @@ function drawFx(e) {
   if (e.k === 'spark') { ctx.fillStyle = '#fff3a0'; ctx.fillRect(e.x - 3, e.y - 3, 6, 6); }
   else if (e.k === 'ring') { ctx.strokeStyle = e.col; ctx.lineWidth = 6 * (1 - p) + 1; ctx.beginPath(); ctx.ellipse(e.x, e.y, 30 + p * 120, 6 + p * 22, 0, 0, 7); ctx.stroke(); }
   else if (e.k === 'swing') { ctx.strokeStyle = '#fff'; ctx.lineWidth = 8 * (1 - p); ctx.beginPath(); const r = e.r * .6; ctx.arc(e.x - e.face * 20, e.y + 20, r, e.face > 0 ? -1.2 : Math.PI - .4, e.face > 0 ? .4 : Math.PI + 1.2); ctx.stroke(); }
+  else if (e.k === 'sprite') { if (e.t < 0) return; const im = SF.effect(e.name), sc = e.scale || 4, w = im.width * sc, h = im.height * sc;
+    ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, (1 - p) * 2)); ctx.drawImage(im, e.x - w / 2, e.y - h / 2 - (e.rise || 0) * p, w, h); ctx.restore(); }
   else if (e.k === 'text') txt(e.text, e.x, e.y - p * 50, 40, '#fff');
   else if (e.k === 'notes') { for (let i = 0; i < 6; i++) { const q = Math.min(1, p * 1.1 + i * .02); txt(['♪', '♬', '♩'][i % 3], e.x + e.face * (60 + q * 380) , e.y + Math.sin(q * 9 + i) * 36 - i * 4, 34, '#ffe066'); } }
   else if (e.k === 'math') { ['∫x²dx', 'Σ', 'π≠3', 'e^iπ+1', '√-1', 'a²+b²'].forEach((s, i) => txt(s, e.x + Math.cos(i * 1.4 + e.t * 2) * 70, e.y + Math.sin(i * 1.9 + e.t * 2) * 50 - p * 30, 22, '#9ef0ff')); }
@@ -386,7 +450,7 @@ function drawHUD() {
     txt(`P${i + 1} ${CH[f.kind].name}  ${Math.ceil(f.hp)}/${f.maxhp}`, bx + bw / 2, by + bh / 2, 17, '#fff');
     // 대기 캐릭터
     const nx = f.idx === 0 ? f.picks[1] : null;
-    if (nx) { txt('다음', left ? bx + 20 : bx + bw - 20, by + 46, 13, '#aaa'); const im = SF.canvas(SPR[nx], 0); ctx.drawImage(im, left ? bx + 40 : bx + bw - 40 - 56, by + 30, 56, 40); txt(CH[nx].name, left ? bx + 110 : bx + bw - 110, by + 50, 14, '#ddd', left ? 'left' : 'right'); }
+    if (nx) { txt('다음', left ? bx + 20 : bx + bw - 20, by + 46, 13, '#aaa'); const im = SF.canvas(SPR[nx], 0); ctx.drawImage(im, left ? bx + 30 : bx + bw - 30 - SF.W, by + 30, SF.W, SF.H); txt(CH[nx].name, left ? bx + 110 : bx + bw - 110, by + 50, 14, '#ddd', left ? 'left' : 'right'); }
     else txt('마지막 캐릭터!', left ? bx : bx + bw, by + 46, 14, '#ff9a8a', left ? 'left' : 'right');
     txt(`점프 ${KEYS[i].jlabel}`, left ? 30 : W - 150, H - 74, 13, '#9fd0ff', left ? 'left' : 'right');
     // 스킬 쿨타임
@@ -395,7 +459,7 @@ function drawHUD() {
       ctx.fillStyle = '#000b'; ctx.fillRect(sx, sy, 126, 46);
       const ready = f.cd[j] <= 0; ctx.fillStyle = ready ? '#2f6bff' : '#444'; ctx.fillRect(sx, sy, 34, 46);
       txt(KEYS[i].label[j], sx + 17, sy + 23, 22, '#fff');
-      txt(sk.name, sx + 38, sy + 16, 12, '#fff', 'left');
+      txt(sk.name, sx + 38, sy + 16, 12, '#fff', 'left', true, 84);
       if (!ready) { ctx.fillStyle = '#ffffff30'; ctx.fillRect(sx + 34, sy, 92 * (f.cd[j] / sk.cd), 46); txt(f.cd[j].toFixed(1), sx + 38, sy + 34, 13, '#ffcc66', 'left'); }
       else txt('준비됨', sx + 38, sy + 34, 12, '#7dff9a', 'left');
     });
@@ -407,21 +471,22 @@ function drawSelect() {
   txt('스트리트 파이터', W / 2, 44, 36, '#ffd866');
   txt('각자 캐릭터 2명을 고르세요 (고른 순서대로 등장 · 같은 캐릭터 중복 가능)', W / 2, 84, 17, '#ccc');
   ORDER.forEach((id, i) => {
-    const x = 70 + i * 170, y = 120;
-    ctx.fillStyle = '#2e2b50'; ctx.fillRect(x, y, 160, 150);
-    ctx.drawImage(SF.canvas(SPR[id], Math.floor(time * 2.5) % 2), x - 26, y - 6, 56 * 3.2, 40 * 3.2);
-    txt(CH[id].name, x + 80, y + 128, 17, '#fff');
-    sel.forEach((s, p) => { if (!s.done && s.cur === i) { ctx.strokeStyle = p ? '#ff6a6a' : '#5bb0ff'; ctx.lineWidth = 5; ctx.strokeRect(x + (p ? 6 : 0), y + (p ? 6 : 0), 160 - (p ? 12 : 0), 150 - (p ? 12 : 0)); txt('P' + (p + 1), x + (p ? 140 : 20), y + 14, 16, p ? '#ff6a6a' : '#5bb0ff'); } });
+    const col = i % 5, row = Math.floor(i / 5), rowN = row ? ORDER.length - 5 : 5;
+    const x = 70 + col * 170 + (5 - rowN) * 85, y = 94 + row * 118;
+    ctx.fillStyle = '#2e2b50'; ctx.fillRect(x, y, 160, 112);
+    ctx.drawImage(SF.canvas(SPR[id], Math.floor(time * 2.5) % 2), x + 80 - SF.CX * 2.3, y + 2, SF.W * 2.3, SF.H * 2.3);
+    txt(CH[id].name, x + 80, y + 100, 15, '#fff', 'center', true, 150);
+    sel.forEach((s, p) => { if (!s.done && s.cur === i) { ctx.strokeStyle = p ? '#ff6a6a' : '#5bb0ff'; ctx.lineWidth = 5; ctx.strokeRect(x + (p ? 6 : 0), y + (p ? 6 : 0), 160 - (p ? 12 : 0), 112 - (p ? 12 : 0)); txt('P' + (p + 1), x + (p ? 140 : 20), y + 14, 16, p ? '#ff6a6a' : '#5bb0ff'); } });
   });
   sel.forEach((s, p) => {
-    const y = 300 + p * 100, col = p ? '#ff6a6a' : '#5bb0ff';
-    txt(`P${p + 1}`, 60, y + 36, 28, col);
+    const y = 338 + p * 84, col = p ? '#ff6a6a' : '#5bb0ff';
+    txt(`P${p + 1}`, 60, y + 32, 28, col);
     for (let k = 0; k < 2; k++) {
-      const x = 110 + k * 190; ctx.fillStyle = '#2e2b50'; ctx.fillRect(x, y, 170, 76);
-      if (s.picks[k]) { ctx.drawImage(SF.canvas(SPR[s.picks[k]], 0), x + 4, y + 4, 56 * 1.8, 40 * 1.8); txt(CH[s.picks[k]].name, x + 130, y + 38, 15, '#fff'); txt(k ? '두번째' : '첫번째', x + 130, y + 62, 12, '#aaa'); }
-      else txt(k < s.picks.length + 0 ? '' : (k === s.picks.length ? '선택 중…' : '—'), x + 85, y + 38, 16, '#667');
+      const x = 110 + k * 190; ctx.fillStyle = '#2e2b50'; ctx.fillRect(x, y, 170, 70);
+      if (s.picks[k]) { ctx.drawImage(SF.canvas(SPR[s.picks[k]], 0), x + 40 - SF.CX * 1.6, y + 3, SF.W * 1.6, SF.H * 1.6); txt(CH[s.picks[k]].name, x + 132, y + 28, 13, '#fff', 'center', true, 72); txt(k ? '두번째' : '첫번째', x + 132, y + 54, 12, '#aaa'); }
+      else txt(k < s.picks.length + 0 ? '' : (k === s.picks.length ? '선택 중…' : '—'), x + 85, y + 35, 16, '#667');
     }
-    txt(s.done ? '준비 완료!' : '', 560, y + 38, 22, '#7dff9a', 'left');
+    txt(s.done ? '준비 완료!' : '', 560, y + 35, 22, '#7dff9a', 'left');
   });
   txt(`P1: A/D 이동 · Q 선택 · E 취소      P2: 4/6 이동 · 7 선택 · 9 취소`, W / 2, 500, 15, '#aab');
   if (sel[0].done && sel[1].done) txt('Enter 또는 Space 로 시작!', W / 2, 525, 20, '#ffd866');
