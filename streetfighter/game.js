@@ -146,7 +146,7 @@ const SKILLS = {
     { name: '가시목털 함정', poses: ['spike_wind','spike_go','throw_rec'], cd: 15, startup: .3, active: .1, rec: .3, ...putTrap('thorn', 260, 10, 13, { slow: 2, kb: 60 }, 2) },
   ],
   monkey: [
-    { name: '떨어지는 척', poses: ['climb','fall','land'], cd: 2, startup: .8, active: .25, rec: 1.3,
+    { name: '떨어지는 척', poses: ['climb','fall','land'], cd: 1.7, startup: .8, active: .25, rec: 1,
       onStart(f) { f.vars.x0 = f.x; f.untouch = true; f.ghost = false; f.vars.tx = Math.max(MINX, Math.min(MAXX, foe(f).x)); },
       tick(f, ph, p) { const tr = trees.find(t => t.owner === f.side); const tx = tr ? tr.x : f.x;
         if (ph === 'startup') { f.x = f.vars.x0 + (tx - f.vars.x0) * Math.min(1, p * 1.6); f.z = 520 * p; f.ghost = p > .3; }
@@ -174,7 +174,7 @@ const SKILLS = {
   ],
   baker: [
     { name: '바게트 휘두르기', poses: ['windup','strike','recover'], cd: 1, startup: .25, active: .12, rec: .33, ...melee(170, 8, 100) },
-    { name: '이스트 투척', poses: ['yeast_wind','throw_go','throw_rec'], cd: 6.5, startup: .25, active: .1, rec: .3, ...shoot({ kind: 'yeast', speed: 400, dmg: 3, w: 30, h: 110, life: 1.8, opts: { blind: 3.5, kb: 30 } }) },
+    { name: '이스트 투척', poses: ['yeast_wind','throw_go','throw_rec'], cd: 6.5, startup: .25, active: .1, rec: .3, ...shoot({ kind: 'yeast', speed: 400, dmg: 5, w: 30, h: 110, life: 1.8, opts: { blind: 3.5, kb: 30 } }) },
     { name: '수학 공식', poses: ['lecture1','lecture2','lecture3'], cd: 10, startup: .5, active: .2, rec: .3,
       onActive(f) { const d = foe(f); if (Math.abs(d.x - f.x) < 440 && !d.untouch) { d.st.confuse = Math.max(d.st.confuse, 3); }
         fx.push({ k: 'math', x: d.x, y: GROUND - 220, t: 0, life: 1.4 }); } },
