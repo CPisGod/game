@@ -5,40 +5,206 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>게임천국</title>
 <style>
+  :root {
+    --bg: #07060f;
+    --panel: #0d0b1c;
+    --cyan: #00f0ff;
+    --pink: #ff2bd6;
+    --yellow: #fcee0a;
+    --text: #d8f6ff;
+    --dim: #6b6f9a;
+  }
   * { box-sizing: border-box; }
   body {
     margin: 0; min-height: 100vh;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-    padding: 32px 16px;
-    font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
-    background: #0f1115;
-    color: #e8eaed;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px 14px;
+    font-family: "Share Tech Mono", "Courier New", "Noto Sans KR", monospace;
+    color: var(--text);
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(255,43,214,.18), transparent 55%),
+      radial-gradient(ellipse at 90% 100%, rgba(0,240,255,.16), transparent 55%),
+      var(--bg);
+    overflow-x: hidden;
   }
-  h1 { margin: 0; font-size: clamp(28px, 6vw, 40px); font-weight: 700; letter-spacing: -0.5px; }
-  .sub { margin: 0 0 20px; font-size: 15px; color: #8b93a1; }
-  .menu { display: flex; flex-direction: column; gap: 12px; width: min(360px, 100%); }
-  .menu a {
-    display: block; padding: 18px 20px; border-radius: 14px;
-    background: #1a1d24; border: 1px solid #2a2e38;
-    color: #e8eaed; text-decoration: none; font-size: 20px; font-weight: 600;
-    transition: transform .15s, border-color .15s, background .15s;
+  /* 그리드 바닥 + 스캔라인 */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(0,240,255,.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,240,255,.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: linear-gradient(transparent, #000 90%);
   }
-  .menu a:hover { transform: translateY(-2px); border-color: #5b8cff; background: #1f232c; }
-  .menu a small { display: block; margin-top: 4px; font-size: 13px; font-weight: 400; color: #8b93a1; }
-  .foot { margin-top: 20px; font-size: 13px; color: #5d6574; }
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    background: repeating-linear-gradient(transparent 0 2px, rgba(0,0,0,.18) 2px 3px);
+  }
+
+  .shell { position: relative; width: min(980px, 100%); }
+
+  .top {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  h1 {
+    margin: 0; font-size: clamp(28px, 6vw, 48px); font-weight: 900; letter-spacing: 2px;
+    color: var(--cyan);
+    text-shadow: 2px 0 var(--pink), -2px 0 var(--cyan), 0 0 18px rgba(0,240,255,.7);
+    animation: glitch 4s infinite;
+  }
+  @keyframes glitch {
+    0%, 92%, 100% { transform: none; }
+    93% { transform: translate(-3px, 1px) skewX(6deg); }
+    95% { transform: translate(3px, -1px) skewX(-6deg); }
+    97% { transform: translate(-1px, 0); }
+  }
+  .stats { display: flex; gap: 10px; font-size: 14px; }
+  .chip {
+    padding: 6px 12px; border: 1px solid var(--cyan); color: var(--cyan);
+    background: rgba(0,240,255,.07);
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+    letter-spacing: 1px;
+  }
+  .chip b { color: var(--yellow); font-weight: 400; }
+
+  .main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .main { grid-template-columns: 1fr; } }
+
+  .frame {
+    position: relative; padding: 14px;
+    background: var(--panel);
+    border: 1px solid var(--cyan);
+    box-shadow: 0 0 22px rgba(0,240,255,.25), inset 0 0 22px rgba(0,240,255,.08);
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  }
+
+  /* 게임 리스트 */
+  .list { display: flex; flex-direction: column; gap: 6px; }
+  .list a {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 14px; text-decoration: none; color: var(--text);
+    font-size: clamp(16px, 3.6vw, 20px); font-weight: 700;
+    border: 1px solid transparent;
+    border-bottom-color: rgba(0,240,255,.2);
+    transition: background .12s, border-color .12s, transform .12s;
+  }
+  .list .no { color: var(--yellow); min-width: 30px; font-weight: 400; }
+  .list .arrow { margin-left: auto; opacity: 0; color: var(--pink); }
+  .list a.on, .list a:hover, .list a:focus-visible {
+    outline: none;
+    background: linear-gradient(90deg, rgba(255,43,214,.28), rgba(0,240,255,.18));
+    border-color: var(--pink);
+    box-shadow: 0 0 14px rgba(255,43,214,.5);
+    text-shadow: 0 0 8px var(--cyan);
+    transform: translateX(4px);
+  }
+  .list a.on .arrow { opacity: 1; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: .2; } }
+
+  /* 미리보기 */
+  .side { display: flex; flex-direction: column; gap: 16px; }
+  .preview {
+    position: relative; flex: 1; min-height: 240px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    text-align: center; overflow: hidden;
+  }
+  .preview::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      linear-gradient(transparent 60%, rgba(255,43,214,.25)),
+      repeating-linear-gradient(90deg, transparent 0 24px, rgba(0,240,255,.07) 24px 25px);
+  }
+  .preview > * { position: relative; }
+  .icon {
+    font-size: clamp(64px, 14vw, 96px); line-height: 1;
+    filter: drop-shadow(0 0 14px var(--pink)) drop-shadow(0 0 28px var(--cyan));
+    animation: float 2.4s ease-in-out infinite;
+  }
+  @keyframes float { 50% { transform: translateY(-8px); } }
+  .ptitle { font-size: clamp(17px, 3.5vw, 22px); font-weight: 700; color: var(--cyan); text-shadow: 0 0 10px rgba(0,240,255,.8); padding: 0 8px; }
+  .play {
+    display: inline-block; padding: 10px 26px; text-decoration: none;
+    color: #07060f; background: var(--yellow); font-weight: 900; letter-spacing: 3px;
+    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+    box-shadow: 0 0 18px rgba(252,238,10,.7);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { box-shadow: 0 0 30px rgba(252,238,10,1); } }
+
+  .credit {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    padding: 14px; font-size: clamp(20px, 4vw, 26px); font-weight: 700;
+    color: var(--cyan); text-shadow: 0 0 10px rgba(0,240,255,.8);
+    border-color: var(--pink);
+    box-shadow: 0 0 22px rgba(255,43,214,.3), inset 0 0 22px rgba(255,43,214,.08);
+  }
+  .credit .coin { font-size: 30px; }
+
+  .foot { margin-top: 14px; text-align: center; font-size: 12px; color: var(--dim); letter-spacing: 1px; }
 </style>
 </head>
 <body>
-  <h1>게임천국</h1>
-  <p class="sub">하고 싶은 게임을 골라보세요</p>
-  <div class="menu">
-    <a href="mango/">🥭 mango<small>망고가 망고했다</small></a>
-    <a href="doo/">💀 doo<small>죽음이 기다린다</small></a>
-    <a href="knife/">🔪 knife<small>얼굴에 칼꽂기</small></a>
-    <a href="ttt/">❌⭕ ttt<small>삼목 대결</small></a>
-    <a href="streetfighter/">👊 streetfighter<small>도트 대전 격투 (2인)</small></a>
-    <a href="tetris/">🧱 tetris<small>SRS · 젠 모드</small></a>
+  <div class="shell">
+    <div class="top">
+      <h1>게임천국</h1>
+      <div class="stats">
+        <span class="chip">TIME: <b id="time">00</b></span>
+        <span class="chip">PAGE: <b>1/1</b></span>
+      </div>
+    </div>
+
+    <div class="main">
+      <nav class="frame list" id="list">
+        <a href="streetfighter/" data-icon="👊" data-name="금산고 한남들의 싸움"><span class="no">01</span>금산고 한남들의 싸움<span class="arrow">▶</span></a>
+        <a href="ttt/" data-icon="❌⭕" data-name="AI와의 틱택토 게임"><span class="no">02</span>AI와의 틱택토 게임<span class="arrow">▶</span></a>
+        <a href="mango/" data-icon="🥭" data-name="망고 파칭코"><span class="no">03</span>망고 파칭코<span class="arrow">▶</span></a>
+        <a href="doo/" data-icon="🐹" data-name="두더지 윤재 잡기 게임"><span class="no">04</span>두더지 윤재 잡기 게임<span class="arrow">▶</span></a>
+        <a href="knife/" data-icon="🔪" data-name="윤재 얼굴에 칼 꽂기 게임"><span class="no">05</span>윤재 얼굴에 칼 꽂기 게임<span class="arrow">▶</span></a>
+        <a href="tetris/" data-icon="🧱" data-name="윤재 몸을 쌓는 테트리스"><span class="no">06</span>윤재 몸을 쌓는 테트리스<span class="arrow">▶</span></a>
+      </nav>
+
+      <div class="side">
+        <div class="frame preview">
+          <div class="icon" id="icon"></div>
+          <div class="ptitle" id="ptitle"></div>
+          <a class="play" id="play" href="#">▶ PLAY</a>
+        </div>
+        <div class="frame credit"><span class="coin">🪙</span>CREDIT(S): 01</div>
+      </div>
+    </div>
+
+    <p class="foot">↑ ↓ 로 고르고 ENTER 로 시작</p>
   </div>
-  <p class="foot">누르면 후회할 수도 있고 안 할 수도 있음</p>
+
+<script>
+  const items = [...document.querySelectorAll('#list a')];
+  const icon = document.getElementById('icon');
+  const ptitle = document.getElementById('ptitle');
+  const play = document.getElementById('play');
+  let cur = 0;
+
+  function select(i) {
+    cur = (i + items.length) % items.length;
+    items.forEach((a, n) => a.classList.toggle('on', n === cur));
+    const a = items[cur];
+    icon.textContent = a.dataset.icon;
+    ptitle.textContent = a.dataset.name;
+    play.href = a.getAttribute('href');
+  }
+  items.forEach((a, n) => a.addEventListener('mouseenter', () => select(n)));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { select(cur + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { select(cur - 1); e.preventDefault(); }
+    else if (e.key === 'Enter') { location.href = items[cur].getAttribute('href'); }
+  });
+  select(0);
+
+  const t0 = Date.now();
+  const timeEl = document.getElementById('time');
+  setInterval(() => {
+    timeEl.textContent = String(Math.floor((Date.now() - t0) / 1000) % 100).padStart(2, '0');
+  }, 500);
+</script>
 </body>
 </html>
