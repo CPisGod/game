@@ -1,241 +1,112 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>틱택토 게임 - 랭킹 시스템</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        .container {
-            background: white;
-            border-radius: 30px;
-            padding: 40px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 600px;
-            width: 100%;
-        }
-        h1 {
-            text-align: center;
-            font-size: 3em;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 20px;
-        }
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
-            background: #f3f4f6;
-            padding: 5px;
-            border-radius: 15px;
-        }
-        .tab {
-            flex: 1;
-            padding: 15px;
-            border: none;
-            border-radius: 10px;
-            font-weight: bold;
-            cursor: pointer;
-            background: transparent;
-            transition: all 0.3s;
-        }
-        .tab.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .input-group {
-            margin-bottom: 20px;
-        }
-        .input-group label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #374151;
-        }
-        .input-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #d1d5db;
-            border-radius: 10px;
-            font-size: 1em;
-        }
-        .input-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .status {
-            text-align: center;
-            font-size: 1.3em;
-            font-weight: bold;
-            margin-bottom: 20px;
-            height: 40px;
-            color: #667eea;
-        }
-        .players-info {
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 0.9em;
-            color: #6b7280;
-        }
-        .player-x { color: #3b82f6; font-weight: bold; }
-        .player-o { color: #ef4444; font-weight: bold; }
-        .board {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-bottom: 30px;
-            background: #f3f4f6;
-            padding: 20px;
-            border-radius: 20px;
-        }
-        .cell {
-            aspect-ratio: 1;
-            background: white;
-            border: none;
-            border-radius: 15px;
-            font-size: 3em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .cell:hover:not(:disabled) {
-            transform: scale(1.05);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-        }
-        .cell:active:not(:disabled) { transform: scale(0.95); }
-        .cell.x { color: #3b82f6; }
-        .cell.o { color: #ef4444; }
-        .cell.winner {
-            background: linear-gradient(135deg, #fbbf24, #f59e0b);
-            transform: scale(1.1);
-        }
-        .buttons {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-        }
-        button.btn {
-            padding: 15px;
-            border: none;
-            border-radius: 15px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            color: white;
-        }
-        .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); }
-        .btn-secondary { background: linear-gradient(135deg, #6b7280, #4b5563); }
-        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
-        button.btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
-        button.btn:active { transform: translateY(0); }
-        button.btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .ranking-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        .ranking-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 15px;
-            background: #f3f4f6;
-            border: 2px solid #e5e7eb;
-        }
-        .ranking-item.rank-1 {
-            background: linear-gradient(135deg, #fef3c7, #fde68a);
-            border-color: #fbbf24;
-        }
-        .ranking-item.rank-2 {
-            background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
-            border-color: #9ca3af;
-        }
-        .ranking-item.rank-3 {
-            background: linear-gradient(135deg, #fed7aa, #fdba74);
-            border-color: #f97316;
-        }
-        .rank-number {
-            font-size: 2em;
-            font-weight: bold;
-            width: 50px;
-            text-align: center;
-        }
-        .player-info {
-            flex: 1;
-        }
-        .player-name {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #374151;
-        }
-        .last-win {
-            font-size: 0.85em;
-            color: #6b7280;
-        }
-        .win-count {
-            text-align: right;
-        }
-        .win-number {
-            font-size: 2em;
-            font-weight: bold;
-            color: #667eea;
-        }
-        .win-label {
-            font-size: 0.85em;
-            color: #6b7280;
-        }
-        .empty-ranking {
-            text-align: center;
-            padding: 60px 20px;
-        }
-        .empty-ranking .icon {
-            font-size: 4em;
-            margin-bottom: 20px;
-        }
-        .info-box {
-            background: #dbeafe;
-            padding: 20px;
-            border-radius: 15px;
-            margin-top: 20px;
-        }
-        .info-box h3 {
-            color: #1e40af;
-            margin-bottom: 10px;
-        }
-        .info-box ul {
-            list-style: none;
-            color: #1e3a8a;
-        }
-        .info-box li {
-            margin: 5px 0;
-            padding-left: 20px;
-            position: relative;
-        }
-        .info-box li:before {
-            content: "•";
-            position: absolute;
-            left: 0;
-        }
-    
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>틱택토 VS 봇</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'Malgun Gothic', 'Apple SD Gothic Neo', Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh; display: flex; justify-content: center; align-items: flex-start;
+    padding: 16px;
+  }
+  .hidden { display: none !important; }
+  #app {
+    background: #fff; border-radius: 28px; padding: 24px; width: 100%; max-width: 720px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  h1 {
+    text-align: center; font-size: 2.2em; margin-bottom: 6px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .sub { text-align: center; color: #6b7280; margin-bottom: 20px; font-size: .95em; }
+
+  /* ---------- 메뉴 ---------- */
+  .levels { display: grid; gap: 12px; margin-bottom: 18px; }
+  .level-card {
+    display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 2px solid #e5e7eb;
+    border-radius: 18px; background: #f9fafb; cursor: pointer; text-align: left; font: inherit;
+    transition: transform .15s, box-shadow .15s, border-color .15s;
+  }
+  .level-card:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,.12); border-color: var(--c); }
+  .level-card .face {
+    width: 64px; height: 64px; border-radius: 50%; background: #fff; border: 3px solid var(--c);
+    display: flex; align-items: center; justify-content: center; font-size: 34px; overflow: hidden; flex: none;
+  }
+  .level-card .face img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .level-card .info { flex: 1; }
+  .level-card .lv { font-weight: 800; font-size: 1.2em; color: var(--c); }
+  .level-card .desc { color: #6b7280; font-size: .85em; margin-top: 2px; }
+  .level-card .rec { text-align: right; font-size: .8em; color: #6b7280; white-space: nowrap; }
+  .level-card .rec b { color: #111827; }
+  .order { display: flex; gap: 8px; justify-content: center; margin-bottom: 8px; }
+  .order label {
+    flex: 1; text-align: center; padding: 10px; border-radius: 12px; background: #f3f4f6;
+    font-weight: 700; cursor: pointer; border: 2px solid transparent; color: #374151;
+  }
+  .order input { display: none; }
+  .order input:checked + span { color: #4f46e5; }
+  .order label:has(input:checked) { border-color: #667eea; background: #eef2ff; }
+  .reset-rec { display: block; margin: 12px auto 0; background: none; border: none; color: #9ca3af; font-size: .8em; cursor: pointer; text-decoration: underline; }
+
+  /* ---------- 게임 ---------- */
+  .stage { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 14px; min-height: 190px; }
+  .char { width: 38%; max-width: 230px; flex: none; text-align: center; position: relative; }
+  .char-frame {
+    height: 190px; display: flex; align-items: flex-end; justify-content: center;
+    border-radius: 20px; background: radial-gradient(circle at 50% 80%, var(--c-soft), transparent 70%);
+  }
+  .char img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; transition: transform .2s; }
+  .char img.pop { animation: pop .35s ease; }
+  @keyframes pop { 0% { transform: scale(.88); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+  .char .emoji { font-size: 110px; line-height: 1; padding-bottom: 8px; }
+  .char .nameplate {
+    display: inline-block; margin-top: 6px; padding: 3px 12px; border-radius: 999px;
+    background: var(--c); color: #fff; font-weight: 800; font-size: .8em;
+  }
+  .bubble {
+    position: relative; flex: 1; min-height: 84px; padding: 14px 16px; border-radius: 18px;
+    background: #f3f4f6; border: 2px solid var(--c); font-size: 1.05em; line-height: 1.5;
+    color: #111827; margin-bottom: 36px; word-break: keep-all;
+  }
+  .bubble::before {
+    content: ""; position: absolute; left: -12px; bottom: 22px; width: 0; height: 0;
+    border: 10px solid transparent; border-right-color: var(--c); border-left: 0;
+  }
+  .status { text-align: center; font-weight: 800; height: 28px; margin-bottom: 8px; font-size: 1.1em; }
+  .board {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #f3f4f6;
+    padding: 12px; border-radius: 20px; max-width: 360px; margin: 0 auto 12px;
+  }
+  .cell {
+    aspect-ratio: 1; background: #fff; border: none; border-radius: 14px; font-size: 2.8em; font-weight: 800;
+    cursor: pointer; box-shadow: 0 3px 6px rgba(0,0,0,.1); transition: transform .15s;
+  }
+  .cell:hover:not(:disabled) { transform: scale(1.05); }
+  .cell:disabled { cursor: default; }
+  .cell.x { color: #3b82f6; } .cell.o { color: #ef4444; }
+  .cell.win { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+  .cell.last { outline: 3px solid #a5b4fc; }
+  .stats { text-align: center; color: #6b7280; font-size: .8em; margin-bottom: 14px; min-height: 1.2em; }
+  .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn {
+    padding: 13px; border: none; border-radius: 14px; font-size: 1em; font-weight: 800; color: #fff; cursor: pointer;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+  }
+  .btn.gray { background: linear-gradient(135deg, #6b7280, #4b5563); }
+  .btn:active { transform: translateY(2px); }
+
+  @media (max-width: 520px) {
+    #app { padding: 16px; border-radius: 22px; }
+    .stage { flex-direction: column; align-items: center; }
+    .char { width: 55%; }
+    .bubble { margin-bottom: 0; width: 100%; }
+    .bubble::before { left: 50%; top: -12px; bottom: auto; margin-left: -10px; border: 10px solid transparent; border-bottom-color: var(--c); border-top: 0; }
+  }
+
   /* 메인 메뉴로 돌아가기 버튼 (모든 게임 공통) */
   .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
     background: #000a; color: #fff; font: 700 14px/1 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
@@ -246,259 +117,344 @@
 <body>
 <a class="home-btn" href="../">🏠 메인 메뉴</a>
 
-    <div class="container">
-        <h1>틱택토</h1>
-        
-        <div class="tabs">
-            <button class="tab active" onclick="showTab('setup')">👥 설정</button>
-            <button class="tab" id="playTab" onclick="showTab('play')" disabled>🎮 게임</button>
-            <button class="tab" onclick="showTab('ranking')">🏆 랭킹</button>
-        </div>
+<div id="app">
+  <h1>틱택토 VS 봇</h1>
 
-        <!-- 플레이어 설정 탭 -->
-        <div id="setup" class="tab-content active">
-            <div class="input-group">
-                <label>플레이어 X (파란색)</label>
-                <input type="text" id="playerXInput" placeholder="이름을 입력하세요" maxlength="10">
-            </div>
-            <div class="input-group">
-                <label>플레이어 O (빨간색)</label>
-                <input type="text" id="playerOInput" placeholder="이름을 입력하세요" maxlength="10">
-            </div>
-            <button class="btn btn-primary" style="width: 100%; font-size: 1.2em;" onclick="startGame()">
-                게임 시작하기 🎮
-            </button>
-            <div class="info-box">
-                <h3>💡 게임 방법</h3>
-                <ul>
-                    <li>가로, 세로, 대각선으로 3개를 먼저 연결하면 승리!</li>
-                    <li>승리 기록은 자동으로 랭킹에 저장됩니다</li>
-                    <li>랭킹 탭에서 전체 순위를 확인하세요</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- 게임 플레이 탭 -->
-        <div id="play" class="tab-content">
-            <div class="players-info">
-                <span class="player-x" id="playerXDisplay"></span> vs 
-                <span class="player-o" id="playerODisplay"></span>
-            </div>
-            <div class="status" id="status"></div>
-            <div class="board" id="board"></div>
-            <div class="buttons">
-                <button class="btn btn-primary" onclick="resetGame()">🔄 다시하기</button>
-                <button class="btn btn-secondary" onclick="changePlayer()">👥 플레이어 변경</button>
-            </div>
-        </div>
-
-        <!-- 랭킹 탭 -->
-        <div id="ranking" class="tab-content">
-            <div id="rankingList"></div>
-            <div class="buttons" style="margin-top: 30px;">
-                <button class="btn btn-primary" onclick="showTab('play')">🎮 게임하기</button>
-                <button class="btn btn-danger" onclick="clearRankings()">🗑️ 랭킹 초기화</button>
-            </div>
-        </div>
+  <!-- 난이도 선택 -->
+  <section id="menu">
+    <p class="sub">알파-베타 가지치기 봇에게 도전! 상대를 골라보세요.</p>
+    <div class="order">
+      <label><input type="radio" name="order" value="first" checked><span>⭕ 내가 선공 (X)</span></label>
+      <label><input type="radio" name="order" value="second"><span>봇이 선공 (O로 플레이)</span></label>
     </div>
+    <div class="levels" id="levels"></div>
+    <button class="reset-rec" id="resetRec">전적 초기화</button>
+  </section>
 
-    <script>
-        let board = Array(9).fill(null);
-        let isXNext = true;
-        let gameOver = false;
-        let playerXName = '';
-        let playerOName = '';
-        let rankings = JSON.parse(localStorage.getItem('tictactoe_rankings') || '[]');
+  <!-- 게임 화면 -->
+  <section id="game" class="hidden">
+    <div class="stage">
+      <div class="char">
+        <div class="char-frame">
+          <img id="charImg" alt="">
+          <div class="emoji hidden" id="charEmoji"></div>
+        </div>
+        <span class="nameplate" id="charName"></span>
+      </div>
+      <div class="bubble" id="bubble"></div>
+    </div>
+    <div class="status" id="status"></div>
+    <div class="board" id="board"></div>
+    <div class="stats" id="stats"></div>
+    <div class="buttons">
+      <button class="btn" id="again">🔄 다시하기</button>
+      <button class="btn gray" id="back">🎚️ 난이도 선택</button>
+    </div>
+  </section>
+</div>
 
-        const winPatterns = [
-            [0,1,2], [3,4,5], [6,7,8],
-            [0,3,6], [1,4,7], [2,5,8],
-            [0,4,8], [2,4,6]
-        ];
+<script>
+/* =====================================================================
+   캐릭터 / 대본 설정  ← 대본과 이미지는 여기만 고치면 됨
+   - depth      : 알파-베타 탐색 깊이
+   - img        : mood별 이미지 (ttt/img/ 아래). 파일이 없으면 emoji로 대체 표시됨
+                  mood: start(시작/기본) · blunder(플레이어 블런더) · win(봇 승리) · lose(봇 패배)
+                  지정 안 한 mood는 start 이미지를 씀
+   - lines      : 상황별 대사 (여러 개 중 랜덤, 직전 대사는 반복 안 함)
+       start   게임 시작
+       move    평범한 수 뒤
+       block   봇이 플레이어의 승리를 막았을 때
+       threat  봇이 이기기 직전(리치)을 만들었을 때
+       blunder 플레이어가 블런더(결과가 나빠지는 수)를 뒀을 때
+       win     봇 승리   lose  봇 패배   draw  무승부
+   ===================================================================== */
+const LEVELS = {
+  beginner: {
+    name: '초급', nick: '담배맛 한 모금', depth: 2, color: '#16a34a', soft: '#dcfce7',
+    desc: '깊이 2 · 눈앞의 수만 본다',
+    img: {
+      start:   'img/beginner-start.png',
+      blunder: 'img/beginner-blunder.png',
+      win:     'img/beginner-win.png',
+      lose:    'img/beginner-lose.png',
+    },
+    emoji: { start: '😮‍💨', blunder: '😒', win: '😎', lose: '😭' },
+    lines: {
+      start:   ['후… 한 판 하자. 천천히 둬.', '오, 왔냐? 담배 한 대만 피우고 시작하자.'],
+      move:    ['음… 여기?', '이 정도면 괜찮지 않나?', '네 차례야. 급하게 두지 마.', '흠, 생각보다 하네.'],
+      block:   ['어딜 이기려고~ 막았다.', '그거 내가 못 볼 줄 알았냐?'],
+      threat:  ['어? 이거 나 이길 것 같은데?', '슬슬 불안하지? 후…'],
+      blunder: ['…진심이야? 그걸 거기 둬?', '와, 방금 수는 좀 아닌데.', '(째려본다)'],
+      win:     ['ㅋㅋ 내가 이겼다. 눕는다~', '이겼네. 이제 좀 쉬자.'],
+      lose:    ['아… 졌네… 흑흑.', '말도 안 돼… 한 판만 더…'],
+      draw:    ['비겼네. 담배나 한 대 피우자.', '무승부… 나쁘지 않아.'],
+    },
+  },
+  intermediate: {
+    name: '중급', nick: '여우 박사', depth: 5, color: '#ea580c', soft: '#ffedd5',
+    desc: '깊이 5 · 몇 수 앞을 내다본다',
+    img: {},  // 예: start: 'img/inter-start.png', blunder: 'img/inter-blunder.png', ...
+    emoji: { start: '🦊', blunder: '🧐', win: '😏', lose: '🥲' },
+    lines: {
+      start:   ['어서 와. 머리 좀 써야 할 거야.', '틱택토라고 얕보면 곤란하지.'],
+      move:    ['계산은 이미 끝났어.', '다음 수를 세 번쯤 읽어봤지.', '흥미로운 선택이군.'],
+      block:   ['그 길은 막아두었지.', '예상 범위 안이야.'],
+      threat:  ['이제 두 갈래야. 어느 쪽을 막을래?', '체크메이트… 아, 이건 틱택토였지.'],
+      blunder: ['방금 그 수, 기보에 남기고 싶지 않군.', '실수야. 내가 놓칠 거라 생각했나?'],
+      win:     ['수읽기의 차이였어. 다음엔 더 잘할 수 있을 거야.', '내 승리야. 복기해 보겠어?'],
+      lose:    ['…내가 졌다고? 계산이 틀렸나.', '훌륭해. 인정하지.'],
+      draw:    ['비겼군. 나쁘지 않은 승부였어.', '무승부. 다음엔 이기겠어.'],
+    },
+  },
+  advanced: {
+    name: '고급', nick: '그랜드마스터 AI', depth: 9, color: '#7c3aed', soft: '#ede9fe',
+    desc: '깊이 MAX(9) · 완벽한 수읽기 (이길 수 없다)',
+    img: {},
+    emoji: { start: '🤖', blunder: '🔴', win: '😈', lose: '💥' },
+    lines: {
+      start:   ['게임 트리 전체를 탐색했다. 결과는 이미 정해져 있다.', '인사는 생략하겠다. 시작하지.'],
+      move:    ['최선수 계산 완료.', '당신의 선택지가 줄어들고 있다.', '탐색 완료. 다음.'],
+      block:   ['위협 감지. 제거했다.', '그 수는 이미 읽었다.'],
+      threat:  ['승리 확률 상승 중.', '두 개의 승리 경로를 확보했다.'],
+      blunder: ['오류 감지. 패배 확률 증가.', '비효율적인 수다. 감사히 이용하겠다.'],
+      win:     ['예측대로다. 승률 100%.', '패배 원인을 분석해라.'],
+      lose:    ['…오류. 있을 수 없는 결과다.', '시스템 점검이 필요하다.'],
+      draw:    ['최선의 상대에게 나올 수 있는 결과다. 무승부.', '완벽한 방어였다. 인정한다.'],
+    },
+  },
+};
 
-        function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
-            
-            if (tabName === 'ranking') {
-                displayRankings();
-            }
-        }
+/* ============================ 알파-베타 탐색 ============================ */
+const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const other = p => (p === 'X' ? 'O' : 'X');
+let nodes = 0, prunes = 0;
 
-        function startGame() {
-            const xName = document.getElementById('playerXInput').value.trim();
-            const oName = document.getElementById('playerOInput').value.trim();
-            
-            if (!xName || !oName) {
-                alert('플레이어 이름을 모두 입력해주세요!');
-                return;
-            }
-            
-            playerXName = xName;
-            playerOName = oName;
-            
-            document.getElementById('playerXDisplay').textContent = playerXName;
-            document.getElementById('playerODisplay').textContent = playerOName;
-            document.getElementById('playTab').disabled = false;
-            
-            initBoard();
-            showTab('play');
-        }
+function winnerOf(b) {
+  for (const [x, y, z] of LINES) if (b[x] && b[x] === b[y] && b[x] === b[z]) return { mark: b[x], line: [x, y, z] };
+  return null;
+}
+const isFull = b => b.every(Boolean);
 
-        function initBoard() {
-            board = Array(9).fill(null);
-            isXNext = true;
-            gameOver = false;
-            
-            const boardEl = document.getElementById('board');
-            boardEl.innerHTML = '';
-            
-            for (let i = 0; i < 9; i++) {
-                const cell = document.createElement('button');
-                cell.className = 'cell';
-                cell.onclick = () => handleClick(i);
-                boardEl.appendChild(cell);
-            }
-            
-            updateBoard();
-            updateStatus();
-        }
+// me 입장의 점수. 빨리 이길수록 / 늦게 질수록 높다. depth 한계에 닿으면 0.
+function search(b, turn, depth, alpha, beta, ply, me) {
+  nodes++;
+  const w = winnerOf(b);
+  if (w) return w.mark === me ? 100 - ply : ply - 100;
+  if (depth === 0 || isFull(b)) return 0;
+  const maximizing = turn === me;
+  let best = maximizing ? -Infinity : Infinity;
+  for (let i = 0; i < 9; i++) {
+    if (b[i]) continue;
+    b[i] = turn;
+    const s = search(b, other(turn), depth - 1, alpha, beta, ply + 1, me);
+    b[i] = null;
+    if (maximizing) { if (s > best) best = s; if (best > alpha) alpha = best; }
+    else            { if (s < best) best = s; if (best < beta) beta = best; }
+    if (beta <= alpha) { prunes++; break; }
+  }
+  return best;
+}
 
-        function handleClick(i) {
-            if (board[i] || gameOver) return;
-            
-            board[i] = isXNext ? 'X' : 'O';
-            isXNext = !isXNext;
-            
-            const result = checkWinner();
-            if (result) {
-                gameOver = true;
-                const winnerName = result.winner === 'X' ? playerXName : playerOName;
-                updateRanking(winnerName);
-                highlightWinner(result.line);
-            } else if (board.every(cell => cell)) {
-                gameOver = true;
-            }
-            
-            updateBoard();
-            updateStatus();
-        }
+// depth만큼 읽어서 최고 점수 수 중 하나를 무작위로 고른다.
+function chooseMove(b, mark, depth) {
+  let bestScore = -Infinity, cands = [];
+  for (let i = 0; i < 9; i++) {
+    if (b[i]) continue;
+    b[i] = mark;
+    const s = search(b, other(mark), depth - 1, -Infinity, Infinity, 1, mark);
+    b[i] = null;
+    if (s > bestScore) { bestScore = s; cands = [i]; }
+    else if (s === bestScore) cands.push(i);
+  }
+  return cands[Math.floor(Math.random() * cands.length)];
+}
 
-        function checkWinner() {
-            for (let pattern of winPatterns) {
-                const [a, b, c] = pattern;
-                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-                    return { winner: board[a], line: pattern };
-                }
-            }
-            return null;
-        }
+// 끝까지 읽은 게임이론 값(-1 / 0 / 1), mark 입장
+function perfectValue(b, turn, mark) {
+  const sn = nodes, sp = prunes;
+  const v = Math.sign(search(b, turn, 9, -Infinity, Infinity, 0, mark));
+  nodes = sn; prunes = sp;   // 화면 통계에 섞이지 않게 복구
+  return v;
+}
 
-        function highlightWinner(line) {
-            const cells = document.querySelectorAll('.cell');
-            line.forEach(i => cells[i].classList.add('winner'));
-        }
+// 플레이어가 둔 수가 결과를 나쁘게 만들었는가 (이기던 판 → 비김, 비기던 판 → 짐)
+function isBlunder(before, idx, human) {
+  const bot = other(human);
+  const b = before.slice();
+  const vBefore = perfectValue(b, human, human);
+  b[idx] = human;
+  const vAfter = perfectValue(b, bot, human);
+  return vAfter < vBefore;
+}
 
-        function updateBoard() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach((cell, i) => {
-                cell.textContent = board[i] || '·';
-                cell.className = 'cell';
-                if (board[i]) cell.classList.add(board[i].toLowerCase());
-            });
-        }
+// mark가 한 수만 더 두면 이기는 칸 목록
+function winningCells(b, mark) {
+  const out = [];
+  for (const l of LINES) {
+    const m = l.filter(i => b[i] === mark).length, e = l.filter(i => !b[i]);
+    if (m === 2 && e.length === 1) out.push(e[0]);
+  }
+  return out;
+}
 
-        function updateStatus() {
-            const result = checkWinner();
-            const statusEl = document.getElementById('status');
-            
-            if (result) {
-                const winnerName = result.winner === 'X' ? playerXName : playerOName;
-                statusEl.textContent = '🎉 ' + winnerName + ' 승리! 🎉';
-                statusEl.style.color = result.winner === 'X' ? '#3b82f6' : '#ef4444';
-            } else if (board.every(cell => cell)) {
-                statusEl.textContent = '무승부!';
-                statusEl.style.color = '#6b7280';
-            } else {
-                const currentPlayer = isXNext ? playerXName : playerOName;
-                statusEl.textContent = currentPlayer + '의 차례';
-                statusEl.style.color = isXNext ? '#3b82f6' : '#ef4444';
-            }
-        }
+/* ============================== 게임 상태 ============================== */
+const $ = id => document.getElementById(id);
+let level = null, human = 'X', bot = 'O', board = [], turn = 'X', over = false, busy = false;
+let lastIdx = -1, lastLine = '', typeTimer = null, botTimer = null, curLevelKey = 'beginner';
 
-        function resetGame() {
-            initBoard();
-        }
+/* ============================== 전적 ============================== */
+const REC_KEY = 'ttt_record_v2';
+const loadRec = () => { try { return JSON.parse(localStorage.getItem(REC_KEY)) || {}; } catch (e) { return {}; } };
+function addRec(key, r) {
+  const rec = loadRec(); rec[key] = rec[key] || { w: 0, d: 0, l: 0 }; rec[key][r]++;
+  try { localStorage.setItem(REC_KEY, JSON.stringify(rec)); } catch (e) {}
+}
 
-        function changePlayer() {
-            showTab('setup');
-        }
+/* ============================== 메뉴 ============================== */
+function renderMenu() {
+  const rec = loadRec();
+  $('levels').innerHTML = '';
+  for (const [key, L] of Object.entries(LEVELS)) {
+    const r = rec[key] || { w: 0, d: 0, l: 0 };
+    const btn = document.createElement('button');
+    btn.className = 'level-card'; btn.style.setProperty('--c', L.color);
+    const face = L.img.start ? `<img src="${L.img.start}" alt="" onerror="this.replaceWith(document.createTextNode('${L.emoji.start}'))">` : L.emoji.start;
+    btn.innerHTML = `<div class="face">${face}</div>
+      <div class="info"><div class="lv">${L.name} · ${L.nick}</div><div class="desc">${L.desc}</div></div>
+      <div class="rec"><b>${r.w}</b>승 <b>${r.d}</b>무 <b>${r.l}</b>패</div>`;
+    btn.onclick = () => startGame(key);
+    $('levels').appendChild(btn);
+  }
+}
+$('resetRec').onclick = () => {
+  if (confirm('전적을 모두 지울까요?')) { try { localStorage.removeItem(REC_KEY); } catch (e) {} renderMenu(); }
+};
 
-        function updateRanking(winnerName) {
-            const existingPlayer = rankings.find(p => p.name === winnerName);
-            
-            if (existingPlayer) {
-                existingPlayer.wins += 1;
-                existingPlayer.lastWin = new Date().toISOString();
-            } else {
-                rankings.push({
-                    name: winnerName,
-                    wins: 1,
-                    lastWin: new Date().toISOString()
-                });
-            }
-            
-            rankings.sort((a, b) => b.wins - a.wins);
-            localStorage.setItem('tictactoe_rankings', JSON.stringify(rankings));
-        }
+/* ============================== 캐릭터 ============================== */
+function setMood(mood) {
+  const L = level, img = $('charImg'), em = $('charEmoji');
+  const src = L.img[mood] || L.img.start;
+  em.textContent = L.emoji[mood] || L.emoji.start;
+  const showEmoji = () => { img.classList.add('hidden'); em.classList.remove('hidden'); };
+  if (src) {
+    img.onerror = showEmoji;
+    img.onload = () => { img.classList.remove('hidden'); em.classList.add('hidden'); };
+    img.classList.remove('hidden'); em.classList.add('hidden');
+    img.src = src;
+  } else showEmoji();
+  img.classList.remove('pop'); void img.offsetWidth; img.classList.add('pop');
+  em.classList.remove('pop');
+}
 
-        function displayRankings() {
-            const listEl = document.getElementById('rankingList');
-            
-            if (rankings.length === 0) {
-                listEl.innerHTML = `
-                    <div class="empty-ranking">
-                        <div class="icon">🎮</div>
-                        <p style="font-size: 1.2em; color: #6b7280;">아직 기록이 없습니다</p>
-                        <p style="color: #9ca3af; margin-top: 10px;">게임을 플레이하고 랭킹에 도전하세요!</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            listEl.innerHTML = '<div class="ranking-list">' + rankings.map((player, index) => {
-                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1);
-                const rankClass = index < 3 ? 'rank-' + (index + 1) : '';
-                const date = new Date(player.lastWin).toLocaleDateString('ko-KR');
-                
-                return `
-                    <div class="ranking-item ${rankClass}">
-                        <div class="rank-number">${medal}</div>
-                        <div class="player-info">
-                            <div class="player-name">${player.name}</div>
-                            <div class="last-win">마지막 승리: ${date}</div>
-                        </div>
-                        <div class="win-count">
-                            <div class="win-number">${player.wins}</div>
-                            <div class="win-label">승</div>
-                        </div>
-                    </div>
-                `;
-            }).join('') + '</div>';
-        }
+function say(kind) {
+  const pool = level.lines[kind].filter(t => t !== lastLine);
+  const text = pool[Math.floor(Math.random() * pool.length)] || level.lines[kind][0];
+  lastLine = text;
+  clearInterval(typeTimer);
+  const el = $('bubble'); el.textContent = '';
+  let i = 0;
+  typeTimer = setInterval(() => {
+    el.textContent = text.slice(0, ++i);
+    if (i >= text.length) clearInterval(typeTimer);
+  }, 28);
+}
 
-        function clearRankings() {
-            if (confirm('정말로 모든 랭킹 기록을 삭제하시겠습니까?')) {
-                rankings = [];
-                localStorage.removeItem('tictactoe_rankings');
-                displayRankings();
-            }
-        }
+/* ============================== 진행 ============================== */
+function startGame(key) {
+  curLevelKey = key; level = LEVELS[key];
+  human = document.querySelector('input[name=order]:checked').value === 'first' ? 'X' : 'O';
+  bot = other(human);
+  document.documentElement.style.setProperty('--c', level.color);
+  document.documentElement.style.setProperty('--c-soft', level.soft);
+  $('charName').textContent = `${level.name} · ${level.nick}`;
+  $('menu').classList.add('hidden'); $('game').classList.remove('hidden');
+  newRound();
+}
 
-        // 초기화
-        displayRankings();
-    </script>
+function newRound() {
+  clearTimeout(botTimer);
+  board = Array(9).fill(null); turn = 'X'; over = false; busy = false; lastIdx = -1; lastLine = '';
+  nodes = 0; prunes = 0;
+  setMood('start'); say('start');
+  renderBoard(); renderStatus(); renderStats();
+  if (bot === 'X') { busy = true; botTimer = setTimeout(() => botMove(false), 1100); }
+}
+
+function renderBoard(winLine = []) {
+  const el = $('board'); el.innerHTML = '';
+  board.forEach((m, i) => {
+    const c = document.createElement('button');
+    c.className = 'cell' + (m ? ' ' + m.toLowerCase() : '') + (winLine.includes(i) ? ' win' : '') + (i === lastIdx ? ' last' : '');
+    c.textContent = m || '';
+    c.disabled = over || busy || !!m || turn !== human;
+    c.onclick = () => humanMove(i);
+    el.appendChild(c);
+  });
+}
+
+function renderStatus(text, color) {
+  const el = $('status');
+  if (text) { el.textContent = text; el.style.color = color; return; }
+  el.textContent = turn === human ? `내 차례 (${human})` : '봇이 생각 중…';
+  el.style.color = turn === human ? (human === 'X' ? '#3b82f6' : '#ef4444') : '#6b7280';
+}
+
+function renderStats() {
+  $('stats').textContent = nodes ? `🔍 봇이 탐색한 노드 ${nodes.toLocaleString()}개 · ✂️ 가지치기 ${prunes.toLocaleString()}번` : '';
+}
+
+function humanMove(i) {
+  if (over || busy || board[i] || turn !== human) return;
+  const blunder = isBlunder(board, i, human);
+  board[i] = human; lastIdx = i;
+  if (finishIfOver()) return;
+  turn = bot; busy = true;
+  renderBoard(); renderStatus();
+  botTimer = setTimeout(() => botMove(blunder), 650);
+}
+
+function botMove(playerBlundered) {
+  nodes = 0; prunes = 0;
+  const humanThreats = winningCells(board, human);
+  const idx = chooseMove(board, bot, level.depth);
+  const blocked = humanThreats.includes(idx);
+  board[idx] = bot; lastIdx = idx;
+  renderStats();
+  if (finishIfOver()) return;
+  const threat = winningCells(board, bot).length > 0;
+
+  let kind = 'move', mood = 'start';
+  if (playerBlundered) { kind = 'blunder'; mood = 'blunder'; }
+  else if (threat)     { kind = 'threat'; }
+  else if (blocked)    { kind = 'block'; }
+  setMood(mood); say(kind);
+
+  turn = human; busy = false;
+  renderBoard(); renderStatus();
+}
+
+function finishIfOver() {
+  const w = winnerOf(board);
+  if (!w && !isFull(board)) return false;
+  over = true; busy = false;
+  renderBoard(w ? w.line : []);
+  if (w && w.mark === human) {
+    addRec(curLevelKey, 'w'); setMood('lose'); say('lose'); renderStatus('🎉 승리!', '#16a34a');
+  } else if (w) {
+    addRec(curLevelKey, 'l'); setMood('win'); say('win'); renderStatus('😵 패배…', '#dc2626');
+  } else {
+    addRec(curLevelKey, 'd'); setMood('start'); say('draw'); renderStatus('🤝 무승부', '#6b7280');
+  }
+  return true;
+}
+
+$('again').onclick = newRound;
+$('back').onclick = () => {
+  clearTimeout(botTimer); clearInterval(typeTimer);
+  $('game').classList.add('hidden'); $('menu').classList.remove('hidden'); renderMenu();
+};
+
+renderMenu();
+</script>
 </body>
 </html>
