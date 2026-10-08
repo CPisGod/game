@@ -165,19 +165,14 @@
        move    평범한 수 뒤
        block   봇이 플레이어의 승리를 막았을 때
        threat  봇이 이기기 직전(리치)을 만들었을 때
-       blunder 플레이어가 블런더(결과가 나빠지는 수)를 뒀을 때
+       blunder 플레이어가 블런더(결과가 나빠지는 수)를 뒀을 때 (봇의 실수에는 반응 안 함)
        win     봇 승리   lose  봇 패배   draw  무승부
    ===================================================================== */
 const LEVELS = {
   beginner: {
     name: '초급', nick: '담배맛 한 모금', depth: 2, color: '#16a34a', soft: '#dcfce7',
     desc: '깊이 2 · 눈앞의 수만 본다',
-    img: {
-      start:   'img/beginner-start.png',
-      blunder: 'img/beginner-blunder.png',
-      win:     'img/beginner-win.png',
-      lose:    'img/beginner-lose.png',
-    },
+    img: {},  // 예: start: 'img/beginner-start.png', blunder: 'img/beginner-blunder.png', ...
     emoji: { start: '😮‍💨', blunder: '😒', win: '😎', lose: '😭' },
     lines: {
       start:   ['후… 한 판 하자. 천천히 둬.', '오, 왔냐? 담배 한 대만 피우고 시작하자.'],
@@ -209,7 +204,12 @@ const LEVELS = {
   advanced: {
     name: '고급', nick: '그랜드마스터 AI', depth: 9, color: '#7c3aed', soft: '#ede9fe',
     desc: '깊이 MAX(9) · 완벽한 수읽기 (이길 수 없다)',
-    img: {},
+    img: {
+      start:   'img/advanced-start.png',
+      blunder: 'img/advanced-blunder.png',
+      win:     'img/advanced-win.png',
+      lose:    'img/advanced-lose.png',
+    },
     emoji: { start: '🤖', blunder: '🔴', win: '😈', lose: '💥' },
     lines: {
       start:   ['게임 트리 전체를 탐색했다. 결과는 이미 정해져 있다.', '인사는 생략하겠다. 시작하지.'],
