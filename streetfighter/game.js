@@ -33,7 +33,9 @@ const CH = {
 const SPR = {}; SF.CHARS.forEach(c => SPR[c.id] = c);
 
 // ───────── 상태 ─────────
-let phase = 'select';              // select | fight | over
+let phase = 'select';              // select | intro | count | fight | over
+let introT = 0, countT = 0, goT = 0, timeLeft = 180, tieBreak = false;
+const COUNT_STEPS = ['3', '2', '1', 'READY', 'GO!'], COUNT_DUR = .8, INTRO_DUR = 3;
 let sel = [{ picks: [], cur: 0, done: false }, { picks: [], cur: 4, done: false }];
 let fighters = [], projs = [], traps = [], fx = [], floats = [], trees = [];
 let shake = 0, winner = -1, banner = null, time = 0;
@@ -70,9 +72,20 @@ function loadChar(f) {
 }
 function startFight() {
   fighters = [mkFighter(0, sel[0].picks), mkFighter(1, sel[1].picks)];
-  projs = []; traps = []; fx = []; floats = []; trees = []; winner = -1; phase = 'fight';
-  fighters.forEach(f => { if (f.kind === 'monkey') growTree(f, true); });
-  banner = { text: 'FIGHT!', t: 1.2 };
+  projs = []; traps = []; fx = []; floats = []; trees = []; winner = -1; banner = null;
+  fighters.forEach(f => { if (f.kind === 'monkey') growTree(f, true); f.inv = 0; });
+  timeLeft = 180; tieBreak = false; introT = 0; countT = 0; goT = 0; phase = 'intro';
+}
+
+// 시간 종료 판정: 남은 캐릭터 수 → 현재 캐릭터 체력 → 동점이면 연장전(1분) → 그래도 같으면 무승부
+function judgeTime() {
+  const [a, b] = fighters, left = f => f.idx === 0 ? 2 : 1;
+  let w = -1;
+  if (left(a) !== left(b)) w = left(a) > left(b) ? 0 : 1;
+  else if (Math.ceil(a.hp) !== Math.ceil(b.hp)) w = a.hp > b.hp ? 0 : 1;
+  if (w >= 0) { winner = w; phase = 'over'; banner = { text: 'TIME UP!', t: 1.5 }; }
+  else if (!tieBreak) { tieBreak = true; timeLeft = 60; banner = { text: 'TIEBREAKER! +1:00', t: 2 }; }
+  else { winner = -1; phase = 'over'; banner = { text: 'TIME UP!', t: 1.5 }; }
 }
 
 // 원숭이 패시브: 원숭이가 있는 한 근처에 항상 나무가 있다
@@ -243,7 +256,15 @@ function updateAct(f, dt) {
 function update(dt) {
   time += dt;
   if (banner) { banner.t -= dt; if (banner.t <= 0) banner = null; }
+  if (phase === 'intro') { introT += dt; if (introT >= INTRO_DUR) { phase = 'count'; countT = 0; } return; }
+  if (phase === 'count') {
+    countT += dt; fighters.forEach(f => f.anim += dt);
+    if (countT >= COUNT_STEPS.length * COUNT_DUR) { phase = 'fight'; goT = .8; }
+    return;
+  }
+  if (goT > 0) goT -= dt;
   if (phase !== 'fight') { fx.forEach(e => e.t += dt); return; }
+  if (!fighters.some(f => f.dead)) { timeLeft -= dt; if (timeLeft <= 0) { timeLeft = 0; judgeTime(); } }
   fighters.forEach(f => {
     const k = KEYS[f.side], o = foe(f);
     f.anim += dt;
@@ -464,7 +485,10 @@ function drawHUD() {
       else txt('준비됨', sx + 38, sy + 34, 12, '#7dff9a', 'left');
     });
   });
-  txt('VS', W / 2, 38, 28, '#ffd866');
+  const tl = Math.ceil(timeLeft), low = timeLeft <= 10;
+  ctx.fillStyle = '#000b'; ctx.fillRect(W / 2 - 46, 14, 92, 52);
+  txt(`${Math.floor(tl / 60)}:${String(tl % 60).padStart(2, '0')}`, W / 2, 38, 34, low ? (Math.floor(time * 4) % 2 ? '#ff4b3a' : '#fff') : '#ffd866');
+  if (tieBreak) txt('TIEBREAKER', W / 2, 78, 14, '#ff9a8a');
 }
 function drawSelect() {
   ctx.fillStyle = '#1b1838'; ctx.fillRect(0, 0, W, H);
@@ -492,14 +516,65 @@ function drawSelect() {
   if (sel[0].done && sel[1].done) txt('Enter 또는 Space 로 시작!', W / 2, 525, 20, '#ffd866');
   else txt('조작: 좌/우 이동 · 점프(P1 S / P2 5) · 스킬 3개 (P1 Q W E / P2 넘버패드 7 8 9)', W / 2, 525, 15, '#889');
 }
+function drawIntro() {
+  const t = introT, sx = W * .58, sy = W * .42;
+  ctx.fillStyle = '#e8262f'; ctx.fillRect(0, 0, W, H);
+  const side = (poly, col) => {
+    ctx.save(); ctx.beginPath(); poly.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.clip();
+    ctx.fillStyle = col[0]; ctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < 140; i++) {
+      const a = i / 140 * Math.PI * 2 + t * .05, w = .006 + ((i * 37) % 7) * .004;
+      ctx.fillStyle = col[1 + i % 2]; ctx.beginPath(); ctx.moveTo(W / 2, H / 2);
+      ctx.lineTo(W / 2 + Math.cos(a - w) * 1000, H / 2 + Math.sin(a - w) * 1000); ctx.lineTo(W / 2 + Math.cos(a + w) * 1000, H / 2 + Math.sin(a + w) * 1000); ctx.fill();
+    }
+    ctx.restore();
+  };
+  const sh = Math.min(1, t / .35);                      // 화면 갈라짐 연출
+  const off = (1 - sh) * 80;
+  side([[0, 0], [sx + 20, 0], [sy + 20, H], [0, H]], ['#e8262f', '#ff6b5a88', '#ffb09a77']);
+  side([[sx - 20, 0], [W, 0], [W, H], [sy - 20, H]], ['#1747e8', '#4f86ff88', '#ff9a7a66']);
+  ctx.fillStyle = '#ffc61a'; ctx.beginPath(); ctx.moveTo(sx - 12, 0); ctx.lineTo(sx + 14, 0); ctx.lineTo(sy + 14, H); ctx.lineTo(sy - 12, H); ctx.fill();
+  // 캐릭터 대결 포즈
+  fighters.forEach((f, i) => {
+    const slide = Math.min(1, Math.max(0, (t - .15) / .5)), e = 1 - Math.pow(1 - slide, 3);
+    const sk = SKILLS[f.kind][0], pose = sk.poses[Math.min(1, sk.poses.length - 1)];
+    const sc = 8, w = SF.W * sc, h = SF.H * sc, bob = Math.sin(t * 6 + i * 2) * 4;
+    const tx = i ? W * .8 : W * .2, x = tx + (i ? 1 : -1) * (1 - e) * 600;
+    ctx.fillStyle = '#0006'; ctx.beginPath(); ctx.ellipse(x, 500, 120, 18, 0, 0, 7); ctx.fill();
+    ctx.save(); ctx.translate(x, 500 - h + bob); if (i) ctx.scale(-1, 1);
+    ctx.drawImage(SF.canvas(SPR[f.kind], t > .7 ? pose : 'idle'), -SF.CX * sc, 0, w, h); ctx.restore();
+    const nm = CH[f.kind].name, ny = 548;
+    ctx.fillStyle = '#000c'; ctx.fillRect(tx - 150, ny - 24, 300, 48);
+    txt(`P${i + 1}  ${nm}`, tx, ny, 26, i ? '#ff8a8a' : '#8ac2ff', 'center', true, 280);
+  });
+  // VS 폭발
+  const vs = Math.min(1, Math.max(0, (t - .45) / .3)), pop = vs < 1 ? 1 + (1 - vs) * 1.5 : 1 + Math.sin(t * 8) * .03;
+  if (vs > 0) {
+    ctx.save(); ctx.translate(W / 2, 250); ctx.scale(pop * vs, pop * vs); ctx.rotate(-.05);
+    ctx.beginPath(); for (let k = 0; k < 28; k++) { const r = k % 2 ? 105 : 160, a = k / 28 * Math.PI * 2; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r * .9); }
+    ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 8; ctx.strokeStyle = '#111'; ctx.lineJoin = 'round'; ctx.stroke();
+    ctx.font = `900 italic 110px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 12; ctx.strokeStyle = '#111';
+    ctx.strokeText('V', -42, 4); ctx.strokeText('S', 52, 4); ctx.fillStyle = '#3d5fe0'; ctx.fillText('V', -42, 4); ctx.fillStyle = '#ee3a3a'; ctx.fillText('S', 52, 4);
+    ctx.restore();
+  }
+}
+function drawCountdown() {
+  const i = Math.min(COUNT_STEPS.length - 1, Math.floor(countT / COUNT_DUR)), p = (countT % COUNT_DUR) / COUNT_DUR;
+  const s = COUNT_STEPS[i], size = (s.length > 2 ? 96 : 150) * (1.5 - .5 * Math.min(1, p * 3));
+  ctx.save(); ctx.globalAlpha = p > .8 ? 1 - (p - .8) * 5 : 1;
+  txt(s, W / 2, 250, size, i === 4 ? '#ff5a3a' : i === 3 ? '#ffd866' : '#fff');
+  ctx.restore();
+}
 function drawOver() {
   ctx.fillStyle = '#000a'; ctx.fillRect(0, 0, W, H);
-  txt(`P${winner + 1} 승리!`, W / 2, 220, 70, winner ? '#ff6a6a' : '#5bb0ff');
+  if (winner < 0) txt('무승부', W / 2, 220, 70, '#ddd');
+  else txt(`P${winner + 1} 승리!`, W / 2, 220, 70, winner ? '#ff6a6a' : '#5bb0ff');
   txt('Enter 또는 Space 로 다시 선택', W / 2, 300, 22, '#fff');
 }
 
 function render() {
   if (phase === 'select') { drawSelect(); return; }
+  if (phase === 'intro') { drawIntro(); return; }
   ctx.save();
   if (shake > 0) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
   drawStage();
@@ -513,11 +588,13 @@ function render() {
   ctx.restore();
   drawHUD();
   if (banner) txt(banner.text, W / 2, 230, 64, '#ffd866');
+  if (phase === 'count') drawCountdown();
+  if (goT > 0 && phase === 'fight') txt('GO!', W / 2, 250, 130 * (1 + goT * .3), '#ff5a3a');
   if (phase === 'over') drawOver();
 }
 
 let last = performance.now();
 function loop(now) { const dt = Math.max(0, Math.min(.05, (now - last) / 1000)); last = now; update(dt); render(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
-window.__sf = { get fighters() { return fighters; }, get phase() { return phase; }, down, sel, startFight, onPress };
+window.__sf = { setTime(v) { timeLeft = v; }, get winner() { return winner; }, get timeLeft() { return timeLeft; }, get tieBreak() { return tieBreak; }, get fighters() { return fighters; }, get phase() { return phase; }, down, sel, startFight, onPress };
 })();
