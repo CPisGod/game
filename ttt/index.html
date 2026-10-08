@@ -170,19 +170,24 @@
    ===================================================================== */
 const LEVELS = {
   beginner: {
-    name: '초급', nick: '담배맛 한 모금', depth: 2, color: '#16a34a', soft: '#dcfce7',
+    name: '초급', nick: '말티즈', depth: 2, color: '#16a34a', soft: '#dcfce7',
     desc: '깊이 2 · 눈앞의 수만 본다',
-    img: {},  // 예: start: 'img/beginner-start.png', blunder: 'img/beginner-blunder.png', ...
-    emoji: { start: '😮‍💨', blunder: '😒', win: '😎', lose: '😭' },
+    img: {
+      start:   'img/beginner-start.png',
+      blunder: 'img/beginner-blunder.png',
+      win:     'img/beginner-win.png',
+      lose:    'img/beginner-lose.png',
+    },
+    emoji: { start: '🐶', blunder: '🐕', win: '😎', lose: '😭' },
     lines: {
-      start:   ['후… 한 판 하자. 천천히 둬.', '오, 왔냐? 담배 한 대만 피우고 시작하자.'],
+      start:   ['헥헥… 한 판 하자. 천천히 둬.', '멍! 왔냐? 한 판 하자.'],
       move:    ['음… 여기?', '이 정도면 괜찮지 않나?', '네 차례야. 급하게 두지 마.', '흠, 생각보다 하네.'],
       block:   ['어딜 이기려고~ 막았다.', '그거 내가 못 볼 줄 알았냐?'],
       threat:  ['어? 이거 나 이길 것 같은데?', '슬슬 불안하지? 후…'],
       blunder: ['…진심이야? 그걸 거기 둬?', '와, 방금 수는 좀 아닌데.', '(째려본다)'],
       win:     ['ㅋㅋ 내가 이겼다. 눕는다~', '이겼네. 이제 좀 쉬자.'],
       lose:    ['아… 졌네… 흑흑.', '말도 안 돼… 한 판만 더…'],
-      draw:    ['비겼네. 담배나 한 대 피우자.', '무승부… 나쁘지 않아.'],
+      draw:    ['비겼네. 나쁘지 않아.', '무승부… 나쁘지 않아.'],
     },
   },
   intermediate: {
