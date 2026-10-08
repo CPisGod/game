@@ -191,10 +191,15 @@ const LEVELS = {
     },
   },
   intermediate: {
-    name: '중급', nick: '여우 박사', depth: 5, color: '#ea580c', soft: '#ffedd5',
+    name: '중급', nick: '라이벌', depth: 5, color: '#ea580c', soft: '#ffedd5',
     desc: '깊이 5 · 몇 수 앞을 내다본다',
-    img: {},  // 예: start: 'img/inter-start.png', blunder: 'img/inter-blunder.png', ...
-    emoji: { start: '🦊', blunder: '🧐', win: '😏', lose: '🥲' },
+    img: {
+      start:   'img/inter-start.png',
+      blunder: 'img/inter-blunder.png',
+      win:     'img/inter-win.png',
+      lose:    'img/inter-lose.png',
+    },
+    emoji: { start: '🙂', blunder: '🧐', win: '😏', lose: '🥲' },
     lines: {
       start:   ['어서 와. 머리 좀 써야 할 거야.', '틱택토라고 얕보면 곤란하지.'],
       move:    ['계산은 이미 끝났어.', '다음 수를 세 번쯤 읽어봤지.', '흥미로운 선택이군.'],
