@@ -35,7 +35,7 @@ const SPR = {}; SF.CHARS.forEach(c => SPR[c.id] = c);
 // ───────── 상태 ─────────
 let phase = 'select';              // select | intro | count | fight | over
 let introT = 0, countT = 0, goT = 0, timeLeft = 180, tieBreak = false;
-const COUNT_STEPS = ['3', '2', '1', 'READY', 'GO!'], COUNT_DUR = .8, INTRO_DUR = 3;
+const COUNT_STEPS = ['3', '2', '1', 'READY'], COUNT_DUR = .8, INTRO_DUR = 3;
 let sel = [{ picks: [], cur: 0, done: false }, { picks: [], cur: 4, done: false }];
 let fighters = [], projs = [], traps = [], fx = [], floats = [], trees = [];
 let shake = 0, winner = -1, banner = null, time = 0;
