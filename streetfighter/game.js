@@ -248,7 +248,7 @@ const SKILLS = {
     { name: '프리킥', poses: ['fk_wind','fk_go','fk_rec'], cd: 3.5, startup: .3, active: .1, rec: .3, ...shoot({ kind: 'ball', speed: 700, dmg: 13, w: 30, h: 45, life: 1.5, opts: { kb: 100 } }) },
     { name: '은신술', poses: ['ninja1','ninja2','ninja3'], cd: 20, startup: .35, active: .3, rec: .25,
       onActive(f) { night = NIGHT_DUR; shake = Math.max(shake, 3);
-        fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .5, col: '#9a9ab0' }); } },
+        fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .5, col: '#9a9ab0' }); fx.push({ k: 'text', x: f.x, y: GROUND - 200, text: '은신술!', t: 0, life: .9 }); } },
   ],
   panda: [
     { name: '앞발로 때리기', poses: ['windup','strike','recover'], cd: 1, startup: .26, active: .12, rec: .34, ...melee(150, 8, 120) },
