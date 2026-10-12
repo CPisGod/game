@@ -472,9 +472,9 @@ function drawFighter(f) {
   const cx = SF.CX * SC;
   const y = GROUND - sh - f.z;
   // 그림자
-  ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(f.x, GROUND + 4, 60 - f.z * .08, 10, 0, 0, 7); ctx.fill();
-  if (f.ghost) return;
   const sa = f.kind === 'soccer' && night > 0 ? (night > .4 ? 0 : 1 - night / .4) : 1;   // 은신술: 축구선수는 밤 동안 투명
+  if (sa > 0) { ctx.save(); ctx.globalAlpha = sa; ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(f.x, GROUND + 4, 60 - f.z * .08, 10, 0, 0, 7); ctx.fill(); ctx.restore(); }
+  if (f.ghost) return;
   if (f.burn > 0) { const im = SF.effect('burner'), sc = 5, w = im.width * sc, h = im.height * sc; ctx.drawImage(im, f.x - w / 2, GROUND + 6 - h, w, h); }
   ctx.save();
   if (sa < 1) ctx.globalAlpha = sa;
