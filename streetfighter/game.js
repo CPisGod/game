@@ -29,6 +29,9 @@ const CH = {
   hotbar:  { name: '핫바',         hp: 100, speed: 480 },
   tissue:  { name: '곽티슈',       hp: 90,  speed: 510 },
   devil:   { name: '미술의 악마',  hp: 100, speed: 470 },
+  chef:    { name: '중국집 사장님', hp: 105, speed: 450 },
+  soccer:  { name: '축구선수',     hp: 100, speed: 540 },
+  panda:   { name: '판다',         hp: 115, speed: 400 },
 };
 const SPR = {}; SF.CHARS.forEach(c => SPR[c.id] = c);
 
@@ -37,7 +40,8 @@ let phase = 'select';              // select | intro | count | fight | over
 let introT = 0, countT = 0, goT = 0, timeLeft = 180, tieBreak = false;
 const COUNT_STEPS = ['3', '2', '1', 'READY'], COUNT_DUR = .8, INTRO_DUR = 3;
 let sel = [{ picks: [], cur: 0, done: false }, { picks: [], cur: 4, done: false }];
-let fighters = [], projs = [], traps = [], fx = [], floats = [], trees = [];
+let fighters = [], projs = [], traps = [], fx = [], floats = [], trees = [], trucks = [];
+const NIGHT_DUR = 7; let night = 0;   // 은신술: 밤이 되고 모든 축구선수가 투명해지는 시간(초)
 let shake = 0, winner = -1, banner = null, time = 0;
 
 const ORDER = SF.CHARS.map(c => c.id);
@@ -61,18 +65,18 @@ function onPress(code) {
 function mkFighter(side, picks) {
   const f = { side, picks, idx: 0, x: side ? 720 : 240, z: 0, vx: 0, face: side ? -1 : 1, hp: 0, maxhp: 0, kind: '',
     act: null, t: 0, cd: [0, 0, 0], st: { stun: 0, confuse: 0, blind: 0, slow: 0, defdown: 0, pity: 0, weak: 0, lure: 0 }, micro: 0, microBy: 0, lureBy: 0,
-    hurt: 0, inv: 0, jt: -1, ghost: false, dead: 0, flash: 0, vars: {}, anim: 0, dance: false };
+    hurt: 0, burn: 0, burnT: 0, burnBy: 0, carry: null, inv: 0, jt: -1, ghost: false, dead: 0, flash: 0, vars: {}, anim: 0, dance: false };
   loadChar(f); return f;
 }
 function loadChar(f) {
   f.kind = f.picks[f.idx]; f.maxhp = f.hp = CH[f.kind].hp; f.act = null; f.cd = [0, 0, 0]; f.z = 0;
-  f.hurt = 0; f.jt = -1; f.micro = 0; f.inv = 1.2; f.dead = 0; f.dance = false; f.ghost = false;
+  f.hurt = 0; f.jt = -1; f.micro = 0; f.burn = 0; f.carry = null; f.inv = 1.2; f.dead = 0; f.dance = false; f.ghost = false;
   for (const k in f.st) f.st[k] = 0;
   if (f.kind === 'monkey') growTree(f, true);
 }
 function startFight() {
   fighters = [mkFighter(0, sel[0].picks), mkFighter(1, sel[1].picks)];
-  projs = []; traps = []; fx = []; floats = []; trees = []; winner = -1; banner = null;
+  projs = []; traps = []; fx = []; floats = []; trees = []; trucks = []; night = 0; winner = -1; banner = null;
   fighters.forEach(f => { if (f.kind === 'monkey') growTree(f, true); f.inv = 0; });
   timeLeft = 180; tieBreak = false; introT = 0; countT = 0; goT = 0; phase = 'intro';
 }
@@ -209,7 +213,7 @@ const SKILLS = {
   hotbar: [
     { name: '지건', poses: ['poke_wind','poke_go','poke_rec'], cd: 1, startup: .2, active: .1, rec: .3, ...melee(150, 8, 70) },
     { name: '꼬치 날리기', poses: ['skewer_wind','skewer_go','skewer_rec'], cd: 3.5, startup: .28, active: .1, rec: .3, ...shoot({ kind: 'skewer', speed: 640, dmg: 13, w: 30, h: 95, life: 1.6, opts: { kb: 90 } }) },
-    { name: '전자레인지', poses: ['micro1','micro2','micro3'], cd: 14, startup: .45, active: .25, rec: .4,
+    { name: '전자레인지', poses: ['micro1','micro2','micro3'], cd: 30, startup: .45, active: .25, rec: .4,
       onActive(f) { const d = foe(f); if (d.untouch || d.micro > 0) return;
         d.micro = 2; d.microBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.vx = 0; d.hurt = 0; d.st.stun = 0;
         fx.push({ k: 'ring', x: d.x, y: GROUND, t: 0, life: .35, col: '#ffb347' }); } },
@@ -229,6 +233,30 @@ const SKILLS = {
       onActive(f) { const d = foe(f); if (d.untouch || d.micro > 0) return;
         d.st.slow = Math.max(d.st.slow, 4); d.st.weak = Math.max(d.st.weak, 4);
         fx.push({ k: 'sprite', name: 'bstamp', x: d.x, y: GROUND - 120, t: 0, life: 1.2, scale: 7, rise: 0 }); shake = Math.max(shake, 4); } },
+  ],
+  chef: [
+    { name: '웍으로 후리기', poses: ['windup','strike','recover'], cd: 1, startup: .26, active: .12, rec: .34, ...melee(170, 8, 110) },
+    { name: '면발 휘두르기', poses: ['nw_wind','nw_go','nw_rec'], cd: 3.5, startup: .28, active: .1, rec: .3, ...shoot({ kind: 'nwhip', speed: 520, dmg: 11, w: 44, h: 90, life: 1.1, opts: { kb: 80 } }) },
+    { name: '가스버너에 넣기', poses: ['burn1','burn2','burn3'], cd: 30, startup: .4, active: .5, rec: .4,
+      onActive(f) { const d = foe(f);
+        if (d.dead || d.untouch || d.micro > 0 || d.carry || !inFront(f, 170)) { fx.push({ k: 'text', x: f.x + f.face * 120, y: GROUND - 200, text: '허탕…', t: 0, life: .8 }); return; }
+        d.burn = 1.85; d.burnT = 0; d.burnBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.hurt = 0; d.vx = 0; d.st.stun = 0;
+        d.x = Math.max(MINX, Math.min(MAXX, f.x + f.face * 95));
+        fx.push({ k: 'ring', x: d.x, y: GROUND, t: 0, life: .4, col: '#ff8a2a' }); shake = Math.max(shake, 5); } },
+  ],
+  soccer: [
+    { name: '발차기', poses: ['kick_wind','kick_go','kick_rec'], cd: 1, startup: .22, active: .12, rec: .32, ...melee(160, 8, 130) },
+    { name: '프리킥', poses: ['fk_wind','fk_go','fk_rec'], cd: 3.5, startup: .3, active: .1, rec: .3, ...shoot({ kind: 'ball', speed: 700, dmg: 13, w: 30, h: 45, life: 1.5, opts: { kb: 100 } }) },
+    { name: '은신술', poses: ['ninja1','ninja2','ninja3'], cd: 20, startup: .35, active: .3, rec: .25,
+      onActive(f) { night = NIGHT_DUR; shake = Math.max(shake, 3);
+        fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .5, col: '#9a9ab0' }); fx.push({ k: 'text', x: f.x, y: GROUND - 200, text: '은신술!', t: 0, life: .9 }); } },
+  ],
+  panda: [
+    { name: '앞발로 때리기', poses: ['windup','strike','recover'], cd: 1, startup: .26, active: .12, rec: .34, ...melee(150, 8, 120) },
+    { name: '대나무 던지기', poses: ['bam_wind','throw_go','throw_rec'], cd: 3.5, startup: .28, active: .1, rec: .3, ...shoot({ kind: 'bamboo', speed: 580, dmg: 12, w: 36, h: 95, life: 1.7, opts: { kb: 100 } }) },
+    { name: '중국으로 보내기', poses: ['ship1','ship2','ship3'], cd: 30, startup: .5, active: .3, rec: .35,
+      onStart(f) { fx.push({ k: 'warn', face: f.face, t: 0, life: .9 }); fx.push({ k: 'text', x: f.x, y: GROUND - 215, text: '빵빵!', t: 0, life: .7 }); },
+      onActive(f) { trucks.push({ owner: f.side, dir: f.face, x: f.face > 0 ? -170 : W + 170, v: 1250, got: null }); } },
   ],
 };
 
@@ -285,6 +313,12 @@ function update(dt) {
         fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .4, col: '#ff6a2a' }); fx.push({ k: 'text', x: f.x, y: GROUND - 220, text: '띵!', t: 0, life: .9 });
         hit(by, f, 14, { kb: 0 }); }
     }
+    else if (f.burn > 0) {
+      f.burn -= dt; f.burnT += dt; f.walk = false; f.vx = 0; f.act = null; f.jt = -1; f.z = 0; f.dance = false;
+      while (f.burnT >= .45 && !f.dead) { f.burnT -= .45; hit(fighters[f.burnBy], f, 4, { noHurt: true, noInv: true, kb: 0 }); }
+      if (f.burn <= 0) f.burn = 0;
+    }
+    else if (f.carry) { f.act = null; f.vx = 0; f.walk = false; f.jt = -1; f.z = 30; f.dance = false; f.x = f.carry.x; }
     else if (f.hurt > 0) { f.hurt -= dt; f.x += f.vx * dt; f.vx *= .9; if (f.hurt <= 0) f.vx = 0; }
     else if (f.st.lure > 0) {
       const tg = fighters[f.lureBy], dx = tg.x - f.x; f.act = null; f.dance = false; f.jt = -1; f.z = 0; f.walk = true;
@@ -303,18 +337,39 @@ function update(dt) {
       for (let i = 0; i < 3; i++) if (down[k.s[i]]) { tryUse(f, i); if (f.act) break; }
     }
     if (!f.act) { f.untouch = false; }
-    f.x = Math.max(MINX, Math.min(MAXX, f.x));
-    if (!f.act && !f.dead && f.jt < 0) f.z = 0;
+    if (!f.carry) f.x = Math.max(MINX, Math.min(MAXX, f.x));
+    if (!f.act && !f.dead && f.jt < 0 && !f.carry) f.z = 0;
     if (f.kind === 'monkey' && !f.dead) growTree(f);
   });
   // 서로 겹치지 않게
   const [a, b] = fighters;
-  if (!a.dead && !b.dead && a.z < 60 && b.z < 60) {
+  if (!a.dead && !b.dead && a.z < 60 && b.z < 60 && !a.carry && !b.carry) {
     const gap = 76, d = b.x - a.x;
     if (Math.abs(d) < gap) { const push = (gap - Math.abs(d)) / 2, s = d >= 0 ? 1 : -1;
       a.x = Math.max(MINX, Math.min(MAXX, a.x - s * push)); b.x = Math.max(MINX, Math.min(MAXX, b.x + s * push)); }
   }
   fighters.forEach(f => { if (!f.act) f.face = foe(f).x >= f.x ? 1 : -1; });
+
+  // 트럭 (판다 '중국으로 보내기'): 화면을 가로지르며 상대를 싣고 간다
+  trucks.forEach(t => {
+    t.x += t.dir * t.v * dt;
+    const d = fighters[1 - t.owner];
+    if (t.got && (t.got.dead || t.got.carry !== t)) t.got = null;
+    if (!t.got && !t.done && !d.dead && !d.carry && d.z < 70 && (d.x - t.x) * t.dir > -30 && (d.x - t.x) * t.dir < 110) {
+      if (d.untouch || d.micro > 0) t.done = true;
+      else { d.inv = 0; hit(fighters[t.owner], d, 25, { kb: 0 }); d.carry = t; t.got = d; t.done = true; shake = 10;
+        fx.push({ k: 'text', x: d.x, y: GROUND - 230, text: '중국行!', t: 0, life: 1 }); }
+    }
+    if ((t.dir > 0 ? t.x > W + 260 : t.x < -260)) {
+      t.life = 0;
+      if (t.got) { const g = t.got; g.carry = null; g.x = t.dir > 0 ? MAXX - 30 : MINX + 30; g.hurt = .5; g.vx = 0; g.inv = Math.max(g.inv, .35);
+        fx.push({ k: 'text', x: g.x, y: GROUND - 220, text: '중국 다녀옴', t: 0, life: 1.1 }); }
+    }
+  });
+  trucks = trucks.filter(t => t.life !== 0);
+
+  // 은신술(밤) 타이머
+  night = Math.max(0, night - dt);
 
   // 투사체
   projs.forEach(p => {
@@ -369,6 +424,23 @@ function drawStage() {
   ctx.fillStyle = '#85603f'; for (let x = 0; x < W; x += 40) ctx.fillRect(x, GROUND, 20, 6);
   ctx.fillStyle = '#4e3524'; for (let x = 20; x < W; x += 40) ctx.fillRect(x, GROUND + 40, 20, 6);
 }
+function drawNight() {
+  const el = NIGHT_DUR - night, na = Math.min(1, el / .5, night / .6);
+  if (na <= 0) return;
+  ctx.save(); ctx.globalAlpha = na;
+  const g = ctx.createLinearGradient(0, 0, 0, GROUND);
+  g.addColorStop(0, '#04061a'); g.addColorStop(.6, '#12184a'); g.addColorStop(1, '#2a2a66');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, GROUND);
+  ctx.fillStyle = '#fff'; for (let i = 0; i < 46; i++) { const x = (i * 197) % W, y = (i * 83) % 260, s = (i % 3 ? 2 : 4); if (Math.floor(time * 2 + i) % 5) ctx.fillRect(x, y, s, s); }
+  ctx.fillStyle = '#e8ecff'; ctx.beginPath(); ctx.arc(700, 190, 50, 0, 7); ctx.fill();
+  ctx.fillStyle = '#04061a'; ctx.beginPath(); ctx.arc(724, 178, 44, 0, 7); ctx.fill();   // 초승달
+  ctx.fillStyle = '#0a0d30';
+  for (let i = 0; i < 8; i++) { const x = i * 150 - 40, h = 100 + (i * 37 % 70); ctx.beginPath(); ctx.moveTo(x, GROUND - 30); ctx.lineTo(x + 90, GROUND - 30 - h); ctx.lineTo(x + 180, GROUND - 30); ctx.fill(); }
+  ctx.fillStyle = '#05061a'; ctx.fillRect(0, GROUND - 30, W, 30);
+  ctx.fillStyle = '#2a2040'; ctx.fillRect(0, GROUND, W, H - GROUND);
+  ctx.fillStyle = '#3a3058'; for (let x = 0; x < W; x += 40) ctx.fillRect(x, GROUND, 20, 6);
+  ctx.restore();
+}
 function drawTree(t) {
   const s = t.grow, x = t.x, b = GROUND;
   ctx.save(); ctx.translate(x, b); ctx.scale(1, s); ctx.translate(-x, -b);
@@ -394,7 +466,7 @@ function drawFighter(f) {
   const sw = SF.W * SC, sh = SF.H * SC;
   let fr = 'idle';
   if (f.act) { const ph = { startup: 0, active: 1, rec: 2 }[f.act.ph] ?? 0; fr = f.act.sk.poses[ph]; }
-  else if (f.hurt > 0 || f.st.stun > 0 || f.dead) fr = 'hurt';
+  else if (f.hurt > 0 || f.st.stun > 0 || f.dead || f.carry || f.burn > 0) fr = 'hurt';
   else fr = Math.floor(f.anim * (f.walk ? 7 : 2.5)) % 2 ? 'idle2' : 'idle';
   if (f.dance) fr = ['dance1', 'dance3', 'dance2', 'dance3'][Math.floor(f.anim * 8) % 4];
   const img = SF.canvas(SPR[f.kind], fr);
@@ -403,14 +475,18 @@ function drawFighter(f) {
   // 그림자
   ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(f.x, GROUND + 4, 60 - f.z * .08, 10, 0, 0, 7); ctx.fill();
   if (f.ghost) return;
+  const sa = f.kind === 'soccer' && night > 0 ? (night > .4 ? 0 : 1 - night / .4) : 1;   // 은신술: 축구선수는 밤 동안 투명
+  if (f.burn > 0) { const im = SF.effect('burner'), sc = 5, w = im.width * sc, h = im.height * sc; ctx.drawImage(im, f.x - w / 2, GROUND + 6 - h, w, h); }
   ctx.save();
+  if (sa < 1) ctx.globalAlpha = sa;
   if (f.inv > 0 && !f.hurt && Math.floor(time * 20) % 2) ctx.globalAlpha = .55;
   if (f.dead) { ctx.globalAlpha = Math.max(0, 1 - f.dead / 1.1); }
   if (f.flash > 0) ctx.filter = 'brightness(3)';
   ctx.translate(f.x, y);
   if (f.face < 0) ctx.scale(-1, 1);
-  ctx.drawImage(img, -cx, 0, sw, sh);
+  if (sa > 0) ctx.drawImage(img, -cx, 0, sw, sh);
   ctx.restore();
+  if (f.burn > 0) for (let i = 0; i < 9; i++) { const fh = 26 + ((Math.floor(time * 14) + i * 5) % 4) * 9; ctx.fillStyle = i % 2 ? '#ff8a2a' : '#ffd23f'; ctx.globalAlpha = .85; ctx.fillRect(f.x - 64 + i * 16, GROUND - 12 - fh, 12, fh); ctx.fillStyle = '#ff3b30'; ctx.fillRect(f.x - 60 + i * 16, GROUND - 12 - fh * .5, 5, fh * .5); ctx.globalAlpha = 1; }
   if (f.micro > 0) {
     const im = SF.effect('microwave'), sc = 8, w = im.width * sc, h = im.height * sc;
     ctx.save(); ctx.globalAlpha = .55; ctx.drawImage(im, f.x - w / 2, GROUND + 8 - h, w, h); ctx.restore();
@@ -427,6 +503,9 @@ function drawFighter(f) {
   if (f.st.weak > 0) tags.push(['약화', '#b0b0ff']);
   if (f.st.lure > 0) tags.push(['유혹', '#ff7aa8']);
   if (f.micro > 0) tags.push(['가둠', '#ffb347']);
+  if (f.burn > 0) tags.push(['화상', '#ff8a2a']);
+  if (f.carry) tags.push(['중국行', '#ff5a5a']);
+  if (f.kind === 'soccer' && night > 0) tags.push(['은신', '#9aa0ff']);
   tags.forEach((t, i) => txt(t[0], f.x, y - 12 - i * 18, 14, t[1]));
   if (f.st.stun > 0) for (let i = 0; i < 3; i++) { const a = f.anim * 6 + i * 2.1; ctx.fillStyle = '#ffe066'; ctx.fillRect(f.x + Math.cos(a) * 34 - 4, y + 18 + Math.sin(a) * 8 - 4, 8, 8); }
 }
@@ -435,14 +514,21 @@ function drawProj(p) {
   if (p.kind === 'gas') { for (let i = 0; i < 4; i++) { ctx.fillStyle = ['#9be34a', '#6cc02d', '#c8f27a', '#7fd13a'][i]; const r = 14 + Math.sin(p.t * 8 + i) * 4; ctx.beginPath(); ctx.arc(x - i * 14 * Math.sign(p.vx), y + Math.sin(p.t * 6 + i * 2) * 6, r, 0, 7); ctx.fill(); } }
   else if (p.kind === 'apple') { ctx.fillStyle = '#6fb81f'; ctx.beginPath(); ctx.arc(x, y, 14, 0, 7); ctx.fill(); ctx.fillStyle = '#c4f060'; ctx.fillRect(x - 8, y - 8, 6, 6); ctx.fillStyle = '#5e3a18'; ctx.fillRect(x - 1, y - 20, 4, 8); }
   else if (p.kind === 'yeast') { for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? '#f1e2b0' : '#d8c38a'; ctx.fillRect(x - i * 7 * Math.sign(p.vx) - 5, y + Math.sin(p.t * 20 + i) * 10 - 5, 10, 10); } }
-  else if (['noodle', 'skewer', 'tball', 'chisel'].includes(p.kind)) {
-    const im = SF.effect(p.kind), sc = 3; ctx.save(); ctx.translate(x, y); if (p.vx < 0) ctx.scale(-1, 1);
+  else if (['noodle', 'skewer', 'tball', 'chisel', 'nwhip', 'ball', 'bamboo'].includes(p.kind)) {
+    const im = SF.effect(p.kind), sc = p.kind === 'nwhip' ? 4 : p.kind === 'ball' ? 4 : 3; ctx.save(); ctx.translate(x, y); if (p.vx < 0) ctx.scale(-1, 1);
     if (p.kind === 'tball' || p.kind === 'noodle') ctx.rotate(p.t * 10);
+    if (p.kind === 'ball') ctx.rotate(p.t * 16 * Math.sign(p.vx));
+    if (p.kind === 'bamboo') ctx.rotate(p.t * 14 * Math.sign(p.vx));
     ctx.drawImage(im, -im.width * sc / 2, -im.height * sc / 2, im.width * sc, im.height * sc); ctx.restore();
   }
   else if (p.kind === 'peel') { ctx.save(); ctx.translate(x, y); ctx.rotate(p.t * 14); ctx.fillStyle = '#ffe135'; ctx.fillRect(-16, -5, 32, 10); ctx.fillStyle = '#f2c200'; ctx.fillRect(-12, 1, 24, 4); ctx.fillStyle = '#6e5a10'; ctx.fillRect(14, -7, 6, 6); ctx.restore(); }
   else if (p.kind === 'spine') { ctx.save(); ctx.translate(x, y); ctx.rotate(p.t * 18 * Math.sign(p.vx));
     for (let i = -3; i <= 3; i++) { ctx.fillStyle = i % 2 ? '#f3ecd2' : '#fffbe6'; ctx.fillRect(i * 9 - 5, -6, 10, 12); ctx.fillStyle = '#b9ad84'; ctx.fillRect(i * 9 - 5, 3, 10, 3); } ctx.restore(); }
+}
+function drawTruck(t) {
+  const im = SF.effect('truck'), sc = 6, w = im.width * sc, h = im.height * sc;
+  ctx.save(); ctx.translate(t.x, GROUND + 14 - h); if (t.dir < 0) ctx.scale(-1, 1);
+  ctx.drawImage(im, -w / 2, Math.sin(time * 40) * 1.5, w, h); ctx.restore();
 }
 function drawTrap(t) {
   const x = t.x, y = GROUND, bl = t.life < 2 && Math.floor(time * 8) % 2;
@@ -457,6 +543,9 @@ function drawFx(e) {
   else if (e.k === 'swing') { ctx.strokeStyle = '#fff'; ctx.lineWidth = 8 * (1 - p); ctx.beginPath(); const r = e.r * .6; ctx.arc(e.x - e.face * 20, e.y + 20, r, e.face > 0 ? -1.2 : Math.PI - .4, e.face > 0 ? .4 : Math.PI + 1.2); ctx.stroke(); }
   else if (e.k === 'sprite') { if (e.t < 0) return; const im = SF.effect(e.name), sc = e.scale || 4, w = im.width * sc, h = im.height * sc;
     ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, (1 - p) * 2)); ctx.drawImage(im, e.x - w / 2, e.y - h / 2 - (e.rise || 0) * p, w, h); ctx.restore(); }
+  else if (e.k === 'warn') { const x = e.face > 0 ? 0 : W, blink = Math.floor(time * 14) % 2;
+    ctx.save(); ctx.globalAlpha = blink ? .5 : .22; ctx.fillStyle = '#ff3b30'; ctx.fillRect(0, GROUND - 6, W, 30);
+    ctx.globalAlpha = 1; for (let i = 0; i < 6; i++) txt(e.face > 0 ? '▶' : '◀', x + (e.face > 0 ? 40 + i * 150 : -40 - i * 150), GROUND + 9, 28, '#fff'); ctx.restore(); }
   else if (e.k === 'text') txt(e.text, e.x, e.y - p * 50, 40, '#fff');
   else if (e.k === 'notes') { for (let i = 0; i < 6; i++) { const q = Math.min(1, p * 1.1 + i * .02); txt(['♪', '♬', '♩'][i % 3], e.x + e.face * (60 + q * 380) , e.y + Math.sin(q * 9 + i) * 36 - i * 4, 34, '#ffe066'); } }
   else if (e.k === 'math') { ['∫x²dx', 'Σ', 'π≠3', 'e^iπ+1', '√-1', 'a²+b²'].forEach((s, i) => txt(s, e.x + Math.cos(i * 1.4 + e.t * 2) * 70, e.y + Math.sin(i * 1.9 + e.t * 2) * 50 - p * 30, 22, '#9ef0ff')); }
@@ -489,18 +578,19 @@ function drawHUD() {
   ctx.fillStyle = '#000b'; ctx.fillRect(W / 2 - 46, 14, 92, 52);
   txt(`${Math.floor(tl / 60)}:${String(tl % 60).padStart(2, '0')}`, W / 2, 38, 34, low ? (Math.floor(time * 4) % 2 ? '#ff4b3a' : '#fff') : '#ffd866');
   if (tieBreak) txt('TIEBREAKER', W / 2, 78, 14, '#ff9a8a');
+  if (night > 0) txt(`🌙 은신술 ${night.toFixed(1)}`, W / 2, 98, 15, '#aab4ff');
 }
 function drawSelect() {
   ctx.fillStyle = '#1b1838'; ctx.fillRect(0, 0, W, H);
   txt('스트리트 파이터', W / 2, 44, 36, '#ffd866');
   txt('각자 캐릭터 2명을 고르세요 (고른 순서대로 등장 · 같은 캐릭터 중복 가능)', W / 2, 84, 17, '#ccc');
   ORDER.forEach((id, i) => {
-    const col = i % 5, row = Math.floor(i / 5), rowN = row ? ORDER.length - 5 : 5;
-    const x = 70 + col * 170 + (5 - rowN) * 85, y = 94 + row * 118;
-    ctx.fillStyle = '#2e2b50'; ctx.fillRect(x, y, 160, 112);
-    ctx.drawImage(SF.canvas(SPR[id], Math.floor(time * 2.5) % 2), x + 80 - SF.CX * 2.3, y + 2, SF.W * 2.3, SF.H * 2.3);
-    txt(CH[id].name, x + 80, y + 100, 15, '#fff', 'center', true, 150);
-    sel.forEach((s, p) => { if (!s.done && s.cur === i) { ctx.strokeStyle = p ? '#ff6a6a' : '#5bb0ff'; ctx.lineWidth = 5; ctx.strokeRect(x + (p ? 6 : 0), y + (p ? 6 : 0), 160 - (p ? 12 : 0), 112 - (p ? 12 : 0)); txt('P' + (p + 1), x + (p ? 140 : 20), y + 14, 16, p ? '#ff6a6a' : '#5bb0ff'); } });
+    const COLS = 6, TW = 144, col = i % COLS, row = Math.floor(i / COLS);
+    const x = (W - COLS * 150) / 2 + 3 + col * 150, y = 94 + row * 118;
+    ctx.fillStyle = '#2e2b50'; ctx.fillRect(x, y, TW, 112);
+    ctx.drawImage(SF.canvas(SPR[id], Math.floor(time * 2.5) % 2), x + TW / 2 - SF.CX * 2.3, y + 2, SF.W * 2.3, SF.H * 2.3);
+    txt(CH[id].name, x + TW / 2, y + 100, 15, '#fff', 'center', true, TW - 10);
+    sel.forEach((s, p) => { if (!s.done && s.cur === i) { ctx.strokeStyle = p ? '#ff6a6a' : '#5bb0ff'; ctx.lineWidth = 5; ctx.strokeRect(x + (p ? 6 : 0), y + (p ? 6 : 0), TW - (p ? 12 : 0), 112 - (p ? 12 : 0)); txt('P' + (p + 1), x + (p ? TW - 20 : 20), y + 14, 16, p ? '#ff6a6a' : '#5bb0ff'); } });
   });
   sel.forEach((s, p) => {
     const y = 338 + p * 84, col = p ? '#ff6a6a' : '#5bb0ff';
@@ -577,12 +667,13 @@ function render() {
   if (phase === 'intro') { drawIntro(); return; }
   ctx.save();
   if (shake > 0) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
-  drawStage();
+  drawStage(); drawNight();
   trees.forEach(drawTree);
   traps.forEach(drawTrap);
   fighters.forEach(drawLandingMark);
   [...fighters].sort((a, b) => a.z - b.z).forEach(drawFighter);
   projs.forEach(drawProj);
+  trucks.forEach(drawTruck);
   fx.forEach(drawFx);
   floats.forEach(e => txt(e.text, e.x, e.y - e.t * 60, 26, e.col));
   ctx.restore();

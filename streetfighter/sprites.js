@@ -73,6 +73,28 @@ const SF = (() => {
     lecture1: { lean: -1, hand: [5, -9], back: [-2, 4], expr: 'normal', mouth: 'open', prop: 'none', glasses: true, finger: true },
     lecture2: { lean: 2, hand: [15, -1], back: [-4, 4], mouth: 'open', prop: 'pointer', wdir: [4, -1], glasses: true, legs: 'lunge' },
     lecture3: { lean: 0, hand: [4, -9], back: [-5, 8], mouth: 'smile', prop: 'none', glasses: true, adjust: true },
+    // 중국집 사장님
+    nw_wind: { lean: -3, hand: [-9, -3], back: [-5, 6], wdir: [-2, -3], legs: 'back', prop: 'nwhip', expr: 'angry' },
+    nw_go: { lean: 4, hand: [15, -2], back: [-4, 6], wdir: [4, 0], legs: 'lunge', prop: 'nwhip', expr: 'angry' },
+    nw_rec: { lean: 1, hand: [10, 5], back: [-5, 8], prop: 'none' },
+    burn1: { lean: 2, hand: [13, 3], back: [-4, 6], legs: 'lunge', prop: 'none', grab: true, expr: 'angry' },
+    burn2: { bob: 3, lean: 3, hand: [12, 13], back: [-3, 9], legs: 'crouch', prop: 'none', flame: true, expr: 'angry', mouth: 'wide' },
+    burn3: { lean: 0, hand: [5, -9], back: [-5, 8], prop: 'none', expr: 'happy', mouth: 'smile' },
+    // 축구선수
+    kick_wind: { lean: -3, hand: [8, 2], back: [-8, 3], legs: 'back', kick: 'cock', prop: 'none' },
+    kick_go: { lean: 3, hand: [-1, -3], back: [-9, 4], legs: 'lunge', kick: 'out', prop: 'none', expr: 'angry' },
+    kick_rec: { lean: 1, hand: [8, 7], back: [-5, 8], prop: 'none' },
+    fk_wind: { lean: -3, hand: [8, 3], back: [-8, 3], legs: 'back', kick: 'cock', ball: true, prop: 'none' },
+    fk_go: { lean: 4, hand: [9, 2], back: [-8, 2], legs: 'lunge', kick: 'low', prop: 'none', expr: 'angry' },
+    fk_rec: { lean: 2, hand: [5, 6], back: [-6, 5], kick: 'out', prop: 'none', expr: 'happy', mouth: 'smile' },
+    ninja1: { bob: 4, lean: -2, hand: [4, -9], back: [-3, 9], legs: 'crouch', prop: 'none', expr: 'smug', shh: true },
+    ninja2: { bob: 2, cross: true, legs: 'crouch', prop: 'none', expr: 'smug', smoke: 1 },
+    ninja3: { bob: 0, hand: [9, -10], back: [-6, 8], prop: 'none', expr: 'happy', mouth: 'smile', smoke: 2 },
+    // 판다
+    bam_wind: { lean: -3, hand: [-9, -2], back: [-5, 6], wdir: [-1, -3], legs: 'back', prop: 'bamboo' },
+    ship1: { lean: -1, hand: [6, -11], back: [-4, 8], prop: 'none', mouth: 'open' },
+    ship2: { lean: 3, hand: [15, 0], back: [-4, 6], legs: 'lunge', prop: 'none', expr: 'angry', mouth: 'wide' },
+    ship3: { lean: 0, hand: [8, -10], back: [-5, 8], prop: 'none', expr: 'happy', mouth: 'smile', wave: true },
   };
   const poseOf = (n, over) => Object.assign({}, BASE, POSES[n] || POSES.idle, (over && over[n]) || {});
   const ALIAS = ['idle', 'idle2', 'windup', 'strike', 'recover'];
@@ -198,6 +220,26 @@ const SF = (() => {
       rect(g, x0, y0, 11, 14, '#ffffff'); rect(g, x0, y0, 11, 1, '#cfd6e0'); rect(g, x0, y0 + 13, 11, 1, '#cfd6e0');
       ['1110', '1001', '1001', '1110', '1001', '1001', '1110'].forEach((r, j) => [...r].forEach((c, i) => { if (c === '1') px(g, x0 + 3 + i, y0 + 3 + j, '#d81e1e'); }));
       rect(g, x0 + 2, y0 + 11, 7, 1, '#d81e1e');
+    }
+    else if (name === 'wok') {
+      const [dx, dy] = P.wdir, m = Math.hypot(dx, dy), ux = dx / m, uy = dy / m;
+      line(g, hx, hy, hx + ux * 6, hy + uy * 6, '#7a4a22', 2);
+      const wx = hx + ux * 13, wy = hy + uy * 13;
+      ell(g, wx, wy, 7, 6, '#23232b'); ell(g, wx, wy, 5, 4, '#44444f'); px(g, wx - 3, wy - 2, '#8e8e9c'); px(g, wx - 2, wy - 3, '#8e8e9c');
+    }
+    else if (name === 'nwhip') {
+      const [dx, dy] = P.wdir, m = Math.hypot(dx, dy), ux = dx / m, uy = dy / m, len = P.wdir[0] >= 4 ? 24 : 15;
+      for (let s = 0; s < 3; s++) for (let k = 0; k <= len; k++) {
+        const w = Math.sin(k * .8 + s * 2) * (1 + k / len * 2) + (s - 1) * 1.5;
+        px(g, hx + ux * k - uy * w, hy + uy * k + ux * w, s % 2 ? '#e0c470' : '#f6e3a0');
+      }
+      rect(g, hx - 1, hy - 1, 3, 3, '#f6e3a0');
+    }
+    else if (name === 'bamboo') {
+      const [dx, dy] = P.wdir, m = Math.hypot(dx, dy), ux = dx / m, uy = dy / m;
+      weapon(g, hx, hy, 14, '#6cc04a', 3, '#4a9a32', '#a8e070');
+      [4, 9].forEach(k => px(g, hx + ux * k + uy, hy + uy * k - ux, '#2f7a22'));
+      rect(g, Math.round(hx + ux * 15) - 1, Math.round(hy + uy * 15) - 2, 3, 2, '#6cc04a');
     }
     else if (name === 'book') {
       const horiz = P.wdir[0] >= 4, bw = horiz ? 9 : 6, bh = horiz ? 6 : 9;
@@ -469,8 +511,110 @@ const SF = (() => {
     return g;
   };
 
+  // ───── 10. 중국집 사장님 ─────
+  const chef = () => {
+    const g = mk(), b = P.bob, cx = 20 + P.lean;
+    const SK = '#f2c29a', WH = '#ffffff', WS = '#d8dde8', PANT = '#3b3b4a', RD = '#d8281c', GOLD = '#f5c542';
+    const sx = cx + 6, sy = 21 + b;
+    backArm(g, cx - 6, sy, WS, SK);
+    legs(g, cx, PANT, '#111');
+    rect(g, cx - 8, 16 + b, 17, 16, WH); rect(g, cx - 8, 16 + b, 2, 16, WS);              // 조리복
+    [-3, 3].forEach(x => [18, 22, 26].forEach(y => rect(g, cx + x, y + b, 1, 2, GOLD)));   // 단추
+    rect(g, cx - 5, 25 + b, 12, 7, '#ece6d6'); rect(g, cx - 5, 25 + b, 12, 1, '#c9c1ac');   // 앞치마
+    px(g, cx - 2, 28 + b, '#c8742a'); px(g, cx + 3, 30 + b, '#a8481a'); px(g, cx + 1, 27 + b, '#c8742a');
+    rect(g, cx - 4, 15 + b, 9, 2, RD);                                                        // 목수건
+    ell(g, cx + 1, 10 + b, 7, 6, SK);
+    ell(g, cx + 1, 3 + b, 6, 3, WH); ell(g, cx - 4, 4 + b, 3, 2, WH); ell(g, cx + 6, 4 + b, 3, 2, WH);   // 높은 요리사 모자
+    rect(g, cx - 5, 4 + b, 13, 3, WH); rect(g, cx - 5, 6 + b, 13, 1, WS);
+    eye(g, cx + 1, 9 + b, false); eye(g, cx + 5, 9 + b, false);
+    if (P.expr === 'angry') { rect(g, cx, 8 + b, 4, 1, '#111'); rect(g, cx + 5, 8 + b, 4, 1, '#111'); }
+    rect(g, cx + 2, 13 + b, 7, 1, '#2a2a2a'); px(g, cx + 1, 14 + b, '#2a2a2a'); px(g, cx + 9, 14 + b, '#2a2a2a');   // 콧수염
+    if (P.mouth) mouth(g, cx + 2, 15 + b);
+    const h = frontArm(g, cx, sx, sy, WH, SK);
+    if (h) {
+      if (P.grab) { rect(g, h[0] + 1, h[1] - 3, 3, 1, SK); rect(g, h[0] + 1, h[1] + 2, 3, 1, SK); rect(g, h[0] + 3, h[1] - 3, 1, 6, SK); }  // 움켜쥐는 손
+      if (P.flame) { rect(g, h[0] - 1, h[1] + 2, 3, 2, '#ff3b30'); [[0, 0], [2, -2], [-2, -1]].forEach(([a, c]) => { px(g, h[0] + a, h[1] - 3 + c, '#ffd23f'); px(g, h[0] + a, h[1] - 4 + c, '#ff8a2a'); }); }
+      prop(g, held('wok'), h[0], h[1]);
+    }
+    slash(g, sx, sy);
+    return g;
+  };
+
+  // ───── 11. 축구선수 ─────
+  const soccer = () => {
+    const g = mk(), b = P.bob, cx = 20 + P.lean;
+    const SK = '#6b4226', SD = '#4a2c18', JR = '#ff8a1e', JD = '#d96a0a', SH = '#ffffff', SOCK = '#2fa44a', HAIR = '#15110f', K = P.kick;
+    const sx = cx + 6, sy = 21 + b;
+    backArm(g, cx - 6, sy, SD, SD);
+    if (!K) legs(g, cx, SOCK, '#111');
+    else {
+      const bw = P.legs === 'lunge' ? -3 : -1;
+      rect(g, cx - 6 + bw, 31 + b, 4, 7, SOCK); rect(g, cx - 7 + bw, 37, 6, 2, '#111');
+      if (K === 'cock') { line(g, cx + 3, 32 + b, cx - 4, 36, SOCK, 4); rect(g, cx - 9, 35, 5, 3, '#111'); }
+      else if (K === 'out') { line(g, cx + 3, 31 + b, cx + 17, 29 + b, SOCK, 4); rect(g, cx + 17, 27 + b, 6, 5, '#111'); px(g, cx + 22, 28 + b, '#fff'); }
+      else { line(g, cx + 3, 32 + b, cx + 13, 36, SOCK, 4); rect(g, cx + 13, 35, 6, 3, '#111'); }
+    }
+    rect(g, cx - 7, 29 + b, 15, 5, SH); rect(g, cx - 7, 33 + b, 15, 1, '#cfd6e0');                // 반바지
+    rect(g, cx - 7, 17 + b, 15, 13, JR); rect(g, cx - 7, 17 + b, 2, 13, JD);                       // 유니폼
+    rect(g, cx - 3, 17 + b, 7, 1, '#fff'); rect(g, cx - 7, 28 + b, 15, 1, JD);
+    rect(g, cx - 3, 21 + b, 1, 5, '#fff'); rect(g, cx + 2, 21 + b, 1, 5, '#fff'); px(g, cx - 4, 22 + b, '#fff'); px(g, cx + 1, 22 + b, '#fff');   // 11
+    ell(g, cx + 1, 10 + b, 7, 6, SK); ell(g, cx - 5, 11 + b, 1, 2, SD);
+    ell(g, cx, 5 + b, 7, 3, HAIR); rect(g, cx - 6, 6 + b, 2, 4, HAIR);
+    eye(g, cx + 1, 9 + b, false); eye(g, cx + 5, 9 + b, false);
+    if (P.expr === 'angry') { rect(g, cx, 7 + b, 4, 1, '#111'); rect(g, cx + 5, 7 + b, 4, 1, '#111'); }
+    px(g, cx + 8, 11 + b, SD);
+    if (P.mouth) mouth(g, cx + 2, 14 + b); else { rect(g, cx + 3, 14 + b, 4, 1, '#2a1208'); rect(g, cx + 4, 15 + b, 2, 1, '#e8e8e8'); }
+    if (P.ball) { ell(g, cx + 15, 36, 3, 3, '#fff'); px(g, cx + 14, 35, '#222'); px(g, cx + 16, 37, '#222'); px(g, cx + 16, 34, '#222'); }
+    if (P.smoke) [[-8, 30, 5], [-14, 26, 4], [11, 31, 4], [-5, 35, 4], [14, 26, P.smoke > 1 ? 3 : 0]].forEach(([x, y, r], i) => r && ell(g, cx + x, y + b, r, Math.max(2, r - 1), i % 2 ? '#7a7a92' : '#9a9ab0'));
+    const h = frontArm(g, cx, sx, sy, SK, SK);
+    if (h) { rect(g, sx - 1, sy - 2, 4, 3, JR); if (P.shh) rect(g, h[0], h[1] - 3, 1, 3, SK); }
+    slash(g, sx, sy);
+    return g;
+  };
+
+  // ───── 12. 판다 ─────
+  const panda = () => {
+    const g = mk(), b = P.bob, cx = 20 + P.lean;
+    const W_ = '#f7f7f7', WD = '#d3d3de', K = '#25252c';
+    const sx = cx + 7, sy = 22 + b;
+    backArm(g, cx - 7, sy, K, K);
+    legs(g, cx, K, K);
+    ell(g, cx, 24 + b, 9, 9, WD); ell(g, cx + 1, 24 + b, 8, 8, W_);
+    rect(g, cx - 8, 18 + b, 17, 3, K);                                                          // 어깨 띠
+    ell(g, cx - 6, 4 + b, 3, 3, K); ell(g, cx + 8, 4 + b, 3, 3, K);                              // 귀
+    ell(g, cx + 1, 10 + b, 9, 7, W_);
+    ell(g, cx + 1, 10 + b, 3, 3, K); ell(g, cx + 7, 10 + b, 3, 3, K);                            // 눈 주변 검은 무늬
+    eye(g, cx, 9 + b, false); eye(g, cx + 6, 9 + b, false);
+    rect(g, cx + 8, 12 + b, 3, 2, K);
+    if (P.mouth) mouth(g, cx + 4, 15 + b); else { rect(g, cx + 6, 15 + b, 3, 1, K); px(g, cx + 5, 14 + b, K); px(g, cx + 9, 14 + b, K); }
+    const h = frontArm(g, cx, sx, sy, K, K);
+    if (h) {
+      rect(g, h[0] - 2, h[1] - 2, 5, 5, K); px(g, h[0] - 1, h[1] - 1, '#43434d');
+      if (P.wave) { px(g, h[0] + 4, h[1] - 3, K); px(g, h[0] + 5, h[1] - 1, K); }
+      prop(g, held('bamboo'), h[0], h[1]);
+    }
+    slash(g, sx, sy);
+    return g;
+  };
+
   // ───── 이펙트/투사체 스프라이트 ─────
   const fxList = {
+    nwhip: (g) => { for (let s = 0; s < 3; s++) for (let x = 0; x < 30; x++) px(g, x, 3 + Math.round(Math.sin(x * .7 + s * 2) * 2) + (s - 1), s % 2 ? '#e0c470' : '#f6e3a0'); },
+    ball: (g) => { ell(g, 4, 4, 4, 4, '#ffffff'); [[3, 3], [6, 5], [4, 6], [5, 2]].forEach(([x, y]) => px(g, x, y, '#222')); px(g, 2, 5, '#cfd6e0'); },
+    bamboo: (g) => { rect(g, 0, 1, 30, 4, '#6cc04a'); rect(g, 0, 1, 30, 1, '#a8e070'); rect(g, 0, 4, 30, 1, '#3f9a2e'); [5, 12, 19, 25].forEach(x => rect(g, x, 0, 2, 6, '#2f7a22')); tri(g, 28, 0, 28, 5, 34, 2, '#6cc04a'); },
+    truck: (g) => { // 트럭 (46x28, 오른쪽을 봄)
+      rect(g, 0, 2, 31, 18, '#f0f0f4'); rect(g, 0, 17, 31, 3, '#c8c8d2'); rect(g, 0, 2, 31, 1, '#ffffff');
+      rect(g, 8, 6, 14, 9, '#de2910'); px(g, 11, 8, '#ffde00'); px(g, 11, 7, '#ffde00'); px(g, 10, 8, '#ffde00'); px(g, 12, 8, '#ffde00'); px(g, 11, 9, '#ffde00'); px(g, 14, 7, '#ffde00'); px(g, 15, 9, '#ffde00'); px(g, 15, 11, '#ffde00');
+      rect(g, 31, 6, 13, 14, '#2f6bd8'); rect(g, 31, 6, 13, 1, '#6a9af0'); rect(g, 36, 8, 7, 6, '#bfe6ff'); rect(g, 36, 8, 2, 6, '#e8f6ff'); rect(g, 43, 15, 2, 3, '#ffe066');
+      rect(g, 0, 20, 46, 3, '#33333d');
+      [8, 24, 38].forEach(x => { ell(g, x, 23, 4, 4, '#1c1c22'); ell(g, x, 23, 2, 2, '#9a9aa8'); });
+    },
+    burner: (g) => { // 가스버너 (32x14)
+      rect(g, 0, 8, 32, 6, '#3a3f4a'); rect(g, 0, 6, 32, 2, '#8e93a0'); rect(g, 1, 13, 30, 1, '#22262e');
+      [3, 10, 17, 24].forEach(x => rect(g, x, 3, 4, 3, '#5a5f6a')); rect(g, 2, 2, 28, 1, '#5a5f6a');
+      rect(g, 26, 9, 4, 3, '#d8281c'); px(g, 27, 9, '#ff8a7a');
+      for (let x = 4; x < 28; x += 3) { px(g, x, 5, '#6ec6ff'); px(g, x, 4, '#bfe9ff'); }
+    },
     microwave: (g) => { // 전자레인지 (28x24)
       rect(g, 0, 0, 28, 22, '#c9ccd4'); rect(g, 0, 0, 28, 2, '#e8ebf0'); rect(g, 0, 20, 28, 2, '#8e93a0'); rect(g, 1, 22, 4, 2, '#555'); rect(g, 23, 22, 4, 2, '#555');
       rect(g, 2, 3, 18, 15, '#222c38'); rect(g, 3, 4, 16, 13, '#ffb347'); rect(g, 5, 6, 12, 9, '#ff8a2a'); rect(g, 6, 7, 4, 2, '#ffd9a0');
@@ -485,7 +629,7 @@ const SF = (() => {
     heart: (g) => { heart(g, 2, 2); },
     tspear: (g) => { rect(g, 0, 2, 16, 2, '#ffffff'); rect(g, 2, 2, 2, 2, '#bcd9f0'); rect(g, 8, 2, 2, 2, '#bcd9f0'); tri(g, 16, 1, 16, 5, 20, 3, '#ffffff'); },
   };
-  const fxSize = { microwave: [28, 24], noodle: [24, 17], skewer: [26, 8], tball: [12, 12], chisel: [25, 6], bstamp: [21, 21], heart: [9, 9], tspear: [21, 6] };
+  const fxSize = { nwhip: [30, 8], ball: [9, 9], bamboo: [34, 6], truck: [46, 28], burner: [32, 14], microwave: [28, 24], noodle: [24, 17], skewer: [26, 8], tball: [12, 12], chisel: [25, 6], bstamp: [21, 21], heart: [9, 9], tspear: [21, 6] };
   const fxCache = {};
   const effect = (name) => {
     if (fxCache[name]) return fxCache[name];
@@ -518,6 +662,11 @@ const SF = (() => {
     { id: 'tissue', name: '곽티슈', fn: tissue, poses: ['idle', 'idle2', 'windup', 'strike', 'recover', 'tball_wind', 'throw_go', 'throw_rec', 'seduce1', 'seduce2', 'seduce3', 'hurt'] },
     { id: 'devil', name: '미술의 악마', fn: devil, poses: ['idle', 'idle2', 'windup', 'strike', 'recover', 'knife_wind', 'throw_go', 'throw_rec', 'grade1', 'grade2', 'grade3', 'hurt'] },
   ];
+  const V3CHARS = [
+    { id: 'chef', name: '중국집 사장님', fn: chef, over: { idle: { wdir: [3, -3] }, idle2: { wdir: [3, -3] }, recover: { wdir: [2, -4] }, strike: { hand: [8, 2] } }, poses: ['idle', 'idle2', 'windup', 'strike', 'recover', 'nw_wind', 'nw_go', 'nw_rec', 'burn1', 'burn2', 'burn3', 'hurt'] },
+    { id: 'soccer', name: '축구선수', fn: soccer, poses: ['idle', 'idle2', 'kick_wind', 'kick_go', 'kick_rec', 'fk_wind', 'fk_go', 'fk_rec', 'ninja1', 'ninja2', 'ninja3', 'hurt'] },
+    { id: 'panda', name: '판다', fn: panda, over: { idle: { wdir: [1, -6], prop: 'bamboo' }, idle2: { wdir: [1, -6], prop: 'bamboo' }, windup: { prop: 'none' }, strike: { prop: 'none' }, recover: { prop: 'none' } }, poses: ['idle', 'idle2', 'windup', 'strike', 'recover', 'bam_wind', 'throw_go', 'throw_rec', 'ship1', 'ship2', 'ship3', 'hurt'] },
+  ];
   const frame = (ch, name) => {
     P = poseOf(name, ch.over);
     let g = ch.fn();
@@ -533,5 +682,5 @@ const SF = (() => {
     for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const col = g[j * W + i]; if (col) { x.fillStyle = col; x.fillRect(i, j, 1, 1); } }
     return cache[k] = c;
   };
-  return { W, H, CX: 20 + OX, CHARS: CHARS.concat(NEWCHARS), NEWCHARS, VARIANTS, canvas, effect, FX: Object.keys(fxList) };
+  return { W, H, CX: 20 + OX, CHARS: CHARS.concat(NEWCHARS, V3CHARS), NEWCHARS, V3CHARS, VARIANTS, canvas, effect, FX: Object.keys(fxList) };
 })();
