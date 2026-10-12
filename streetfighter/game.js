@@ -104,6 +104,7 @@ const foe = f => fighters[1 - f.side];
 const speedOf = f => CH[f.kind].speed * (f.st.slow > 0 ? 0.5 : 1);
 
 // ───────── 데미지/상태 ─────────
+function leafBurst(x, n) { for (let i = 0; i < n; i++) fx.push({ k: 'leaf', x: x + (Math.random() - .5) * 110, y: GROUND - 250 + Math.random() * 60, vx: (Math.random() - .5) * 80, vy: 50 + Math.random() * 70, t: 0, life: 1.1 + Math.random() * .5, c: i % 3 }); }
 function addFloat(x, y, text, col) { floats.push({ x, y, text, col, t: 0 }); }
 function hit(a, d, dmg, o = {}) {
   if (d.dead || d.inv > 0 || d.untouch || d.micro > 0) return false;
@@ -170,11 +171,21 @@ const SKILLS = {
   monkey: [
     { name: '떨어지는 척', poses: ['climb','fall','land'], cd: 1.7, startup: .8, active: .25, rec: 1,
       onStart(f) { f.vars.x0 = f.x; f.untouch = true; f.ghost = false; f.vars.tx = Math.max(MINX, Math.min(MAXX, foe(f).x)); },
-      tick(f, ph, p) { const tr = trees.find(t => t.owner === f.side); const tx = tr ? tr.x : f.x;
-        if (ph === 'startup') { f.x = f.vars.x0 + (tx - f.vars.x0) * Math.min(1, p * 1.6); f.z = 520 * p; f.ghost = p > .3; }
-        else if (ph === 'active') { f.ghost = false; const tx2 = f.vars.tx; f.x = tx + (tx2 - tx) * p; f.z = 520 * (1 - p * p); }
-        else f.z = 0; },
-      onRec(f) { f.untouch = false; f.z = 0; f.ghost = false; shake = 7; fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .3, col: '#ffffff' });
+      tick(f, ph, p) { const tr = trees.find(t => t.owner === f.side); const tx = tr ? tr.x : f.x, TOP = 190;
+        if (ph === 'startup') {
+          if (p < .5) { // 나무로 달려가 줄기를 타고 오른다
+            const q = p / .5; f.x = f.vars.x0 + (tx - f.vars.x0) * Math.min(1, q * 1.6); f.z = TOP * Math.max(0, (q - .3) / .7); f.vars.pose = 'climb';
+          } else { // 가지 끝에서 미끄러질 듯 허우적
+            if (!f.vars.hang) { f.vars.hang = 1; if (tr) tr.shake = .6; leafBurst(tx, 10); }
+            f.x = tx + Math.sin(f.act.t * 45) * 4; f.z = TOP + Math.sin(f.act.t * 28) * 6; f.vars.pose = Math.floor(f.act.t * 9) % 2 ? 'fall' : 'climb';
+          }
+        }
+        else if (ph === 'active') { // 진짜 떨어진다: 빙글빙글 돌며 낙하
+          if (!f.vars.dropped) { f.vars.dropped = 1; leafBurst(tx, 6); }
+          f.x = tx + (f.vars.tx - tx) * p; f.z = TOP * (1 - p * p); f.rot = p * Math.PI * 2; f.vars.pose = 'tumble';
+        }
+        else { f.z = 0; f.rot = 0; f.vars.pose = 'land'; } },
+      onRec(f) { f.untouch = false; f.z = 0; f.rot = 0; f.ghost = false; shake = 7; fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .3, col: '#ffffff' });
         const d = foe(f); if (Math.abs(d.x - f.x) < 95 && d.z < 40) hit(f, d, 10, { kb: 150 }); } },
     { name: '바나나 껍질', poses: ['banana_wind','throw_go','throw_rec'], cd: 4, startup: .2, active: .1, rec: .25, ...shoot({ kind: 'peel', speed: 380, dmg: 7, w: 30, h: 60, life: 1.8, opts: { stun: .9, kb: 0 } }) },
     { name: '나무 춤', poses: ['climb','dance1','fall'], cd: 10, startup: .28, active: 1.7, rec: .35,
@@ -240,7 +251,7 @@ const SKILLS = {
     { name: '가스버너에 넣기', poses: ['burn1','burn2','burn3'], cd: 30, startup: .4, active: .5, rec: .4,
       onActive(f) { const d = foe(f);
         if (d.dead || d.untouch || d.micro > 0 || d.carry) return;
-        d.burn = 4.05; d.burnT = 0; d.burnBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.hurt = 0; d.vx = 0; d.st.stun = 0;
+        d.burn = 2.05; d.burnT = 0; d.burnBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.hurt = 0; d.vx = 0; d.st.stun = 0;
         fx.push({ k: 'ring', x: d.x, y: GROUND, t: 0, life: .4, col: '#ff8a2a' }); shake = Math.max(shake, 5); } },
   ],
   soccer: [
@@ -310,11 +321,11 @@ function update(dt) {
       f.micro -= dt; f.walk = false; f.vx = 0; f.act = null;
       if (f.micro <= 0) { f.micro = 0; const by = fighters[f.microBy];
         fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .4, col: '#ff6a2a' }); fx.push({ k: 'text', x: f.x, y: GROUND - 220, text: '띵!', t: 0, life: .9 });
-        hit(by, f, 14, { kb: 0 }); }
+        hit(by, f, 10, { kb: 0 }); }
     }
     else if (f.burn > 0) {
       f.burn -= dt; f.burnT += dt; f.walk = false; f.vx = 0; f.act = null; f.jt = -1; f.z = 0; f.dance = false;
-      while (f.burnT >= 1 && !f.dead) { f.burnT -= 1; hit(fighters[f.burnBy], f, 5, { noHurt: true, noInv: true, kb: 0 }); }
+      while (f.burnT >= 1 && !f.dead) { f.burnT -= 1; hit(fighters[f.burnBy], f, 3, { noHurt: true, noInv: true, kb: 0 }); }
       if (f.burn <= 0) f.burn = 0;
     }
     else if (f.carry) { f.act = null; f.vx = 0; f.walk = false; f.jt = -1; f.z = 30; f.dance = false; f.x = f.carry.x; }
@@ -335,7 +346,7 @@ function update(dt) {
       if (f.jt >= 0) { f.jt += dt; const p = f.jt / .7; if (p >= 1) { f.jt = -1; f.z = 0; } else f.z = 230 * 4 * p * (1 - p); }
       for (let i = 0; i < 3; i++) if (down[k.s[i]]) { tryUse(f, i); if (f.act) break; }
     }
-    if (!f.act) { f.untouch = false; }
+    if (!f.act) { f.untouch = false; f.rot = 0; }
     if (!f.carry) f.x = Math.max(MINX, Math.min(MAXX, f.x));
     if (!f.act && !f.dead && f.jt < 0 && !f.carry) f.z = 0;
     if (f.kind === 'monkey' && !f.dead) growTree(f);
@@ -396,11 +407,11 @@ function update(dt) {
     }
   });
   traps = traps.filter(t => t.life > 0);
-  trees.forEach(t => t.grow = Math.min(1, t.grow + dt * 2.5));
+  trees.forEach(t => { t.grow = Math.min(1, t.grow + dt * 2.5); t.shake = Math.max(0, (t.shake || 0) - dt); });
   // 원숭이가 없으면 나무 제거
   trees = trees.filter(t => { const f = fighters[t.owner]; return f && f.kind === 'monkey' && !f.dead; });
 
-  fx.forEach(e => { e.t += dt; if (e.k === 'spark') { e.x += e.vx * dt; e.y += e.vy * dt; e.vy += 900 * dt; } });
+  fx.forEach(e => { e.t += dt; if (e.k === 'spark') { e.x += e.vx * dt; e.y += e.vy * dt; e.vy += 900 * dt; } else if (e.k === 'leaf') { e.x += (e.vx + Math.sin(e.t * 8 + e.c) * 50) * dt; e.y += e.vy * dt; } });
   fx = fx.filter(e => e.t < e.life);
   floats.forEach(e => e.t += dt); floats = floats.filter(e => e.t < .9);
   shake = Math.max(0, shake - dt * 24);
@@ -442,7 +453,7 @@ function drawNight() {
 }
 function drawTree(t) {
   const s = t.grow, x = t.x, b = GROUND;
-  ctx.save(); ctx.translate(x, b); ctx.scale(1, s); ctx.translate(-x, -b);
+  ctx.save(); if (t.shake > 0) ctx.translate(Math.sin(time * 60) * t.shake * 14, 0); ctx.translate(x, b); ctx.scale(1, s); ctx.translate(-x, -b);
   ctx.fillStyle = '#5e3a18'; ctx.fillRect(x - 20, b - 240, 40, 240);
   ctx.fillStyle = '#8a5a2e'; ctx.fillRect(x - 12, b - 240, 28, 240);
   ctx.fillStyle = '#5e3a18'; for (let y = b - 220; y < b; y += 36) ctx.fillRect(x - 6 + (y % 3) * 4, y, 4, 14);
@@ -468,6 +479,7 @@ function drawFighter(f) {
   else if (f.hurt > 0 || f.st.stun > 0 || f.dead || f.carry || f.burn > 0) fr = 'hurt';
   else fr = Math.floor(f.anim * (f.walk ? 7 : 2.5)) % 2 ? 'idle2' : 'idle';
   if (f.dance) fr = ['dance1', 'dance3', 'dance2', 'dance3'][Math.floor(f.anim * 8) % 4];
+  if (f.act && f.vars && f.vars.pose) fr = f.vars.pose;
   const img = SF.canvas(SPR[f.kind], fr);
   const cx = SF.CX * SC;
   const y = GROUND - sh - f.z;
@@ -483,6 +495,7 @@ function drawFighter(f) {
   if (f.flash > 0) ctx.filter = 'brightness(3)';
   ctx.translate(f.x, y);
   if (f.face < 0) ctx.scale(-1, 1);
+  if (f.rot) { ctx.translate(0, sh * .55); ctx.rotate(f.rot); ctx.translate(0, -sh * .55); }
   if (sa > 0) ctx.drawImage(img, -cx, 0, sw, sh);
   ctx.restore();
   if (f.burn > 0) for (let i = 0; i < 9; i++) { const fh = 26 + ((Math.floor(time * 14) + i * 5) % 4) * 9; ctx.fillStyle = i % 2 ? '#ff8a2a' : '#ffd23f'; ctx.globalAlpha = .85; ctx.fillRect(f.x - 64 + i * 16, GROUND - 12 - fh, 12, fh); ctx.fillStyle = '#ff3b30'; ctx.fillRect(f.x - 60 + i * 16, GROUND - 12 - fh * .5, 5, fh * .5); ctx.globalAlpha = 1; }
@@ -537,6 +550,7 @@ function drawTrap(t) {
 function drawFx(e) {
   const p = e.t / e.life;
   if (e.k === 'spark') { ctx.fillStyle = '#fff3a0'; ctx.fillRect(e.x - 3, e.y - 3, 6, 6); }
+  else if (e.k === 'leaf') { if (e.t < 0) return; ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.t * 5 + e.c); ctx.globalAlpha = Math.min(1, (1 - p) * 2); ctx.fillStyle = ['#3fa045', '#7fd36a', '#2a7a32'][e.c]; ctx.fillRect(-6, -3, 12, 6); ctx.restore(); }
   else if (e.k === 'ring') { ctx.strokeStyle = e.col; ctx.lineWidth = 6 * (1 - p) + 1; ctx.beginPath(); ctx.ellipse(e.x, e.y, 30 + p * 120, 6 + p * 22, 0, 0, 7); ctx.stroke(); }
   else if (e.k === 'swing') { ctx.strokeStyle = '#fff'; ctx.lineWidth = 8 * (1 - p); ctx.beginPath(); const r = e.r * .6; ctx.arc(e.x - e.face * 20, e.y + 20, r, e.face > 0 ? -1.2 : Math.PI - .4, e.face > 0 ? .4 : Math.PI + 1.2); ctx.stroke(); }
   else if (e.k === 'sprite') { if (e.t < 0) return; const im = SF.effect(e.name), sc = e.scale || 4, w = im.width * sc, h = im.height * sc;
