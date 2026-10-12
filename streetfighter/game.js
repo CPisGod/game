@@ -213,7 +213,7 @@ const SKILLS = {
   hotbar: [
     { name: '지건', poses: ['poke_wind','poke_go','poke_rec'], cd: 1, startup: .2, active: .1, rec: .3, ...melee(150, 8, 70) },
     { name: '꼬치 날리기', poses: ['skewer_wind','skewer_go','skewer_rec'], cd: 3.5, startup: .28, active: .1, rec: .3, ...shoot({ kind: 'skewer', speed: 640, dmg: 13, w: 30, h: 95, life: 1.6, opts: { kb: 90 } }) },
-    { name: '전자레인지', poses: ['micro1','micro2','micro3'], cd: 14, startup: .45, active: .25, rec: .4,
+    { name: '전자레인지', poses: ['micro1','micro2','micro3'], cd: 30, startup: .45, active: .25, rec: .4,
       onActive(f) { const d = foe(f); if (d.untouch || d.micro > 0) return;
         d.micro = 2; d.microBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.vx = 0; d.hurt = 0; d.st.stun = 0;
         fx.push({ k: 'ring', x: d.x, y: GROUND, t: 0, life: .35, col: '#ffb347' }); } },
@@ -237,7 +237,7 @@ const SKILLS = {
   chef: [
     { name: '웍으로 후리기', poses: ['windup','strike','recover'], cd: 1, startup: .26, active: .12, rec: .34, ...melee(170, 8, 110) },
     { name: '면발 휘두르기', poses: ['nw_wind','nw_go','nw_rec'], cd: 3.5, startup: .28, active: .1, rec: .3, ...shoot({ kind: 'nwhip', speed: 520, dmg: 11, w: 44, h: 90, life: 1.1, opts: { kb: 80 } }) },
-    { name: '가스버너에 넣기', poses: ['burn1','burn2','burn3'], cd: 14, startup: .4, active: .5, rec: .4,
+    { name: '가스버너에 넣기', poses: ['burn1','burn2','burn3'], cd: 30, startup: .4, active: .5, rec: .4,
       onActive(f) { const d = foe(f);
         if (d.dead || d.untouch || d.micro > 0 || d.carry || !inFront(f, 170)) { fx.push({ k: 'text', x: f.x + f.face * 120, y: GROUND - 200, text: '허탕…', t: 0, life: .8 }); return; }
         d.burn = 1.85; d.burnT = 0; d.burnBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.hurt = 0; d.vx = 0; d.st.stun = 0;
@@ -247,14 +247,14 @@ const SKILLS = {
   soccer: [
     { name: '발차기', poses: ['kick_wind','kick_go','kick_rec'], cd: 1, startup: .22, active: .12, rec: .32, ...melee(160, 8, 130) },
     { name: '프리킥', poses: ['fk_wind','fk_go','fk_rec'], cd: 3.5, startup: .3, active: .1, rec: .3, ...shoot({ kind: 'ball', speed: 700, dmg: 13, w: 30, h: 45, life: 1.5, opts: { kb: 100 } }) },
-    { name: '은신술', poses: ['ninja1','ninja2','ninja3'], cd: 14, startup: .35, active: .3, rec: .25,
+    { name: '은신술', poses: ['ninja1','ninja2','ninja3'], cd: 20, startup: .35, active: .3, rec: .25,
       onActive(f) { night = NIGHT_DUR; shake = Math.max(shake, 3);
         fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .5, col: '#9a9ab0' }); fx.push({ k: 'text', x: f.x, y: GROUND - 200, text: '은신술!', t: 0, life: .9 }); } },
   ],
   panda: [
     { name: '앞발로 때리기', poses: ['windup','strike','recover'], cd: 1, startup: .26, active: .12, rec: .34, ...melee(150, 8, 120) },
     { name: '대나무 던지기', poses: ['bam_wind','throw_go','throw_rec'], cd: 3.5, startup: .28, active: .1, rec: .3, ...shoot({ kind: 'bamboo', speed: 580, dmg: 12, w: 36, h: 95, life: 1.7, opts: { kb: 100 } }) },
-    { name: '중국으로 보내기', poses: ['ship1','ship2','ship3'], cd: 14, startup: .5, active: .3, rec: .35,
+    { name: '중국으로 보내기', poses: ['ship1','ship2','ship3'], cd: 30, startup: .5, active: .3, rec: .35,
       onStart(f) { fx.push({ k: 'warn', face: f.face, t: 0, life: .9 }); fx.push({ k: 'text', x: f.x, y: GROUND - 215, text: '빵빵!', t: 0, life: .7 }); },
       onActive(f) { trucks.push({ owner: f.side, dir: f.face, x: f.face > 0 ? -170 : W + 170, v: 1250, got: null }); } },
   ],
