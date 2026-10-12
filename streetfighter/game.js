@@ -239,9 +239,8 @@ const SKILLS = {
     { name: '면발 휘두르기', poses: ['nw_wind','nw_go','nw_rec'], cd: 3.5, startup: .28, active: .1, rec: .3, ...shoot({ kind: 'nwhip', speed: 520, dmg: 11, w: 44, h: 90, life: 1.1, opts: { kb: 80 } }) },
     { name: '가스버너에 넣기', poses: ['burn1','burn2','burn3'], cd: 30, startup: .4, active: .5, rec: .4,
       onActive(f) { const d = foe(f);
-        if (d.dead || d.untouch || d.micro > 0 || d.carry || !inFront(f, 170)) { fx.push({ k: 'text', x: f.x + f.face * 120, y: GROUND - 200, text: '허탕…', t: 0, life: .8 }); return; }
-        d.burn = 1.85; d.burnT = 0; d.burnBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.hurt = 0; d.vx = 0; d.st.stun = 0;
-        d.x = Math.max(MINX, Math.min(MAXX, f.x + f.face * 95));
+        if (d.dead || d.untouch || d.micro > 0 || d.carry) return;
+        d.burn = 4.05; d.burnT = 0; d.burnBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.hurt = 0; d.vx = 0; d.st.stun = 0;
         fx.push({ k: 'ring', x: d.x, y: GROUND, t: 0, life: .4, col: '#ff8a2a' }); shake = Math.max(shake, 5); } },
   ],
   soccer: [
@@ -315,7 +314,7 @@ function update(dt) {
     }
     else if (f.burn > 0) {
       f.burn -= dt; f.burnT += dt; f.walk = false; f.vx = 0; f.act = null; f.jt = -1; f.z = 0; f.dance = false;
-      while (f.burnT >= .45 && !f.dead) { f.burnT -= .45; hit(fighters[f.burnBy], f, 4, { noHurt: true, noInv: true, kb: 0 }); }
+      while (f.burnT >= 1 && !f.dead) { f.burnT -= 1; hit(fighters[f.burnBy], f, 5, { noHurt: true, noInv: true, kb: 0 }); }
       if (f.burn <= 0) f.burn = 0;
     }
     else if (f.carry) { f.act = null; f.vx = 0; f.walk = false; f.jt = -1; f.z = 30; f.dance = false; f.x = f.carry.x; }
@@ -473,9 +472,9 @@ function drawFighter(f) {
   const cx = SF.CX * SC;
   const y = GROUND - sh - f.z;
   // 그림자
-  ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(f.x, GROUND + 4, 60 - f.z * .08, 10, 0, 0, 7); ctx.fill();
-  if (f.ghost) return;
   const sa = f.kind === 'soccer' && night > 0 ? (night > .4 ? 0 : 1 - night / .4) : 1;   // 은신술: 축구선수는 밤 동안 투명
+  if (sa > 0) { ctx.save(); ctx.globalAlpha = sa; ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(f.x, GROUND + 4, 60 - f.z * .08, 10, 0, 0, 7); ctx.fill(); ctx.restore(); }
+  if (f.ghost) return;
   if (f.burn > 0) { const im = SF.effect('burner'), sc = 5, w = im.width * sc, h = im.height * sc; ctx.drawImage(im, f.x - w / 2, GROUND + 6 - h, w, h); }
   ctx.save();
   if (sa < 1) ctx.globalAlpha = sa;
@@ -505,7 +504,6 @@ function drawFighter(f) {
   if (f.micro > 0) tags.push(['가둠', '#ffb347']);
   if (f.burn > 0) tags.push(['화상', '#ff8a2a']);
   if (f.carry) tags.push(['중국行', '#ff5a5a']);
-  if (f.kind === 'soccer' && night > 0) tags.push(['은신', '#9aa0ff']);
   tags.forEach((t, i) => txt(t[0], f.x, y - 12 - i * 18, 14, t[1]));
   if (f.st.stun > 0) for (let i = 0; i < 3; i++) { const a = f.anim * 6 + i * 2.1; ctx.fillStyle = '#ffe066'; ctx.fillRect(f.x + Math.cos(a) * 34 - 4, y + 18 + Math.sin(a) * 8 - 4, 8, 8); }
 }
