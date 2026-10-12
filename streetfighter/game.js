@@ -239,9 +239,8 @@ const SKILLS = {
     { name: '면발 휘두르기', poses: ['nw_wind','nw_go','nw_rec'], cd: 3.5, startup: .28, active: .1, rec: .3, ...shoot({ kind: 'nwhip', speed: 520, dmg: 11, w: 44, h: 90, life: 1.1, opts: { kb: 80 } }) },
     { name: '가스버너에 넣기', poses: ['burn1','burn2','burn3'], cd: 30, startup: .4, active: .5, rec: .4,
       onActive(f) { const d = foe(f);
-        if (d.dead || d.untouch || d.micro > 0 || d.carry || !inFront(f, 170)) { fx.push({ k: 'text', x: f.x + f.face * 120, y: GROUND - 200, text: '허탕…', t: 0, life: .8 }); return; }
-        d.burn = 1.85; d.burnT = 0; d.burnBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.hurt = 0; d.vx = 0; d.st.stun = 0;
-        d.x = Math.max(MINX, Math.min(MAXX, f.x + f.face * 95));
+        if (d.dead || d.untouch || d.micro > 0 || d.carry) return;
+        d.burn = 4.05; d.burnT = 0; d.burnBy = f.side; d.act = null; d.dance = false; d.jt = -1; d.z = 0; d.hurt = 0; d.vx = 0; d.st.stun = 0;
         fx.push({ k: 'ring', x: d.x, y: GROUND, t: 0, life: .4, col: '#ff8a2a' }); shake = Math.max(shake, 5); } },
   ],
   soccer: [
@@ -315,7 +314,7 @@ function update(dt) {
     }
     else if (f.burn > 0) {
       f.burn -= dt; f.burnT += dt; f.walk = false; f.vx = 0; f.act = null; f.jt = -1; f.z = 0; f.dance = false;
-      while (f.burnT >= .45 && !f.dead) { f.burnT -= .45; hit(fighters[f.burnBy], f, 4, { noHurt: true, noInv: true, kb: 0 }); }
+      while (f.burnT >= 1 && !f.dead) { f.burnT -= 1; hit(fighters[f.burnBy], f, 5, { noHurt: true, noInv: true, kb: 0 }); }
       if (f.burn <= 0) f.burn = 0;
     }
     else if (f.carry) { f.act = null; f.vx = 0; f.walk = false; f.jt = -1; f.z = 30; f.dance = false; f.x = f.carry.x; }
