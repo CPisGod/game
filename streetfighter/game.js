@@ -248,7 +248,7 @@ const SKILLS = {
     { name: '프리킥', poses: ['fk_wind','fk_go','fk_rec'], cd: 3.5, startup: .3, active: .1, rec: .3, ...shoot({ kind: 'ball', speed: 700, dmg: 13, w: 30, h: 45, life: 1.5, opts: { kb: 100 } }) },
     { name: '은신술', poses: ['ninja1','ninja2','ninja3'], cd: 20, startup: .35, active: .3, rec: .25,
       onActive(f) { night = NIGHT_DUR; shake = Math.max(shake, 3);
-        fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .5, col: '#9a9ab0' }); fx.push({ k: 'text', x: f.x, y: GROUND - 200, text: '은신술!', t: 0, life: .9 }); } },
+        fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .5, col: '#9a9ab0' }); } },
   ],
   panda: [
     { name: '앞발로 때리기', poses: ['windup','strike','recover'], cd: 1, startup: .26, active: .12, rec: .34, ...melee(150, 8, 120) },
@@ -504,7 +504,6 @@ function drawFighter(f) {
   if (f.micro > 0) tags.push(['가둠', '#ffb347']);
   if (f.burn > 0) tags.push(['화상', '#ff8a2a']);
   if (f.carry) tags.push(['중국行', '#ff5a5a']);
-  if (f.kind === 'soccer' && night > 0) tags.push(['은신', '#9aa0ff']);
   tags.forEach((t, i) => txt(t[0], f.x, y - 12 - i * 18, 14, t[1]));
   if (f.st.stun > 0) for (let i = 0; i < 3; i++) { const a = f.anim * 6 + i * 2.1; ctx.fillStyle = '#ffe066'; ctx.fillRect(f.x + Math.cos(a) * 34 - 4, y + 18 + Math.sin(a) * 8 - 4, 8, 8); }
 }
