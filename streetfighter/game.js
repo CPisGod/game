@@ -169,7 +169,7 @@ const SKILLS = {
     { name: '가시목털 함정', poses: ['spike_wind','spike_go','throw_rec'], cd: 15, startup: .3, active: .1, rec: .3, ...putTrap('thorn', 260, 10, 13, { slow: 2, kb: 60 }, 2) },
   ],
   monkey: [
-    { name: '떨어지는 척', poses: ['climb','fall','land'], cd: 1.7, startup: .8, active: .25, rec: 1,
+    { name: '떨어지는 척', poses: ['climb','fall','land'], cd: 1.5, startup: .8, active: .25, rec: .6,
       onStart(f) { f.vars.x0 = f.x; f.untouch = true; f.ghost = false; f.vars.tx = Math.max(MINX, Math.min(MAXX, foe(f).x)); },
       tick(f, ph, p) { const tr = trees.find(t => t.owner === f.side); const tx = tr ? tr.x : f.x, TOP = 190;
         if (ph === 'startup') {
@@ -186,7 +186,7 @@ const SKILLS = {
         }
         else { f.z = 0; f.rot = 0; f.vars.pose = 'land'; } },
       onRec(f) { f.untouch = false; f.z = 0; f.rot = 0; f.ghost = false; shake = 7; fx.push({ k: 'ring', x: f.x, y: GROUND, t: 0, life: .3, col: '#ffffff' });
-        const d = foe(f); if (Math.abs(d.x - f.x) < 95 && d.z < 40) hit(f, d, 10, { kb: 150 }); } },
+        const d = foe(f); if (Math.abs(d.x - f.x) < 125 && d.z < 60) hit(f, d, 14, { stun: .5, kb: 150 }); } },
     { name: '바나나 껍질', poses: ['banana_wind','throw_go','throw_rec'], cd: 4, startup: .2, active: .1, rec: .25, ...shoot({ kind: 'peel', speed: 380, dmg: 7, w: 30, h: 60, life: 1.8, opts: { stun: .9, kb: 0 } }) },
     { name: '나무 춤', poses: ['climb','dance1','fall'], cd: 10, startup: .28, active: 1.7, rec: .35,
       onStart(f) { f.vars.x0 = f.x; f.untouch = true; f.dance = false; },
@@ -467,8 +467,8 @@ function drawLandingMark(f) {
   const x = f.vars.tx, sk = f.act.sk, left = Math.max(0, sk.startup + sk.active - f.act.t);
   const blink = left < .4 ? Math.floor(time * 16) % 2 : 1;
   ctx.save(); ctx.globalAlpha = blink ? .85 : .35;
-  ctx.fillStyle = '#ff3b30'; ctx.beginPath(); ctx.ellipse(x, GROUND + 6, 95, 17, 0, 0, 7); ctx.fill();
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, GROUND + 6, 95 * (.25 + .75 * left / (sk.startup + sk.active)), 17 * (.25 + .75 * left / (sk.startup + sk.active)), 0, 0, 7); ctx.stroke();
+  ctx.fillStyle = '#ff3b30'; ctx.beginPath(); ctx.ellipse(x, GROUND + 6, 125, 22, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, GROUND + 6, 125 * (.25 + .75 * left / (sk.startup + sk.active)), 22 * (.25 + .75 * left / (sk.startup + sk.active)), 0, 0, 7); ctx.stroke();
   ctx.restore(); txt('!', x, GROUND - 14, 34, '#ff3b30');
 }
 function drawFighter(f) {
