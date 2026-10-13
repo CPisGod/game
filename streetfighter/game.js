@@ -30,7 +30,7 @@ const CH = {
   tissue:  { name: '곽티슈',       hp: 90,  speed: 510 },
   devil:   { name: '미술의 악마',  hp: 100, speed: 470 },
   chef:    { name: '중국집 사장님', hp: 105, speed: 450 },
-  soccer:  { name: '축구선수',     hp: 100, speed: 540 },
+  soccer:  { name: '흑인',     hp: 100, speed: 540 },
   panda:   { name: '판다',         hp: 115, speed: 400 },
 };
 const SPR = {}; SF.CHARS.forEach(c => SPR[c.id] = c);

@@ -665,7 +665,7 @@ const SF = (() => {
   ];
   const V3CHARS = [
     { id: 'chef', name: '중국집 사장님', fn: chef, over: { idle: { wdir: [3, -3] }, idle2: { wdir: [3, -3] }, recover: { wdir: [2, -4] }, strike: { hand: [8, 2] } }, poses: ['idle', 'idle2', 'windup', 'strike', 'recover', 'nw_wind', 'nw_go', 'nw_rec', 'burn1', 'burn2', 'burn3', 'hurt'] },
-    { id: 'soccer', name: '축구선수', fn: soccer, poses: ['idle', 'idle2', 'kick_wind', 'kick_go', 'kick_rec', 'fk_wind', 'fk_go', 'fk_rec', 'ninja1', 'ninja2', 'ninja3', 'hurt'] },
+    { id: 'soccer', name: '흑인', fn: soccer, poses: ['idle', 'idle2', 'kick_wind', 'kick_go', 'kick_rec', 'fk_wind', 'fk_go', 'fk_rec', 'ninja1', 'ninja2', 'ninja3', 'hurt'] },
     { id: 'panda', name: '판다', fn: panda, over: { idle: { wdir: [1, -6], prop: 'bamboo' }, idle2: { wdir: [1, -6], prop: 'bamboo' }, windup: { prop: 'none' }, strike: { prop: 'none' }, recover: { prop: 'none' } }, poses: ['idle', 'idle2', 'windup', 'strike', 'recover', 'bam_wind', 'throw_go', 'throw_rec', 'ship1', 'ship2', 'ship3', 'hurt'] },
   ];
   const frame = (ch, name) => {
