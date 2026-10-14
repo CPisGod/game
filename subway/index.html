@@ -35,6 +35,9 @@
   #hud .coinbox { display: inline-flex; align-items: center; gap: 7px; margin-left: 18px; align-self: center; }
   #hud .cico { width: 24px; height: 24px; border-radius: 50%; display: inline-block;
     background: radial-gradient(circle at 35% 30%, #fff3b0 0 18%, #ffd23f 45%, #e69a10 100%); border: 2px solid #b8740a; box-shadow: 0 2px 6px #0006; }
+  .fly { position: fixed; z-index: 11; width: 28px; height: 28px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle at 35% 30%, #fff8c8 0 15%, #ffd23f 45%, #e69a10 100%); border: 2px solid #b8740a;
+    box-shadow: 0 0 10px #ffd23f, 0 0 24px #ffb300aa; }
   #hud .coins { font-size: 26px; font-weight: 900; color: #ffe27a; }
   #warn { position: fixed; left: 0; right: 0; top: 18%; z-index: 12; text-align: center; font: 900 clamp(22px, 5vw, 38px)/1.2 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
     color: #fff; -webkit-text-stroke: 1px #7a1010; text-shadow: 0 3px 0 #c42020, 0 6px 16px #0008; opacity: 0; transform: scale(.8); pointer-events: none; transition: opacity .2s, transform .2s; }
@@ -69,7 +72,7 @@
 <canvas id="gl"></canvas>
 
 <div id="hud"><span class="dist" id="dist">0</span><span class="unit">m</span><span class="coinbox"><i class="cico"></i><span class="coins" id="coins">0</span></span></div>
-<div id="hint">← → 레인 이동 · ↑ / Space 점프 (모바일: 스와이프)<br>책상·의자·가방은 점프! 발디와 책상 탑은 옆으로 피하기!</div>
+<div id="hint">← → 레인 이동 · ↑ / Space 점프 · ↓ 숙이기 (모바일: 스와이프)<br>노랑=점프 · 하늘색=숙이기(↓ / S, 아래로 스와이프) · 빨강=옆으로 피하기</div>
 <div id="warn">📏 발디가 달려온다!</div>
 
 <div id="over">
@@ -554,7 +557,7 @@ const state = {
   speed: 0, dist: 0,
   run: 0, jump: 0, phase: 0,
   blink: 0, nextBlink: 2,
-  coins: 0, fall: 0, deadT: 0, overShown: false, why: '', shake: 0,
+  coins: 0, fall: 0, duckT: 0, duckK: 0, streak: 0, streakT: 0, deadT: 0, overShown: false, why: '', shake: 0,
   nextRow: 0, lastGap: 22, lastLanes: [],
 };
 const RUN_SPEED0 = 17, RUN_SPEED_MAX = 30;
@@ -565,16 +568,17 @@ let targetSpin = 0;
 
 // ───────────────────────── 장애물 / 코인 ─────────────────────────
 const stdM = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: .6, ...o });
+const vivid = (c, o = {}) => stdM(c, { emissive: c, emissiveIntensity: .2, ...o });
 const M = {
-  wood: stdM(0xddb680, { roughness: .65 }), woodD: stdM(0x9b693a), steel: stdM(0xa3adb6, { metalness: .8, roughness: .35 }),
-  steelD: stdM(0x5d6670, { metalness: .7, roughness: .45 }), dark: stdM(0x252a33, { roughness: .7 }),
+  wood: vivid(0xffa51f, { roughness: .6 }), woodD: vivid(0xd9591a), steel: stdM(0xa3adb6, { metalness: .8, roughness: .35 }),
+  steelD: stdM(0x2b3a67, { metalness: .5, roughness: .5 }), dark: stdM(0x252a33, { roughness: .7 }),
   skin: stdM(0xeab88f), white: stdM(0xffffff, { roughness: .4 }), key: stdM(0xffd23f, { roughness: .3, metalness: .5 }),
 };
-const CHAIR_MATS = [0xf08a3a, 0x3f78d6, 0x3fae7a, 0xe0566a].map(c => stdM(c, { roughness: .45 }));
+const CHAIR_MATS = [0xff3d8b, 0x14c9d9, 0x8cdd2b, 0x8e4dff].map(c => vivid(c, { roughness: .45 }));
 const BOOK_MATS = [0xd9434f, 0x3d6fd1, 0x35a86c, 0xf2c230].map(c => stdM(c, { roughness: .8 }));
-const BAG_MATS = [0xd9434f, 0x3d6fd1, 0xf2c230, 0x35a86c, 0x7b5cc8, 0xf0883a, 0x3b4456, 0xf08fb0].map(c => ({
-  body: stdM(c, { roughness: .85 }),
-  pocket: stdM(new THREE.Color(c).offsetHSL(0, 0, .09), { roughness: .85 }),
+const BAG_MATS = [0xff3d5a, 0x2f7bff, 0xffd21f, 0x22d27a, 0xa95cff, 0xff8a1f, 0x14c9d9, 0xff6fb5].map(c => ({
+  body: vivid(c, { roughness: .8 }),
+  pocket: vivid(new THREE.Color(c).offsetHSL(0, 0, .1), { roughness: .8 }),
 }));
 const gCyl = new THREE.CylinderGeometry(1, 1, 1, 12);
 const gSph = new THREE.SphereGeometry(1, 20, 14);
@@ -641,9 +645,9 @@ function buildBag(set) {
 // 가방 무더기
 function buildBags() {
   const g = new THREE.Group();
-  const spots = [[-.5, 0], [0, 0], [.5, 0], [-.26, .5], [.26, .5]];
+  const spots = [[-.5, 0], [0, 0], [.5, 0], [-.26, .46], [.26, .46]];
   const n = pick([4, 5, 5]);
-  const list = n === 4 ? [spots[0], spots[1], spots[2], [0, .5]] : spots;
+  const list = n === 4 ? [spots[0], spots[1], spots[2], [0, .46]] : spots;
   for (const [x, y] of list) {
     const b = buildBag(pick(BAG_MATS));
     b.position.set(x + rnd(-.04, .04), y, rnd(-.1, .1));
@@ -667,7 +671,7 @@ const wetTex = canvasTex(128, 192, (g, w, h) => {
 });
 wetTex.wrapS = wetTex.wrapT = THREE.ClampToEdgeWrapping;
 const mWet = stdM(0xffffff, { map: wetTex, roughness: .4 });
-const mWetBack = stdM(0xe6b800, { roughness: .4 });
+const mWetBack = vivid(0xffc400, { roughness: .4 });
 function buildWet() {
   const g = new THREE.Group();
   for (const dir of [-1, 1]) {
@@ -754,12 +758,61 @@ function animBaldi(o, t) {
   head.rotation.z = Math.sin(p * .5) * .07;
 }
 
-const BUILD = { desk: buildDesk, chair: buildChairs, bags: buildBags, wet: buildWet, stack: buildStack, baldi: buildBaldi };
+// 현수막 (천장에 매달려 있음 — 숙여서 통과)
+const bannerTex = canvasTex(256, 96, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, '#ff3d8b'); gr.addColorStop(1, '#ff8a1f');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  g.strokeStyle = '#fff'; g.lineWidth = 6; g.strokeRect(5, 5, w - 10, h - 10);
+  g.fillStyle = '#fff'; g.font = `900 46px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('체육대회!', w / 2, h / 2 + 3);
+});
+bannerTex.wrapS = bannerTex.wrapT = THREE.ClampToEdgeWrapping;
+const mBanner = stdM(0xffffff, { map: bannerTex, roughness: .7, emissive: 0xffffff, emissiveMap: bannerTex, emissiveIntensity: .25 });
+function buildBanner() {
+  const g = new THREE.Group();
+  part(g, gBox, mBanner, 0, 1.75, 0, 1.9, .85, .05);
+  for (const sx of [-1, 1]) part(g, gCyl, M.dark, sx * .9, 3.15, 0, .02, 1.9, .02);
+  return { group: g, w: 2.0, d: .5, b: 1.3, h: 5.2 };
+}
+// 허들 바 (낮게 걸린 막대 — 숙이거나 높이 점프)
+const mStripe = vivid(0xff2a2a, { roughness: .5 });
+function buildBar() {
+  const g = new THREE.Group();
+  for (const sx of [-1, 1]) {
+    part(g, gCyl, M.steel, sx * .95, .55, 0, .05, 1.1, .05);
+    part(g, gBox, M.steelD, sx * .95, .03, 0, .4, .06, .5);
+  }
+  for (let i = 0; i < 8; i++) part(g, gBox, i % 2 ? M.white : mStripe, -.84 + i * .24, 1.1, 0, .24, .18, .1);
+  return { group: g, w: 2.0, d: .5, b: 1.0, h: 1.2 };
+}
+
+// 바닥 경고 표시: 노랑=점프, 하늘=숙이기, 빨강=피하기
+function stripeTex(c1, c2) {
+  const t = canvasTex(128, 128, (g, w, h) => {
+    g.fillStyle = c2; g.fillRect(0, 0, w, h);
+    g.fillStyle = c1;
+    for (let i = -2; i < 6; i++) { g.beginPath(); g.moveTo(i * 32, h); g.lineTo(i * 32 + 16, h); g.lineTo(i * 32 + 16 + h, 0); g.lineTo(i * 32 + h, 0); g.fill(); }
+    g.strokeStyle = c1; g.lineWidth = 10; g.strokeRect(0, 0, w, h);
+  });
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
+}
+const MARK_MATS = {
+  jump: new THREE.MeshBasicMaterial({ map: stripeTex('#ffd21f', '#2a2a2a'), transparent: true, opacity: .9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }),
+  duck: new THREE.MeshBasicMaterial({ map: stripeTex('#19d3ff', '#103a66'), transparent: true, opacity: .9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }),
+  dodge: new THREE.MeshBasicMaterial({ map: stripeTex('#ff3b3b', '#3a0d0d'), transparent: true, opacity: .9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }),
+};
+const KIND = { desk: 'jump', chair: 'jump', bags: 'jump', wet: 'jump', bar: 'duck', banner: 'duck', stack: 'dodge', baldi: 'dodge' };
+const SCALE = { baldi: 1.12 };
+const OB_SCALE = 1.5;
+
+const BUILD = { banner: buildBanner, bar: buildBar, desk: buildDesk, chair: buildChairs, bags: buildBags, wet: buildWet, stack: buildStack, baldi: buildBaldi };
 const LOW = ['desk', 'chair', 'bags', 'wet'];
-const ALL = [...LOW, 'desk', 'bags', 'stack'];
+const DUCK = ['banner', 'bar'];
+const ALL = [...LOW, 'desk', 'bags', 'stack', ...DUCK];
 const WHY = {
   desk: '책상에 걸려 넘어졌어요 🪑', chair: '의자에 걸려 넘어졌어요 🪑', bags: '가방 무더기에 파묻혔어요 🎒',
-  wet: '미끄럼 주의 표지판에 걸렸어요 ⚠️', stack: '책상 탑에 쾅! 부딪혔어요', baldi: '발디한테 잡혔어요! 📏',
+  wet: '미끄럼 주의 표지판에 걸렸어요 ⚠️', banner: '현수막에 머리를 쾅! 부딪혔어요 🎌', bar: '허들 바에 걸려 넘어졌어요', stack: '책상 탑에 쾅! 부딪혔어요', baldi: '발디한테 잡혔어요! 📏',
 };
 
 // ───────────────────────── 코인 (부타 얼굴 금화) ─────────────────────────
@@ -801,14 +854,19 @@ const coins = [];
 const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _sc = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
 function addCoin(x, y, z) { if (coins.length < COIN_MAX) coins.push({ x, y, z, r: Math.random() * 6.28, pop: -1 }); }
 
-// 반짝이 파티클
-const SP_MAX = 60;
-const sparkMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(.07, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffe27a, toneMapped: false }), SP_MAX);
+// 반짝이(별 조각) + 링 이펙트
+const SP_MAX = 100;
+const sparkMesh = new THREE.InstancedMesh(new THREE.OctahedronGeometry(.11, 0), new THREE.MeshBasicMaterial({ color: 0xfff0a0, toneMapped: false }), SP_MAX);
 sparkMesh.count = 0; sparkMesh.frustumCulled = false;
 scene.add(sparkMesh);
 const sparks = [];
+const _axis = new THREE.Vector3(0, 0, 1);
 function burst(x, y, z) {
-  for (let i = 0; i < 7; i++) sparks.push({ x, y, z, vx: rnd(-3, 3), vy: rnd(1.5, 5), vz: rnd(-2, 2), life: .45 });
+  const n = 12, a0 = Math.random() * 6.28;
+  for (let i = 0; i < n; i++) {
+    const a = a0 + i / n * 6.28, sp = rnd(3, 5.5);
+    sparks.push({ x, y, z, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 1, vz: rnd(-.5, .5), life: rnd(.4, .6), life0: .6, r: Math.random() * 6.28, vr: rnd(-12, 12) });
+  }
   if (sparks.length > SP_MAX) sparks.splice(0, sparks.length - SP_MAX);
 }
 function updateSparks(dt) {
@@ -816,41 +874,90 @@ function updateSparks(dt) {
     const p = sparks[i];
     p.life -= dt;
     if (p.life <= 0) { sparks.splice(i, 1); continue; }
-    p.vy -= 14 * dt;
-    p.x += p.vx * dt; p.y += p.vy * dt; p.z += (p.vz + state.speed) * dt;
+    p.vx *= 1 - 3 * dt; p.vy = p.vy * (1 - 3 * dt) - 5 * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.r += p.vr * dt;
   }
   sparks.forEach((p, i) => {
-    _sc.setScalar(Math.max(.05, p.life / .45));
-    _m4.compose(_p.set(p.x, p.y, p.z), _q.identity(), _sc);
+    _sc.setScalar(Math.max(.05, p.life / p.life0) * 1.3);
+    _q.setFromAxisAngle(_axis, p.r);
+    _m4.compose(_p.set(p.x, p.y, p.z), _q, _sc);
     sparkMesh.setMatrixAt(i, _m4);
   });
   sparkMesh.count = sparks.length;
   sparkMesh.instanceMatrix.needsUpdate = true;
 }
+const gRing = new THREE.RingGeometry(.72, 1, 40);
+const rings = Array.from({ length: 6 }, () => {
+  const mesh = new THREE.Mesh(gRing, new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false }));
+  mesh.visible = false; scene.add(mesh);
+  return { mesh, t: -1 };
+});
+function ringFx(x, y, z) {
+  const r = rings.find(o => o.t < 0) || rings[0];
+  r.t = 0; r.mesh.position.set(x, y, z); r.mesh.visible = true;
+}
+function updateRings(dt) {
+  for (const r of rings) {
+    if (r.t < 0) continue;
+    r.t += dt;
+    const k = r.t / .42;
+    if (k >= 1) { r.t = -1; r.mesh.visible = false; continue; }
+    const e = 1 - (1 - k) * (1 - k);
+    r.mesh.scale.setScalar(.4 + e * 1.15);
+    r.mesh.material.opacity = (1 - k) * .75;
+    r.mesh.quaternion.copy(camera.quaternion);
+  }
+}
 
+// 코인이 HUD 카운터로 날아가는 연출
 const coinBox = $('coins').parentElement;
+const _v3 = new THREE.Vector3();
+function bumpHud() { coinBox.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 200 }); }
+function flyCoin(c) {
+  _v3.set(c.x, c.y, c.z).project(camera);
+  const x = (_v3.x * .5 + .5) * innerWidth, y = (-_v3.y * .5 + .5) * innerHeight;
+  const t = coinBox.querySelector('.cico').getBoundingClientRect();
+  const dx = t.left + t.width / 2 - x, dy = t.top + t.height / 2 - y;
+  const el = document.createElement('i');
+  el.className = 'fly'; el.style.left = x + 'px'; el.style.top = y + 'px';
+  document.body.appendChild(el);
+  const tr = (px, py, sc) => `translate(calc(-50% + ${px}px), calc(-50% + ${py}px)) scale(${sc})`;
+  el.animate([
+    { transform: tr(0, 0, 1), opacity: 1 },
+    { transform: tr(dx * .15, dy * .15 - 50, 1.5), opacity: 1, offset: .3 },
+    { transform: tr(dx, dy, .75), opacity: .95 },
+  ], { duration: 620, easing: 'cubic-bezier(.45,.05,.55,.95)' }).onfinish = () => {
+    el.remove(); $('coins').textContent = state.coins; bumpHud();
+  };
+}
+
 function collectCoin(c) {
+  const s = state;
   c.pop = 0;
-  state.coins++;
-  $('coins').textContent = state.coins;
-  coinBox.animate([{ transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 180 });
-  burst(c.x, c.y, c.z);
-  sfx.coin();
+  s.coins++; s.streak++; s.streakT = 1.1;
+  burst(c.x, c.y, c.z); ringFx(c.x, c.y, c.z); flyCoin(c);
+  sfx.coin(s.streak);
 }
 function updateCoins(dt) {
   const s = state;
+  if (s.streakT > 0) { s.streakT -= dt; if (s.streakT <= 0) s.streak = 0; }
   for (let i = coins.length - 1; i >= 0; i--) {
     const c = coins[i], pz = c.z;
+    if (c.pop >= 0) {   // 먹은 코인은 부타 앞에서 멈춰 떠오르며 사라짐 (몸을 통과하지 않음)
+      c.pop += dt; c.r += dt * 20; c.x = damp(c.x, s.x, 10, dt);
+      if (c.pop > .3) coins.splice(i, 1);
+      continue;
+    }
     c.z += s.speed * dt; c.r += dt * 4;
-    if (c.pop >= 0) { c.pop += dt; if (c.pop > .25) coins.splice(i, 1); continue; }
     if (c.z > 10) { coins.splice(i, 1); continue; }
-    if (s.mode === 'run' && Math.max(pz, c.z) > -1 && Math.min(pz, c.z) < 1 && Math.abs(c.x - s.x) < .95 && c.y > s.y + .25 && c.y < s.y + 2.1) collectCoin(c);
+    if (s.mode === 'run' && Math.max(pz, c.z) > -1.7 && Math.min(pz, c.z) < -.9 && Math.abs(c.x - s.x) < .95
+        && c.y > s.y - .3 && c.y < s.y + mix(2.6, 1.5, s.duckK)) collectCoin(c);
   }
   coins.forEach((c, i) => {
-    const k = c.pop >= 0 ? c.pop / .25 : 0;
-    const sc = c.pop >= 0 ? (k < .4 ? 1 + k * 1.5 : Math.max(0, 1.6 * (1 - (k - .4) / .6))) : 1;
+    const k = c.pop >= 0 ? c.pop / .3 : 0;
+    const sc = c.pop >= 0 ? (k < .3 ? 1 + k * 1.5 : Math.max(0, 1.45 * (1 - (k - .3) / .7))) : 1;
     _q.setFromAxisAngle(_up, c.r);
-    _m4.compose(_p.set(c.x, c.y + k * .7, c.z), _q, _sc.setScalar(sc));
+    _m4.compose(_p.set(c.x, c.y + k * k * 1.2 + k * .3, c.z), _q, _sc.setScalar(sc));
     for (const m of coinMeshes) m.setMatrixAt(i, _m4);
   });
   for (const m of coinMeshes) { m.count = coins.length; m.instanceMatrix.needsUpdate = true; }
@@ -871,7 +978,7 @@ function tone(f0, f1, dur, type = 'square', vol = .05, delay = 0) {
   o.connect(gn).connect(ac.destination); o.start(t); o.stop(t + dur + .02);
 }
 const sfx = {
-  coin() { tone(988, 988, .08, 'square', .035); tone(1319, 1319, .16, 'square', .035, .07); },
+  coin(n = 0) { const m = 1 + .07 * Math.min(n, 10); tone(988 * m, 988 * m, .08, 'square', .035); tone(1319 * m, 1319 * m, .16, 'square', .035, .07); },
   hit() { tone(220, 50, .5, 'sawtooth', .12); tone(90, 40, .4, 'square', .1); },
   warn() { tone(300, 300, .12, 'square', .05); tone(400, 400, .12, 'square', .05, .16); tone(300, 300, .12, 'square', .05, .32); },
 };
@@ -881,9 +988,15 @@ const SPAWN_Z = -115, LANES = [-1, 0, 1];
 const obstacles = [];
 function addObstacle(type, lane, z) {
   const b = BUILD[type]();
+  const ky = SCALE[type] || OB_SCALE, kx = Math.min(ky, 2.05 / b.w);   // 가로는 레인 폭을 넘지 않게
+  b.group.scale.set(kx, ky, ky);
   b.group.position.set(lane * LANE, 0, z);
+  const mark = new THREE.Mesh(gPlane, MARK_MATS[KIND[type]]);
+  mark.rotation.x = -Math.PI / 2; mark.position.y = .02 / ky;
+  mark.scale.set(Math.min(2.1, b.w * kx + .3) / kx, (b.d * ky + .7) / ky, 1);
+  b.group.add(mark);
   scene.add(b.group);
-  obstacles.push({ ...b, type, lane, x: lane * LANE, z, pz: z, seed: Math.random() * 6.28 });
+  obstacles.push({ ...b, w: b.w * kx, d: b.d * ky, h: b.h * ky, b: (b.b || 0) * ky, type, lane, x: lane * LANE, z, pz: z, seed: Math.random() * 6.28 });
 }
 
 function planRow(diff, lastLanes) {
@@ -897,7 +1010,8 @@ function planRow(diff, lastLanes) {
   }
   if (r < .40) return [{ t: pick(ALL), lane: pick(LANES) }];
   if (r < .66) { const free = pick(LANES); return LANES.filter(l => l !== free).map(l => ({ t: pick(ALL), lane: l })); }
-  if (r < .86) return LANES.map(l => ({ t: pick(LOW), lane: l }));
+  if (r < .78) return LANES.map(l => ({ t: pick(LOW), lane: l }));
+  if (r < .90) return LANES.map(l => ({ t: pick(DUCK), lane: l }));
   const tall = pick(LANES);
   return LANES.map(l => ({ t: l === tall ? 'stack' : pick(LOW), lane: l }));
 }
@@ -940,7 +1054,8 @@ function spawnRow() {
 function hits(o) {
   const s = state;
   const reach = o.d / 2 + .35;
-  return Math.max(o.pz, o.z) > -reach && Math.min(o.pz, o.z) < reach && Math.abs(o.x - s.x) < o.w / 2 + .34 && s.y < o.h - .12;
+  const ph = mix(2.5, 1.0, s.duckK);
+  return Math.max(o.pz, o.z) > -reach && Math.min(o.pz, o.z) < reach && Math.abs(o.x - s.x) < o.w / 2 + .34 && s.y < o.h - .12 && s.y + ph > o.b + .06;
 }
 
 function updateObstacles(dt) {
@@ -960,6 +1075,7 @@ function updateObstacles(dt) {
 function clearWorld() {
   obstacles.forEach(o => scene.remove(o.group));
   obstacles.length = 0; coins.length = 0; sparks.length = 0;
+  rings.forEach(r => { r.t = -1; r.mesh.visible = false; });
   $('warn').classList.remove('show');
 }
 
@@ -988,7 +1104,7 @@ function restart() {
   audio();
   clearWorld();
   Object.assign(state, {
-    mode: 'run', lane: 0, y: 0, vy: 0, air: false, landT: 0, dist: 0, coins: 0, fall: 0, deadT: 0, overShown: false, shake: 0,
+    mode: 'run', lane: 0, y: 0, vy: 0, air: false, landT: 0, dist: 0, coins: 0, fall: 0, deadT: 0, overShown: false, shake: 0, duckT: 0, duckK: 0, streak: 0,
     nextRow: 10, lastGap: 22, lastLanes: [], why: '',
   });
   $('coins').textContent = '0';
@@ -998,7 +1114,12 @@ $('retryBtn').addEventListener('click', restart);
 
 function jump() {
   if (state.mode !== 'run' || state.air) return;
-  state.air = true; state.vy = 12.5;
+  state.air = true; state.vy = 13.5; state.duckT = 0;
+}
+function duck() {
+  if (state.mode !== 'run') return;
+  if (state.air) { state.vy = Math.min(state.vy, -20); return; }   // 공중에서는 빠르게 내려찍기
+  state.duckT = .8;
 }
 function laneMove(d) {
   if (state.mode !== 'run') return;
@@ -1023,6 +1144,7 @@ window.addEventListener('keydown', e => {
   const k = e.key;
   if (k === 'ArrowLeft' || k === 'a' || k === 'A') laneMove(-1);
   else if (k === 'ArrowRight' || k === 'd' || k === 'D') laneMove(1);
+  else if (k === 'ArrowDown' || k === 's' || k === 'S') { duck(); e.preventDefault(); }
   else if (k === 'ArrowUp' || k === 'w' || k === 'W' || k === ' ') { jump(); if (state.mode === 'dead') restart(); e.preventDefault(); }
   else if (k === 'Enter') { if (state.mode === 'intro' && !$('startBtn').disabled) start(); else restart(); }
 });
@@ -1033,6 +1155,7 @@ window.addEventListener('touchend', e => {
   const dx = e.changedTouches[0].clientX - touch.x, dy = e.changedTouches[0].clientY - touch.y;
   if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) laneMove(dx > 0 ? 1 : -1);
   else if (dy < -30) jump();
+  else if (dy > 30 && Math.abs(dy) > Math.abs(dx)) duck();
   touch = null;
 }, { passive: true });
 
@@ -1067,12 +1190,13 @@ function animateButa(dt) {
     el.rotation.x = mix(mix(.1, 1.25 + Math.max(0, Math.cos(q)) * .3, rb), .3, jb);
   });
   // 몸: 통통 튀고 앞으로 기울이고 비틀기
-  const bounce = Math.abs(Math.sin(p)) * .11 * rb * (1 - jb);
+  const dk = s.duckK;
+  const bounce = Math.abs(Math.sin(p)) * .11 * rb * (1 - jb) * (1 - dk);
   const breath = Math.sin(it * 2.2) * .012 * (1 - rb);
   const squash = s.landT > 0 ? Math.sin(Math.min(1, s.landT / .18) * Math.PI) * .12 : 0;
   b.rig.position.y = bounce + s.y + .32 * s.fall;
-  b.rig.scale.set(1 + squash * .5, 1 + breath - squash, 1 + squash * .5);
-  b.rig.rotation.x = -.16 * rb + 1.4 * s.fall;
+  b.rig.scale.set(1 + squash * .5 + dk * .1, (1 + breath - squash) * (1 - .4 * dk), 1 + squash * .5 + dk * .1);
+  b.rig.rotation.x = -.16 * rb + 1.4 * s.fall - .85 * dk;
   b.torso.rotation.y = Math.sin(p) * .12 * rb;
   b.head.rotation.y = -Math.sin(p) * .08 * rb;
   b.head.rotation.x = mix(Math.sin(it * 1.3) * .02, Math.abs(Math.sin(p)) * -.05 + .12, rb);
@@ -1142,6 +1266,8 @@ function update(dt) {
     if (s.y <= 0) { s.y = 0; s.vy = 0; s.air = false; s.landT = .18; }
   }
   if (s.landT > 0) s.landT = Math.max(0, s.landT - dt);
+  if (s.duckT > 0) s.duckT = Math.max(0, s.duckT - dt);
+  s.duckK = damp(s.duckK, s.duckT > 0 && s.mode === 'run' ? 1 : 0, 20, dt);
 
   // 복도가 달려옴
   if (s.mode !== 'dead') s.dist += s.speed * dt;
@@ -1156,6 +1282,7 @@ function update(dt) {
   updateObstacles(dt);
   updateCoins(dt);
   updateSparks(dt);
+  updateRings(dt);
   $('dist').textContent = Math.floor(s.dist);
 
   animateButa(dt);
