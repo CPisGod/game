@@ -534,7 +534,13 @@ function drawProj(p) {
   }
   else if (p.kind === 'peel') { ctx.save(); ctx.translate(x, y); ctx.rotate(p.t * 14); ctx.fillStyle = '#ffe135'; ctx.fillRect(-16, -5, 32, 10); ctx.fillStyle = '#f2c200'; ctx.fillRect(-12, 1, 24, 4); ctx.fillStyle = '#6e5a10'; ctx.fillRect(14, -7, 6, 6); ctx.restore(); }
   else if (p.kind === 'spine') { ctx.save(); ctx.translate(x, y); ctx.rotate(p.t * 18 * Math.sign(p.vx));
-    for (let i = -3; i <= 3; i++) { ctx.fillStyle = i % 2 ? '#f3ecd2' : '#fffbe6'; ctx.fillRect(i * 9 - 5, -6, 10, 12); ctx.fillStyle = '#b9ad84'; ctx.fillRect(i * 9 - 5, 3, 10, 3); } ctx.restore(); }
+    for (let i = -3; i <= 3; i++) {
+      const bx = i * 9;
+      ctx.fillStyle = '#b9ad84'; ctx.beginPath(); ctx.moveTo(bx - 3, -5); ctx.lineTo(bx + 2, -5); ctx.lineTo(bx - 2 + (i % 2 ? 2 : 0), -17); ctx.closePath(); ctx.fill(); // 가시돌기
+      ctx.fillStyle = '#fffbe6'; ctx.beginPath(); ctx.moveTo(bx - 1, -12); ctx.lineTo(bx + 1, -12); ctx.lineTo(bx - 2 + (i % 2 ? 2 : 0), -17); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = i % 2 ? '#f3ecd2' : '#fffbe6'; ctx.fillRect(bx - 5, -6, 8, 12); ctx.fillStyle = '#b9ad84'; ctx.fillRect(bx - 5, 3, 8, 3);
+      ctx.fillStyle = '#5b5238'; ctx.fillRect(bx + 3, -4, 2, 8);
+    } ctx.restore(); }
 }
 function drawTruck(t) {
   const im = SF.effect('truck'), sc = 6, w = im.width * sc, h = im.height * sc;

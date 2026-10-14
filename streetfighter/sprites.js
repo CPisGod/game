@@ -184,7 +184,18 @@ const SF = (() => {
     if (tip) rect(g, Math.round(ex) - 1, Math.round(ey) - 1, 3, 3, tip);
   };
   const prop = (g, name, hx, hy) => {
-    if (name === 'spine') weapon(g, hx, hy, 15, '#f3ecd2', 2, '#b9ad84', '#fffbe6');
+    if (name === 'spine') {
+      const [dx, dy] = P.wdir, m = Math.hypot(dx, dy), ux = dx / m, uy = dy / m, nx = uy, ny = -ux;
+      line(g, hx - ux * 2, hy - uy * 2, hx + ux * 16, hy + uy * 16, '#f3ecd2', 2, '#b9ad84');
+      for (let k = 1; k <= 14; k += 3) {
+        const cxp = hx + ux * k, cyp = hy + uy * k;
+        rect(g, Math.round(cxp - 1), Math.round(cyp - 1), 3, 3, k % 2 ? '#fffbe6' : '#f3ecd2');   // 척추뼈 마디
+        const sl = k > 9 ? 3 : 4;                                                               // 뾰족한 가시돌기
+        for (let j = 2; j <= sl + 1; j++) px(g, cxp + nx * j - ux * (j - 1) * .6, cyp + ny * j - uy * (j - 1) * .6, j === sl + 1 ? '#fffbe6' : '#b9ad84');
+        px(g, cxp - nx * 2, cyp - ny * 2, '#b9ad84');
+      }
+      rect(g, Math.round(hx + ux * 16) - 1, Math.round(hy + uy * 16) - 1, 3, 3, '#fffbe6');
+    }
     else if (name === 'banana') weapon(g, hx, hy, 8, '#ffe135', 3, '#f2c200', '#6e5a10');
     else if (name === 'baguette') weapon(g, hx, hy, 15, '#d99a3f', 4, '#b8741f', '#f0c070');
     else if (name === 'pointer') { weapon(g, hx, hy, 14, '#caa05a', 1); const [dx, dy] = P.wdir, m = Math.hypot(dx, dy); rect(g, Math.round(hx + dx / m * 14), Math.round(hy + dy / m * 14) - 1, 2, 2, '#fff'); }
@@ -291,30 +302,67 @@ const SF = (() => {
     return g;
   };
 
-  // ───── 척추 ─────
+  // ───── 척추 (온몸이 뼈) ─────
   const chuk = () => {
     const g = mk(), b = P.bob, cx = 20 + P.lean;
-    const B = '#f3ecd2', BD = '#b9ad84', R = '#d8452e';
+    const B = '#f3ecd2', BD = '#b9ad84', BH = '#fffbe6', DK = '#5b5238';
     const sx = cx + 4, sy = 20 + b;
-    tri(g, cx - 3, 18 + b, cx - 12, 11 + b, cx - 5, 14 + b, R);
-    tri(g, cx - 3, 20 + b, cx - 13, 17 + b, cx - 4, 17 + b, '#a02a1a');
-    tri(g, cx - 3, 22 + b, cx - 11, 22 + b, cx - 3, 19 + b, R);
-    arm(g, cx - 3, sy, cx + P.back[0], sy + P.back[1], BD);
-    legs(g, cx, B, BD);
-    for (let i = 0; i < 4; i++) {
-      const y = 17 + i * 4 + b * (i < 2 ? 1 : 0);
-      rect(g, cx - 3, y, 7, 3, i % 2 ? B : '#fffbe6'); rect(g, cx - 3, y + 2, 7, 1, BD);
-      rect(g, cx - 6, y + 1, 3, 1, BD); rect(g, cx + 4, y + 1, 3, 1, BD);
+    // 뼈 팔다리: 가는 뼈대 + 양끝 관절 마디
+    const boneArm = (x0, y0, x1, y1) => {
+      line(g, x0, y0, x1, y1, B, 2, BD);
+      rect(g, x0 - 1, y0 - 1, 3, 3, BH); px(g, x0 + 1, y0 + 1, BD);
+      const mx = Math.round((x0 + x1) / 2), my = Math.round((y0 + y1) / 2); rect(g, mx - 1, my - 1, 3, 3, BH); // 팔꿈치
+      rect(g, x1 - 1, y1 - 1, 3, 3, B); px(g, x1 + 2, y1 - 1, B); px(g, x1 + 2, y1 + 1, B); px(g, x1 + 1, y1 + 2, BD); // 손가락뼈
+    };
+    boneArm(cx - 3, sy, cx + P.back[0], sy + P.back[1]);
+    // 다리뼈 (넙다리뼈/정강뼈 + 무릎 관절 + 발뼈)
+    const m = P.legs, tk = m === 'tuck';
+    let fw = 0, bw = 0, sp = 0;
+    if (m === 'lunge') { fw = 4; bw = -3; } else if (m === 'back') { fw = -2; bw = 1; } else if (m === 'crouch') sp = 2;
+    const top = 30 + b, foot = tk ? 33 : 37;
+    [[cx - 3 + bw - sp, tk ? -3 : 0], [cx + 3 + fw + sp, tk ? 3 : 0]].forEach(([lx, d]) => {
+      const kx = lx + d, kmid = Math.round((top + foot) / 2);
+      line(g, lx - d / 2, top, kx, kmid, B, 2, BD); line(g, kx, kmid, kx, foot, B, 2, BD);
+      rect(g, kx - 1, kmid - 1, 3, 3, BH);                       // 무릎뼈
+      rect(g, lx - 1, top - 1, 3, 3, BH);                        // 고관절
+      rect(g, kx - 2, foot, 5, 2, B); px(g, kx + 3, foot + 1, B); // 발뼈
+    });
+    // 골반
+    rect(g, cx - 4, 27 + b, 9, 3, B); rect(g, cx - 5, 27 + b, 2, 2, BH); rect(g, cx + 4, 27 + b, 2, 2, BH);
+    rect(g, cx - 1, 29 + b, 3, 2, DK); rect(g, cx - 4, 29 + b, 9, 1, BD);
+    // 척추뼈 기둥 (마디마디 + 사이 디스크)
+    const vy = [];
+    for (let i = 0; i < 7; i++) vy.push(17 + i * 1.7 + b * (i < 4 ? 1 : 0.5));
+    vy.forEach((y0, i) => {
+      const y = Math.round(y0), w = i < 5 ? 3 : 4;
+      rect(g, cx - 2, y, w + 1, 2, i % 2 ? B : BH); rect(g, cx - 2, y + 1, w + 1, 1, BD);
+    });
+    // 가시돌기: 등 뒤로 뾰족하게 뻗은 뼈 (위쪽은 아래로 휘고, 아래쪽은 크고 곧게)
+    for (let i = 0; i < 6; i++) {
+      const y = Math.round(vy[i]) + b * 0, len = 3 + Math.min(i, 3) + (i === 5 ? 1 : 0);
+      tri(g, cx - 2, y - 1, cx - 2, y + 3, cx - 2 - len, y + 2 + (i < 3 ? 1 : 0), B);
+      px(g, cx - 2 - len, y + 2 + (i < 3 ? 1 : 0), BH); px(g, cx - 2, y + 2, BD); px(g, cx - 3, y + 2, BD);
     }
-    rect(g, cx - 2, 29, 5, 3, BD);
+    // 가로돌기 (갈비 붙는 곳)
+    vy.slice(0, 4).forEach(y0 => { const y = Math.round(y0); px(g, cx + 2, y, BD); });
+    // 갈비뼈 (앞으로 휘어진 곡선, 사이는 비어 있음)
+    for (let i = 0; i < 4; i++) {
+      const y = 16 + i * 3 + b, r = 5 - (i > 2 ? 1 : 0);
+      line(g, cx + 2, y, cx + 2 + r, y + 1, B, 1); px(g, cx + 2 + r, y + 2, B); px(g, cx + 2 + r, y + 3, BD);
+      px(g, cx + 1 + r, y + 4, BD);
+    }
+    rect(g, cx + 2, 16 + b, 1, 12, BD); // 가슴뼈 연결
+    // 해골 머리
     ell(g, cx + 1, 10 + b, 8, 7, B); rect(g, cx - 3, 15 + b, 9, 3, B);
+    ell(g, cx - 3, 6 + b, 3, 2, BH);                                     // 이마 하이라이트
     rect(g, cx - 2, 8 + b, 3, 3, '#111'); rect(g, cx + 3, 8 + b, 3, 3, '#111');
     px(g, cx - 1, 9 + b, P.expr === 'angry' ? '#ffcc33' : '#ff3030'); px(g, cx + 4, 9 + b, P.expr === 'angry' ? '#ffcc33' : '#ff3030');
     if (P.expr === 'angry') { rect(g, cx - 3, 7 + b, 4, 1, '#111'); rect(g, cx + 3, 7 + b, 4, 1, '#111'); }
-    rect(g, cx + 1, 12 + b, 1, 2, '#111');
-    for (let i = 0; i < 4; i++) px(g, cx - 2 + i * 2, 16 + b, '#111');
+    rect(g, cx + 1, 12 + b, 1, 2, '#111'); px(g, cx + 2, 13 + b, '#111');  // 코뼈 구멍
+    for (let i = 0; i < 4; i++) px(g, cx - 2 + i * 2, 16 + b, '#111');     // 이빨 틈
+    px(g, cx - 4, 12 + b, BD); px(g, cx + 6, 12 + b, BD);                   // 광대뼈
     const hx = sx + P.hand[0], hy = sy + P.hand[1] - 1;
-    arm(g, sx, sy, hx, hy, B, BD);
+    boneArm(sx, sy, hx, hy);
     prop(g, held('spine'), hx, hy);
     slash(g, sx, sy);
     return g;
@@ -333,7 +381,7 @@ const SF = (() => {
     ell(g, cx + 9, 11 + b, 3, 3, M); ell(g, cx + 9, 11 + b, 1, 1, FACE);
     ell(g, cx + 1, 10 + b, 8, 7, M);
     ell(g, cx + 3, 12 + b, 6, 5, FACE);
-    eye(g, cx, 8 + b, true); eye(g, cx + 5, 8 + b, true);
+    [cx, cx + 6].forEach(ex => { rect(g, ex - 1, 7 + b, 5, 5, '#3a1d0a'); rect(g, ex, 8 + b, 3, 3, FACE); eye(g, ex, 8 + b, true); });
     px(g, cx + 3, 13 + b, '#6e3b16'); px(g, cx + 5, 13 + b, '#6e3b16');
     if (P.mouth) mouth(g, cx + 3, 15 + b); else rect(g, cx + 3, 15 + b, 4, 1, '#a0522d');
     const hx = sx + P.hand[0], hy = sy + P.hand[1];
@@ -353,7 +401,6 @@ const SF = (() => {
     rect(g, cx - 6 + lg[0], 31 + b, 4, Math.max(2, 6 - b), TD); tri(g, cx - 9 + lg[0], 38, cx - 5 + lg[0], 36, cx - 1 + lg[0], 38, TD);
     rect(g, cx + 2 + lg[1], 31 + b, 4, Math.max(2, 6 - b), TD); tri(g, cx + 1 + lg[1], 38, cx + 4 + lg[1], 36, cx + 9 + lg[1], 38, TD);
     rect(g, cx - 6, 17 + b, 13, 15, T);
-    for (let y = 18; y < 31; y += 3) px(g, cx - 4 + (y % 2) * 6, y + b, TD), px(g, cx - 3 + (y % 2) * 6, y + 1 + b, TD);
     rect(g, cx - 6, 17 + b, 2, 15, TD);
     eye(g, cx - 2, 21 + b, true); eye(g, cx + 3, 21 + b, true);
     if (P.mouth) mouth(g, cx, 26 + b); else { rect(g, cx - 1, 27 + b, 6, 1, '#2a1208'); px(g, cx - 2, 26 + b, '#2a1208'); px(g, cx + 5, 26 + b, '#2a1208'); }
@@ -361,7 +408,7 @@ const SF = (() => {
     const sw = P.leaves === 2 ? 2 : P.leaves === 1 ? 1 : 0;
     ell(g, cx, 9 + b, 12, 8, G); ell(g, cx - 6 - sw, 12 + b, 6, 5, G); ell(g, cx + 7 + sw, 12 + b, 6, 5, G);
     ell(g, cx - 4, 6 + b, 5, 3, GL); ell(g, cx + 5, 7 + b, 3, 2, GL);
-    px(g, cx - 10, 14 + b, GD); px(g, cx + 11, 14 + b, GD); rect(g, cx - 3, 15 + b, 7, 1, GD);
+    px(g, cx - 10, 14 + b, GD); px(g, cx + 11, 14 + b, GD);
     [[-8, 9], [2, 4], [9, 9], [-2, 13]].forEach(([x, y]) => { ell(g, cx + x, y + b, 2, 2, AP); px(g, cx + x - 1, y - 1 + b, '#e8ffa8'); px(g, cx + x, y - 3 + b, TD); });
     const hx = sx + P.hand[0], hy = sy + P.hand[1];
     arm(g, sx, sy, hx, hy, TD, GL);
