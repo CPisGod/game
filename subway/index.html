@@ -980,7 +980,6 @@ function tone(f0, f1, dur, type = 'square', vol = .05, delay = 0) {
 const sfx = {
   coin(n = 0) { const m = 1 + .07 * Math.min(n, 10); tone(988 * m, 988 * m, .08, 'square', .035); tone(1319 * m, 1319 * m, .16, 'square', .035, .07); },
   hit() { tone(220, 50, .5, 'sawtooth', .12); tone(90, 40, .4, 'square', .1); },
-  warn() { tone(300, 300, .12, 'square', .05); tone(400, 400, .12, 'square', .05, .16); tone(300, 300, .12, 'square', .05, .32); },
 };
 
 // ───────────────────────── 장애물 생성 / 충돌 ─────────────────────────
@@ -1032,7 +1031,6 @@ function spawnRow() {
   plan.forEach(it => addObstacle(it.t, it.lane, SPAWN_Z));
   const used = plan.map(it => it.lane);
   const baldiLane = (plan.find(it => it.t === 'baldi') || {}).lane;
-  if (baldiLane !== undefined) sfx.warn();
 
   // 코인: 비어 있는 칸엔 일직선, 꽉 찼으면 낮은 장애물 위로 아치
   if (Math.random() < .85) {
