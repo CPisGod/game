@@ -235,9 +235,7 @@ function handleSwipe(x1, y1, x2, y2) {
     if (splitPiece(h, x1 + dx * t, y1 + dy * t, nx, ny)) { h.gone = true; extra++; burst(c.x, c.y, ['#ffe14d', '#ff7a59', '#9be564', '#ff8fd1'], 8, 4); }
   }
   if (extra) {
-    halves = halves.filter(h => !h.gone); sfxSlice();
-    swipeCombo += extra; lastSliceTime = performance.now();
-    addScore(extra * 5, x2, y2 - 10, '+' + extra * 5);
+    halves = halves.filter(h => !h.gone); sfxSlice();   // 재절단은 점수·콤보에 포함하지 않음
   }
   if (n) {
     sliced += n;
