@@ -51,39 +51,15 @@ cv.width = W * DPR; cv.height = H * DPR;
 const FACE_FILES = ['face1.png', 'face2.png', 'face3.png', 'face4.png', 'face5.png', 'face6.png', 'face7.png', 'face8.png'];
 const faceImgs = FACE_FILES.map(f => { const im = new Image(); im.onload = () => { try { im.proc = processFace(im); } catch (e) {} }; im.src = 'faces/' + f; return im; });
 
-// 배경(흰색) 제거 + 가장자리 흰 테두리 제거 + 얼굴이 꽉 차게 잘라서 정사각형 캔버스로 만든다
+// 얼굴 PNG는 이미 배경이 투명한 누끼 이미지다: 투명 여백만 잘라서 정사각형 캔버스에 꽉 차게 만든다
+// (흰색 제거/가장자리 깎기를 하면 밝은 피부·안경이 같이 지워지므로 하지 않는다)
 function processFace(img) {
   const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
   const x = c.getContext('2d', { willReadFrequently: true });
   x.drawImage(img, 0, 0, S, S);
-  const id = x.getImageData(0, 0, S, S), d = id.data;
+  const d = x.getImageData(0, 0, S, S).data;
   const idx = (px, py) => (py * S + px) * 4;
-  const whitish = i => d[i + 3] < 255 || (d[i] > 225 && d[i + 1] > 225 && d[i + 2] > 225);
-  const bright = i => (d[i] + d[i + 1] + d[i + 2]) / 3 > 190;
-  // 1) 가장자리에서 시작해 흰색/투명 배경을 flood fill로 제거
-  const seen = new Uint8Array(S * S), stack = [];
-  for (let i = 0; i < S; i++) stack.push(i, (S - 1) * S + i, i * S, i * S + S - 1);
-  while (stack.length) {
-    const k = stack.pop(); if (seen[k]) continue;
-    const i = k * 4; if (!whitish(i)) continue;
-    seen[k] = 1; d[i + 3] = 0;
-    const px = k % S, py = (k - px) / S;
-    if (px > 0) stack.push(k - 1); if (px < S - 1) stack.push(k + 1);
-    if (py > 0) stack.push(k - S); if (py < S - 1) stack.push(k + S);
-  }
-  // 2) 남은 가장자리의 밝은/반투명 테두리 픽셀을 2px 깎는다
-  for (let pass = 0; pass < 2; pass++) {
-    const kill = [];
-    for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
-      const i = idx(px, py); if (d[i + 3] === 0) continue;
-      const edge = px === 0 || py === 0 || px === S - 1 || py === S - 1 ||
-        d[i - 4 + 3] === 0 || d[i + 4 + 3] === 0 || d[i - S * 4 + 3] === 0 || d[i + S * 4 + 3] === 0;
-      if (edge && (d[i + 3] < 255 || bright(i))) kill.push(i);
-    }
-    for (const i of kill) d[i + 3] = 0;
-  }
-  x.putImageData(id, 0, 0);
-  // 3) 투명 여백을 잘라내고 원에 최대한 꽉 차게 중앙 배치
+  // 투명 여백을 잘라내고 원에 최대한 꽉 차게 중앙 배치
   let x0 = S, y0 = S, x1 = -1, y1 = -1;
   for (let py = 0; py < S; py++) for (let px = 0; px < S; px++)
     if (d[idx(px, py) + 3] > 20) { if (px < x0) x0 = px; if (px > x1) x1 = px; if (py < y0) y0 = py; if (py > y1) y1 = py; }
