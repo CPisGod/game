@@ -664,35 +664,42 @@ function buildMonkey() {    // 원숭이: 갈색 털 + 연한 얼굴 + 긴 꼬�
   return h;
 }
 
-function buildApple() {     // 청사과나무: 나무 몸통 + 잎사귀 왕관 + 청사과
-  const T = 0x8a5a2e, TD = 0x5e3a18, G = 0x3fa045, GL = 0x7fd36a, AP = 0xa6e22e;
-  const h = buildHuman({ body: T, torso: [.56, .6, .5], armMat: TD, handMat: GL, legMat: TD, footMat: 0x4a2c10, armR: .1, legR: .13 });
+function buildApple() {     // 청사과나무: 팔 없는 나무 몸통(얼굴) + 넓은 잎사귀 왕관 + 청사과 + 뿌리 발
+  const T = 0x8a5a2e, TD = 0x5e3a18, G = 0x3fa045, GD = 0x2a7a32, GL = 0x7fd36a, AP = 0xa6e22e;
+  const h = buildHuman({ body: T, torso: [.6, .66, .52], armMat: T, legMat: TD, footMat: 0x4a2c10, legR: .13 });
   const { add, sph, torso, head } = h;
-  // 나무껍질 줄무늬
-  for (let i = 0; i < 4; i++) {
-    const r = add(torso, new THREE.TorusGeometry(.5 - i * .02, .018, 6, 24, Math.PI * 1.2), TD, 0, .85 + i * .2, 0);
-    r.rotation.x = Math.PI / 2; r.rotation.z = Math.PI * .9 + i * .4; r.scale.set(1, 1.05, 1);
+  h.arms.forEach(a => { a.sh.visible = false; });   // 사람이 아니라서 팔 없음
+  // 나무껍질 무늬
+  for (let i = 0; i < 5; i++) {
+    const r = add(torso, new THREE.TorusGeometry(.56 - Math.abs(i - 2) * .03, .02, 6, 24, Math.PI * 1.1), TD, 0, .78 + i * .17, 0);
+    r.rotation.x = Math.PI / 2; r.rotation.z = Math.PI * .95 + (i % 2) * .5;
   }
-  // 얼굴(몸통에 새김): 눈·입
-  h.eyes = h.eyePair(torso, { x: .17, y: 1.3, z: -.46, rw: .075, rh: .1, white: 0xfff6dc, pupil: 0x2a1208 });
-  const mouth = add(torso, new THREE.TorusGeometry(.12, .02, 8, 20, Math.PI), 0x2a1208, 0, 1.08, -.48);
+  add(torso, sph, TD, -.5, 1.2, 0, .1, .6, .4);      // 옆면 그늘
+  // 얼굴(몸통): 눈 + 입
+  h.eyes = h.eyePair(torso, { x: .2, y: 1.28, z: -.48, rw: .08, rh: .105, white: 0xfff6dc, pupil: 0x2a1208 });
+  const mouth = add(torso, new THREE.TorusGeometry(.13, .022, 8, 20, Math.PI), 0x2a1208, 0, 1.02, -.5);
   mouth.rotation.z = Math.PI;
-  // 잎사귀 왕관
-  add(head, sph, G, 0, .02, 0, .82, .5, .76);
-  add(head, sph, G, -.55, -.05, -.05, .42, .34, .42);
-  add(head, sph, G, .55, -.05, -.05, .42, .34, .42);
-  add(head, sph, GL, -.25, .3, -.2, .3, .16, .26);
-  add(head, sph, GL, .3, .28, -.1, .2, .1, .2);
-  for (const [x, y, z] of [[-.5, .02, -.4], [.12, .1, -.62], [.55, -.02, -.34], [-.1, .38, .1]]) {
-    add(head, sph, AP, x, y, z, .15, .15, .15);
-    add(head, new THREE.CylinderGeometry(.012, .012, .09, 6), TD, x, y + .15, z);
-  }
-  // 뿌리 같은 발 + 잎 모양 귀
+  // 잎사귀 왕관: 중앙 + 양옆 덩어리(달릴 때 살랑)
+  add(head, sph, G, 0, .08, 0, .85, .52, .8);
+  add(head, sph, GL, -.3, .4, -.22, .34, .14, .3);
+  add(head, sph, GL, .34, .36, -.1, .22, .1, .2);
+  add(head, sph, GD, 0, -.3, -.5, .5, .05, .1);
   for (const s of [-1, 1]) {
-    const ear = new THREE.Group(); ear.position.set(s * .78, -.05, 0); head.add(ear);
-    add(ear, sph, GL, 0, 0, 0, .22, .1, .3);
-    ear.userData.base = 0; h.ears.push(ear);
+    const lobe = new THREE.Group(); lobe.position.set(s * .78, -.02, -.02); head.add(lobe);
+    add(lobe, sph, G, 0, 0, 0, .42, .34, .42);
+    add(lobe, sph, GL, s * -.05, .15, -.1, .18, .08, .16);
+    lobe.userData.base = 0; h.ears.push(lobe);
   }
+  for (const [x, y, z] of [[-.62, .1, -.5], [.1, .16, -.75], [.62, 0, -.46], [-.12, .5, .05]]) {
+    add(head, sph, AP, x, y, z, .15, .15, .15);
+    add(head, sph, 0xe8ffa8, x - .05, y + .05, z - .08, .035, .035, .02);
+    add(head, new THREE.CylinderGeometry(.012, .012, .09, 6), TD, x, y + .16, z);
+  }
+  // 뿌리 같은 발
+  h.legs.forEach(l => {
+    add(l.foot, new THREE.ConeGeometry(.2, .22, 5), 0x4a2c10, 0, -.06, -.2).rotation.x = -Math.PI / 2;
+    add(l.foot, new THREE.ConeGeometry(.12, .2, 5), 0x4a2c10, .12 * l.s, -.07, .03).rotation.z = -l.s * Math.PI / 2;
+  });
   return h;
 }
 
