@@ -72,7 +72,6 @@
 <canvas id="gl"></canvas>
 
 <div id="hud"><span class="dist" id="dist">0</span><span class="unit">m</span><span class="coinbox"><i class="cico"></i><span class="coins" id="coins">0</span></span></div>
-<div id="hint">← → 레인 이동 · ↑ / Space 점프 · ↓ 숙이기 (모바일: 스와이프)<br>노랑=점프 · 하늘색=숙이기(↓ / S, 아래로 스와이프) · 빨강=옆으로 피하기</div>
 
 <div id="over">
   <div class="card">
@@ -544,6 +543,7 @@ function buildButa() {
 }
 
 const buta = buildButa();
+buta.root.scale.setScalar(.88);
 scene.add(buta.root);
 
 // ───────────────────────── 게임 상태 ─────────────────────────
@@ -1115,7 +1115,7 @@ function jump() {
 }
 function duck() {
   if (state.mode !== 'run') return;
-  if (state.air) { state.vy = Math.min(state.vy, -20); return; }   // 공중에서는 빠르게 내려찍기
+  if (state.air) { state.vy = Math.min(state.vy, -20); state.duckT = .8; return; }   // 공중에서는 빠르게 내려찍으며 바로 구르기
   state.duckT = .8;
 }
 function laneMove(d) {
@@ -1132,8 +1132,6 @@ function start() {
   $('intro').classList.add('gone');
   setTimeout(() => { $('intro').style.display = 'none'; }, 600);
   $('hud').style.display = 'flex';
-  $('hint').style.opacity = 1;
-  setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
 }
 $('startBtn').addEventListener('click', start);
 window.addEventListener('keydown', e => {
