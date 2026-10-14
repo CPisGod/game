@@ -17,8 +17,6 @@
   .overlay p { margin: 0; line-height: 1.6; }
   .overlay .big { font-size: 44px; font-weight: 900; color: #ffd23f; }
   .overlay button { padding: 12px 32px; font-size: 20px; font-weight: 700; border: 0; border-radius: 999px; background: #ffd23f; cursor: pointer; }
-  .faces { display: flex; gap: 8px; }
-  .faces img { width: 72px; height: 72px; }
 
   /* 메인 메뉴로 돌아가기 버튼 (모든 게임 공통) */
   .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
@@ -33,7 +31,6 @@
   <canvas id="c"></canvas>
   <div id="start" class="overlay">
     <h1>🗡️ 얼굴 닌자</h1>
-    <div class="faces"><img src="faces/face1.png" alt=""><img src="faces/face2.png" alt=""><img src="faces/face3.png" alt=""></div>
     <p>화면을 드래그해서 날아오는 얼굴을 베세요!<br>한 번에 여러 개 베면 콤보 보너스<br>얼굴을 3번 놓치거나 💣을 베면 게임 끝!</p>
     <button id="startBtn">시작</button>
   </div>
