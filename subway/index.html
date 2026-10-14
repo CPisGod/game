@@ -674,7 +674,6 @@ function buildApple() {     // 청사과나무: 팔 없는 나무 몸통(얼굴)
     const r = add(torso, new THREE.TorusGeometry(.56 - Math.abs(i - 2) * .03, .02, 6, 24, Math.PI * 1.1), TD, 0, .78 + i * .17, 0);
     r.rotation.x = Math.PI / 2; r.rotation.z = Math.PI * .95 + (i % 2) * .5;
   }
-  add(torso, sph, TD, -.5, 1.2, 0, .1, .6, .4);      // 옆면 그늘
   // 얼굴(몸통): 눈 + 입
   h.eyes = h.eyePair(torso, { x: .2, y: 1.28, z: -.48, rw: .08, rh: .105, white: 0xfff6dc, pupil: 0x2a1208 });
   const mouth = add(torso, new THREE.TorusGeometry(.13, .022, 8, 20, Math.PI), 0x2a1208, 0, 1.02, -.5);
