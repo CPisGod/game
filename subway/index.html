@@ -644,11 +644,11 @@ function buildChuk() {      // 척추: 뼈다귀 해골 + 빨간 목도리
   add(head, new THREE.BoxGeometry(.04, .14, .03), 0x2a2218, 0, -.13, -.5);   // 코 구멍
   // 눈구멍 + 빨간 눈빛
   h.eyes = h.eyePair(head, { x: .22, y: .06, z: -.46, rw: .15, rh: .17, white: 0x120c14, pupil: new THREE.MeshStandardMaterial({ color: 0xff3030, emissive: 0xff1010, emissiveIntensity: 1.6 }) });
-  // 빨간 목도리 (꼬리는 뒤로 날림)
-  add(h.rig, new THREE.TorusGeometry(.26, .09, 10, 28), 0xd8452e, 0, 1.78, 0).rotation.x = Math.PI / 2;
+  // 목뼈 (빨간 목도리 대신): 두개골 아래로 이어지는 척추뼈 마디
+  for (let i = 0; i < 3; i++) add(h.rig, new THREE.CylinderGeometry(.07 - i * .006, .075 - i * .006, .07, 12), i % 2 ? B : 0xfffbe6, 0, 1.68 + i * .08, .05);
+  // 뒤로 날리던 꼬리: 뼈 마디 3개
   h.tail.position.set(0, 1.74, .22);
-  add(h.tail, new THREE.BoxGeometry(.16, .5, .05), 0xd8452e, 0, -.2, .1);
-  add(h.tail, new THREE.BoxGeometry(.16, .4, .05), 0xa02a1a, .12, -.35, .16);
+  for (let i = 0; i < 3; i++) add(h.tail, new THREE.CapsuleGeometry(.04 - i * .008, .12, 4, 8), i % 2 ? B : 0xfffbe6, 0, -.1 - i * .2, .1 + i * .05);
   return h;
 }
 
