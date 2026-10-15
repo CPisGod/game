@@ -616,25 +616,43 @@ function buildChuk() {      // 척추: 뼈다귀 해골 + 빨간 목도리
   const B = 0xf3ecd2, BD = 0xcdbf93;
   const h = buildHuman({ body: 0x2a2630, torso: [.3, .5, .22], headMat: B, headS: [.62, .56, .54], armMat: B, legMat: B, armR: .065, legR: .08, footMat: B });
   const { add, sph, torso, head } = h;
-  // 등뼈 + 갈비뼈
-  add(torso, new THREE.CapsuleGeometry(.05, .8, 6, 10), BD, 0, 1.2, .12);
-  for (let i = 0; i < 4; i++) {
-    const y = 1.5 - i * .17, w = .3 - i * .03;
-    const rib = add(torso, new THREE.TorusGeometry(w, .035, 8, 24, Math.PI * 1.15), i % 2 ? B : 0xfffbe6, 0, y, 0);
-    rib.rotation.set(Math.PI / 2, 0, Math.PI * 1.07); rib.scale.set(1, .8, 1);
+  torso.children[0].visible = false;                    // 살/옷 없이 뼈만
+  // 척추: 척추뼈 마디 + 뾰족한 가시돌기(등 쪽으로 뻗음) + 가로돌기
+  const SP = new THREE.ConeGeometry(.05, .26, 6), TP = new THREE.CapsuleGeometry(.026, .2, 3, 6);
+  for (let i = 0; i < 12; i++) {
+    const y = .9 + i * .075, k = 1 - Math.abs(i - 5) * .02;
+    add(torso, sph, BD, 0, y, .15, .075 * k, .042, .07 * k);                 // 척추뼈 몸통
+    const sp = add(torso, SP, i % 2 ? 0xfffbe6 : B, 0, y - .03, .3);      // 가시돌기: 뒤쪽 아래로 뾰족
+    sp.rotation.x = Math.PI / 2 + .55;
+    if (i > 1 && i < 10) { const tp = add(torso, TP, BD, 0, y, .17); tp.rotation.z = Math.PI / 2; }
   }
-  add(torso, sph, BD, 0, .82, 0, .26, .08, .2);        // 골반
+  // 갈비뼈: 척추에서 앞쪽 흉골까지 이어지는 고리
+  for (let i = 0; i < 6; i++) {
+    const y = 1.58 - i * .1, w = .3 - Math.abs(i - 1) * .025 - (i > 3 ? (i - 3) * .02 : 0);
+    const g = new THREE.Group(); g.position.set(0, y, 0); g.rotation.y = -Math.PI * .66; torso.add(g);
+    const rib = add(g, new THREE.TorusGeometry(w, .022, 6, 28, Math.PI * 1.68), i % 2 ? B : 0xfffbe6);
+    rib.rotation.x = Math.PI / 2; rib.scale.set(1, .85, 1);
+  }
+  add(torso, new THREE.BoxGeometry(.06, .5, .025), 0xfffbe6, 0, 1.33, -.24);        // 흉골
+  const cl = add(torso, new THREE.CapsuleGeometry(.025, .52, 4, 8), B, 0, 1.62, -.08); cl.rotation.z = Math.PI / 2;   // 쇄골
+  // 골반: 장골 두 장 + 꼬리뼈
+  for (const s of [-1, 1]) { const il = add(torso, sph, BD, s * .13, .82, .04, .14, .09, .09); il.rotation.z = s * .5; }
+  add(torso, new THREE.ConeGeometry(.04, .14, 6), BD, 0, .72, .18);
   // 두개골 턱 + 이빨
   add(head, new THREE.BoxGeometry(.4, .17, .3), B, 0, -.45, -.3);
   for (let i = -2; i <= 2; i++) add(head, new THREE.BoxGeometry(.05, .07, .03), 0x2a2218, i * .075, -.38, -.46);
   add(head, new THREE.BoxGeometry(.04, .14, .03), 0x2a2218, 0, -.13, -.5);   // 코 구멍
   // 눈구멍 + 빨간 눈빛
   h.eyes = h.eyePair(head, { x: .22, y: .06, z: -.46, rw: .15, rh: .17, white: 0x120c14, pupil: new THREE.MeshStandardMaterial({ color: 0xff3030, emissive: 0xff1010, emissiveIntensity: 1.6 }) });
-  // 빨간 목도리 (꼬리는 뒤로 날림)
-  add(h.rig, new THREE.TorusGeometry(.26, .09, 10, 28), 0xd8452e, 0, 1.78, 0).rotation.x = Math.PI / 2;
-  h.tail.position.set(0, 1.74, .22);
-  add(h.tail, new THREE.BoxGeometry(.16, .5, .05), 0xd8452e, 0, -.2, .1);
-  add(h.tail, new THREE.BoxGeometry(.16, .4, .05), 0xa02a1a, .12, -.35, .16);
+  // 빨간 목도리: 스트리트파이터 척추처럼 목에 두르고 끝이 뾰족한 세 가닥이 뒤로 날림
+  const RD = 0xd8452e, RDD = 0xa02a1a;
+  add(h.rig, new THREE.TorusGeometry(.2, .07, 10, 28), RD, 0, 1.76, .02).rotation.x = Math.PI / 2;
+  h.tail.position.set(0, 1.76, .2);
+  [[0, .35, 1, 1.0, RD], [-.75, .05, .8, .85, RDD], [.75, .05, .8, .85, RDD]].forEach(([dx, dy, dz, len, col]) => {   // 뒤로 퍼지는 뾰족한 세 가닥
+    const d = new THREE.Vector3(dx, dy, dz).normalize();
+    const sp = add(h.tail, new THREE.ConeGeometry(.13, len, 4), col, d.x * len / 2, d.y * len / 2, d.z * len / 2);
+    sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+  });
   return h;
 }
 
@@ -649,7 +667,7 @@ function buildMonkey() {    // 원숭이: 갈색 털 + 연한 얼굴 + 긴 꼬�
   add(head, sph, 0x3a1c08, .06, -.14, -.69, .03, .025, .02);
   const mouth = add(head, new THREE.TorusGeometry(.09, .014, 8, 20, Math.PI), 0x5a1f10, 0, -.27, -.67);
   mouth.rotation.z = Math.PI;
-  h.eyes = h.eyePair(head, { x: .15, y: .08, z: -.5, rw: .075, rh: .09, white: 0xffffff, pupil: 0x14080e });
+  h.eyes = h.eyePair(head, { x: .15, y: .1, z: -.63, rw: .075, rh: .09, white: 0xffffff, pupil: 0x14080e });
   for (const s of [-1, 1]) {
     const ear = new THREE.Group(); ear.position.set(s * .62, .05, 0); head.add(ear);
     add(ear, sph, M, 0, 0, 0, .2, .22, .1);
@@ -669,11 +687,6 @@ function buildApple() {     // 청사과나무: 팔 없는 나무 몸통(얼굴)
   const h = buildHuman({ body: T, torso: [.6, .66, .52], armMat: T, legMat: TD, footMat: 0x4a2c10, legR: .13 });
   const { add, sph, torso, head } = h;
   h.arms.forEach(a => { a.sh.visible = false; });   // 사람이 아니라서 팔 없음
-  // 나무껍질 무늬
-  for (let i = 0; i < 5; i++) {
-    const r = add(torso, new THREE.TorusGeometry(.56 - Math.abs(i - 2) * .03, .02, 6, 24, Math.PI * 1.1), TD, 0, .78 + i * .17, 0);
-    r.rotation.x = Math.PI / 2; r.rotation.z = Math.PI * .95 + (i % 2) * .5;
-  }
   // 얼굴(몸통): 눈 + 입
   h.eyes = h.eyePair(torso, { x: .2, y: 1.28, z: -.48, rw: .08, rh: .105, white: 0xfff6dc, pupil: 0x2a1208 });
   const mouth = add(torso, new THREE.TorusGeometry(.13, .022, 8, 20, Math.PI), 0x2a1208, 0, 1.02, -.5);
@@ -682,7 +695,6 @@ function buildApple() {     // 청사과나무: 팔 없는 나무 몸통(얼굴)
   add(head, sph, G, 0, .08, 0, .85, .52, .8);
   add(head, sph, GL, -.3, .4, -.22, .34, .14, .3);
   add(head, sph, GL, .34, .36, -.1, .22, .1, .2);
-  add(head, sph, GD, 0, -.3, -.5, .5, .05, .1);
   for (const s of [-1, 1]) {
     const lobe = new THREE.Group(); lobe.position.set(s * .78, -.02, -.02); head.add(lobe);
     add(lobe, sph, G, 0, 0, 0, .42, .34, .42);
