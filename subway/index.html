@@ -644,17 +644,14 @@ function buildChuk() {      // 척추: 뼈다귀 해골 + 빨간 목도리
   add(head, new THREE.BoxGeometry(.04, .14, .03), 0x2a2218, 0, -.13, -.5);   // 코 구멍
   // 눈구멍 + 빨간 눈빛
   h.eyes = h.eyePair(head, { x: .22, y: .06, z: -.46, rw: .15, rh: .17, white: 0x120c14, pupil: new THREE.MeshStandardMaterial({ color: 0xff3030, emissive: 0xff1010, emissiveIntensity: 1.6 }) });
-  // 빨간 목도리를 뼈 모양으로: 목뼈 마디 + 뾰족한 가시 칼라, 뒤로 뻗는 뾰족한 뼈 가시 끝자락
+  // 빨간 목도리: 스트리트파이터 척추처럼 목에 두르고 끝이 뾰족한 세 가닥이 뒤로 날림
   const RD = 0xd8452e, RDD = 0xa02a1a;
-  for (let i = 0; i < 3; i++) add(h.rig, new THREE.CylinderGeometry(.15 - i * .015, .16 - i * .015, .09, 14), i % 2 ? RDD : RD, 0, 1.66 + i * .09, .04);
-  for (let i = 0; i < 9; i++) {                           // 목 둘레 뾰족 가시
-    const a = i / 9 * Math.PI * 2, c = add(h.rig, new THREE.ConeGeometry(.045, .2, 6), i % 2 ? RDD : RD, Math.sin(a) * .22, 1.76, Math.cos(a) * .22 + .04);
-    c.rotation.set(Math.cos(a) * Math.PI / 2.4, 0, -Math.sin(a) * Math.PI / 2.4);
-  }
-  h.tail.position.set(0, 1.74, .22);
-  [[0, -.05, .1, 1.05, .09, RD], [-.1, -.12, .1, .8, .07, RDD], [.1, -.12, .1, .8, .07, RDD]].forEach(([x, y, z, len, r, col], i) => {
-    const sp = add(h.tail, new THREE.ConeGeometry(r, len, 7), col, x, y, z + len / 2);   // 뒤쪽으로 뻗는 뾰족한 뼈 가시
-    sp.rotation.x = Math.PI / 2 + .25;
+  add(h.rig, new THREE.TorusGeometry(.2, .07, 10, 28), RD, 0, 1.76, .02).rotation.x = Math.PI / 2;
+  h.tail.position.set(0, 1.76, .2);
+  [[0, .35, 1, 1.0, RD], [-.75, .05, .8, .85, RDD], [.75, .05, .8, .85, RDD]].forEach(([dx, dy, dz, len, col]) => {   // 뒤로 퍼지는 뾰족한 세 가닥
+    const d = new THREE.Vector3(dx, dy, dz).normalize();
+    const sp = add(h.tail, new THREE.ConeGeometry(.13, len, 4), col, d.x * len / 2, d.y * len / 2, d.z * len / 2);
+    sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
   });
   return h;
 }
