@@ -441,301 +441,498 @@ for (let i = 0; i < SEG_N; i++) {
   segs.push(s);
 }
 
-// ───────────────────────── 부타 (3D) ─────────────────────────
-function buildButa() {
-  const C = 0xf29bb4, CD = 0xe58aa6, CL = 0xffd2dd;
-  const skin = new THREE.MeshPhysicalMaterial({ color: C, roughness: .55, sheen: .6, sheenRoughness: .5, sheenColor: new THREE.Color(0xff9db8), clearcoat: .1, clearcoatRoughness: .6 });
-  const skinD = new THREE.MeshPhysicalMaterial({ color: CD, roughness: .55, sheen: .8, sheenColor: new THREE.Color(0xffb0c4) });
-  const belly = new THREE.MeshPhysicalMaterial({ color: CL, roughness: .6, sheen: 1, sheenColor: new THREE.Color(0xffffff) });
-  const snoutM = new THREE.MeshPhysicalMaterial({ color: 0xf08ca9, roughness: .4, clearcoat: .4, clearcoatRoughness: .35 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x5a1f33, roughness: .5 });
-  const eyeW = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .15 });
-  const eyeB = new THREE.MeshStandardMaterial({ color: 0x14080e, roughness: .1, metalness: .2 });
-  const blue = new THREE.MeshStandardMaterial({ color: 0x4a6fd8, roughness: .7 });
-  const blueL = new THREE.MeshStandardMaterial({ color: 0x7d9bf2, roughness: .6 });
-  const shoeM = new THREE.MeshStandardMaterial({ color: 0x7a4430, roughness: .55 });
-  const sole = new THREE.MeshStandardMaterial({ color: 0xf1eadb, roughness: .8 });
-  const blush = new THREE.MeshStandardMaterial({ color: 0xff7fa6, roughness: .8, transparent: true, opacity: .55 });
-
-  const root = new THREE.Group();
-  const rig = new THREE.Group(); root.add(rig);   // 몸 전체 흔들림/기울기
-
-  const add = (parent, geo, mat, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1) => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, y, z); m.scale.set(sx, sy, sz);
-    m.castShadow = true; m.receiveShadow = true;
-    parent.add(m); return m;
-  };
-  const sph = new THREE.SphereGeometry(1, 48, 32);
-
-  // 몸통
-  const torso = new THREE.Group(); rig.add(torso);
-  add(torso, sph, skin, 0, 1.2, 0, .5, .52, .46);
-  add(torso, sph, belly, 0, 1.1, -.3, .36, .38, .2);
-  // 파란 반바지 (몸통 아래쪽을 덮는 구 조각) + 허리띠
-  const shortsGeo = new THREE.SphereGeometry(1, 48, 16, 0, Math.PI * 2, Math.PI * .62, Math.PI * .38);
-  const shorts = add(torso, shortsGeo, blue, 0, 1.2, 0, .52, .54, .48); shorts.material = blue.clone(); shorts.material.side = THREE.DoubleSide;
-  const bandGeo = new THREE.SphereGeometry(1, 48, 4, 0, Math.PI * 2, Math.PI * .6, Math.PI * .045);
-  const band = add(torso, bandGeo, blueL, 0, 1.2, 0, .527, .548, .487); band.material = blueL.clone(); band.material.side = THREE.DoubleSide;
-  // 꼬리 (말려 있는 돼지꼬리)
-  const tail = new THREE.Group(); tail.position.set(0, .98, .42); torso.add(tail);
-  const pts = [];
-  for (let a = 0; a <= Math.PI * 3.6; a += .3) { const r = .02 + a * .012; pts.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r + a * .01, .02 * a)); }
-  const tailMesh = add(tail, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, .03, 10), skinD);
-  tailMesh.position.set(0, .02, 0);
-
-  // 머리
-  const head = new THREE.Group(); head.position.set(0, 1.98, 0); rig.add(head);
-  add(head, sph, skin, 0, 0, -.02, .66, .6, .6);
-  add(head, new THREE.CylinderGeometry(.2, .23, .22, 40), snoutM, 0, -.08, -.6).rotation.x = Math.PI / 2;
-  // 주둥이 앞면 둥글게
-  add(head, sph, snoutM, 0, -.08, -.69, .2, .2, .04);
-  add(head, sph, dark, -.075, -.08, -.725, .042, .07, .018);
-  add(head, sph, dark, .075, -.08, -.725, .042, .07, .018);
-  // 눈
-  const eyes = [];
-  for (const s of [-1, 1]) {
-    const eye = new THREE.Group(); eye.position.set(s * .25, .1, -.5); head.add(eye);
-    add(eye, sph, eyeW, 0, 0, 0, .125, .14, .1);
-    add(eye, sph, eyeB, s * -.01, -.005, -.07, .075, .09, .05);
-    add(eye, sph, eyeW, s * .02, .035, -.105, .022, .022, .012);
-    eyes.push(eye);
-    // 눈썹 (살짝 결연하게)
-    const brow = add(head, new THREE.CapsuleGeometry(.018, .13, 4, 8), dark, s * .27, .3, -.47);
-    brow.rotation.z = Math.PI / 2 + s * .22; brow.rotation.x = -.15;
-    // 볼터치
-    const ch = add(head, sph, blush, s * .43, -.12, -.43, .13, .09, .03); ch.rotation.y = s * -.5; ch.castShadow = false;
+// ───────────────────────── 스프라이트 기반 입체 캐릭터 ─────────────────────────
+// 좌표: 얼굴은 -Z, 등은 +Z. 원본 도트의 계단 실루엣과 색면을 입체 블록으로 재해석.
+// 각 캐릭터는 기존 root/rig/torso/head/tail/ears/eyes/arms/legs 계약을 그대로 유지한다.
+// 모든 소품은 손 관절 아래, 움직이는 장식은 별도 Group 아래 배치한다.
+const SPRITE_BOX = new THREE.BoxGeometry(1, 1, 1);
+const SPRITE_MATERIALS = new Map();
+function spriteMaterial(color, glow = 0) {
+  const key = `${color}:${glow}`;
+  if (!SPRITE_MATERIALS.has(key)) {
+    SPRITE_MATERIALS.set(key, new THREE.MeshStandardMaterial({
+      color, roughness: .92, metalness: 0, flatShading: true,
+      emissive: glow ? color : 0x000000, emissiveIntensity: glow,
+    }));
   }
-  // 입
-  const mouth = add(head, new THREE.TorusGeometry(.1, .014, 8, 24, Math.PI), dark, 0, -.3, -.5);
-  mouth.rotation.z = Math.PI; mouth.rotation.x = .1;
-  // 귀 (뾰족한 삼각 귀)
-  const ears = [];
-  for (const s of [-1, 1]) {
-    const ear = new THREE.Group(); ear.position.set(s * .4, .5, -.05); head.add(ear);
-    const outer = add(ear, new THREE.ConeGeometry(.24, .46, 3), skinD, 0, .17, 0, 1, 1, .38);
-    const inner = add(ear, new THREE.ConeGeometry(.15, .32, 3), new THREE.MeshStandardMaterial({ color: 0xffbfd0, roughness: .6 }), 0, .14, -.04, 1, 1, .3);
-    outer.rotation.y = Math.PI / 2; inner.rotation.y = Math.PI / 2;
-    ear.userData.base = s * -.5; ear.rotation.z = ear.userData.base; ear.rotation.x = -.25;
-    ears.push(ear);
-  }
-
-  // 팔
-  const arms = [];
-  for (const s of [-1, 1]) {
-    const sh = new THREE.Group(); sh.position.set(s * .5, 1.5, 0); torso.add(sh);
-    add(sh, sph, skin, 0, 0, 0, .115, .115, .115);
-    add(sh, new THREE.CapsuleGeometry(.105, .2, 6, 14), skin, 0, -.17, 0);
-    const el = new THREE.Group(); el.position.set(0, -.34, 0); sh.add(el);
-    add(el, sph, skin, 0, 0, 0, .1, .1, .1);
-    add(el, new THREE.CapsuleGeometry(.095, .18, 6, 14), skin, 0, -.16, 0);
-    add(el, sph, skin, 0, -.34, 0, .135, .13, .13);
-    arms.push({ sh, el, s });
-  }
-
-  // 다리 + 신발
-  const legs = [];
-  for (const s of [-1, 1]) {
-    const hip = new THREE.Group(); hip.position.set(s * .2, .8, 0); rig.add(hip);
-    add(hip, new THREE.CapsuleGeometry(.135, .2, 6, 14), skin, 0, -.19, 0);
-    add(hip, new THREE.CylinderGeometry(.18, .195, .2, 24), blue, 0, -.1, 0);   // 반바지 밑단
-    const knee = new THREE.Group(); knee.position.set(0, -.34, 0); hip.add(knee);
-    add(knee, sph, skin, 0, 0, 0, .12, .12, .12);
-    add(knee, new THREE.CapsuleGeometry(.115, .2, 6, 14), skin, 0, -.17, 0);
-    const foot = new THREE.Group(); foot.position.set(0, -.34, 0); knee.add(foot);
-    add(foot, sph, shoeM, 0, -.01, -.07, .17, .12, .27);
-    add(foot, sph, sole, 0, -.1, -.07, .175, .035, .275);
-    legs.push({ hip, knee, foot, s });
-  }
-
-  root.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
-  return { root, rig, torso, head, tail, ears, eyes, arms, legs };
+  return SPRITE_MATERIALS.get(key);
 }
-
-// ───────────────────────── 스킨 (척추 · 원숭이 · 청사과나무 · 제빵사) ─────────────────────────
-// 부타와 같은 뼈대({root, rig, torso, head, tail, ears, eyes, arms, legs})를 만들어 같은 애니메이션을 쓴다.
-function buildHuman(o) {
-  const S = c => (c && c.isMaterial) ? c : new THREE.MeshStandardMaterial({ color: c, roughness: .6 });
-  const sph = new THREE.SphereGeometry(1, 40, 28);
-  const root = new THREE.Group();
-  const rig = new THREE.Group(); root.add(rig);
-  const add = (parent, geo, mat, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1) => {
-    const m = new THREE.Mesh(geo, S(mat));
-    m.position.set(x, y, z); m.scale.set(sx, sy, sz);
-    m.castShadow = true; m.receiveShadow = true;
-    parent.add(m); return m;
-  };
-  const torso = new THREE.Group(); rig.add(torso);
-  const ts = o.torso || [.5, .52, .46];
-  add(torso, sph, o.body, 0, 1.2, 0, ...ts);
-  const head = new THREE.Group(); head.position.set(0, 1.98, 0); rig.add(head);
-  const hs = o.headS || [.6, .55, .55];
-  if (o.headMat) add(head, sph, o.headMat, 0, 0, 0, ...hs);
-
-  const ar = o.armR || .1, lr = o.legR || .12;
-  const arms = [];
-  for (const s of [-1, 1]) {
-    const sh = new THREE.Group(); sh.position.set(s * (ts[0] + .02), 1.5, 0); torso.add(sh);
-    add(sh, sph, o.armMat, 0, 0, 0, ar * 1.1, ar * 1.1, ar * 1.1);
-    add(sh, new THREE.CapsuleGeometry(ar, .2, 6, 14), o.armMat, 0, -.17, 0);
-    const el = new THREE.Group(); el.position.set(0, -.34, 0); sh.add(el);
-    add(el, sph, o.armMat, 0, 0, 0, ar, ar, ar);
-    add(el, new THREE.CapsuleGeometry(ar * .95, .18, 6, 14), o.armMat, 0, -.16, 0);
-    const hand = add(el, sph, o.handMat || o.armMat, 0, -.34, 0, ar * 1.3, ar * 1.25, ar * 1.25);
-    arms.push({ sh, el, s, hand });
-  }
-  const legs = [];
-  for (const s of [-1, 1]) {
-    const hip = new THREE.Group(); hip.position.set(s * .2, .8, 0); rig.add(hip);
-    add(hip, new THREE.CapsuleGeometry(lr * 1.1, .2, 6, 14), o.legMat, 0, -.19, 0);
-    if (o.pantsMat) add(hip, new THREE.CylinderGeometry(lr * 1.5, lr * 1.6, .2, 24), o.pantsMat, 0, -.1, 0);
-    const knee = new THREE.Group(); knee.position.set(0, -.34, 0); hip.add(knee);
-    add(knee, sph, o.legMat, 0, 0, 0, lr, lr, lr);
-    add(knee, new THREE.CapsuleGeometry(lr * .95, .2, 6, 14), o.legMat, 0, -.17, 0);
-    const foot = new THREE.Group(); foot.position.set(0, -.34, 0); knee.add(foot);
-    add(foot, sph, o.footMat || o.legMat, 0, -.01, -.07, .17, .12, .27);
-    if (o.soleMat) add(foot, sph, o.soleMat, 0, -.1, -.07, .175, .035, .275);
-    legs.push({ hip, knee, foot, s });
-  }
-  const tail = new THREE.Group(); tail.position.set(0, .98, .42); torso.add(tail);
-  const eyePair = (parent, e) => {
-    const list = [];
-    for (const s of [-1, 1]) {
-      const eye = new THREE.Group(); eye.position.set(s * e.x, e.y, e.z); parent.add(eye);
-      if (e.white) add(eye, sph, e.white, 0, 0, 0, e.rw, e.rh, e.rw * .75);
-      add(eye, sph, e.pupil, 0, 0, -e.rw * (e.white ? .55 : .1), e.rw * (e.white ? .6 : 1), e.rh * (e.white ? .66 : 1), e.rw * .4);
-      if (e.white) add(eye, sph, 0xffffff, s * .02, .03, -e.rw * .85, .022, .022, .012);
-      list.push(eye);
+function spriteGroup(parent, name, x = 0, y = 0, z = 0) {
+  const g = new THREE.Group(); g.name = name; g.position.set(x, y, z); parent.add(g); return g;
+}
+function spriteBox(parent, color, x, y, z, w, h, d, name = '', glow = 0) {
+  const mesh = new THREE.Mesh(SPRITE_BOX, spriteMaterial(color, glow));
+  mesh.name = name; mesh.position.set(x, y, z); mesh.scale.set(w, h, d);
+  mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+}
+// 두 점을 잇는 가는 블록. 뼈·뿌리·꼬리·목도리의 꺾임에 같은 연결 처리를 쓴다.
+function spriteBeam(parent, color, from, to, width, depth = width, name = '') {
+  const a = new THREE.Vector3(...from), b = new THREE.Vector3(...to);
+  const dir = b.clone().sub(a), len = dir.length();
+  const mid = a.clone().add(b).multiplyScalar(.5);
+  const m = spriteBox(parent, color, mid.x, mid.y, mid.z, width, len + .012, depth, name);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); return m;
+}
+// [밑면 Y, 폭, 깊이, 높이]로 쌓는 계단형 실루엣. 한 덩어리 구체를 사용하지 않는다.
+function spriteSteps(parent, rows, palette, z = 0, name = '계단형 볼륨') {
+  rows.forEach(([bottom, width, depth, height], i) => {
+    const y = bottom + height / 2;
+    spriteBox(parent, palette.base, 0, y, z, width, height + .002, depth, name + i);
+    // 옆면과 뒷면은 한 톤 짙게, 정면에는 원본의 주조색을 유지한다.
+    spriteBox(parent, palette.shade, -width / 2 + .009, y, z, .02, height, depth + .004);
+    spriteBox(parent, palette.shade, width / 2 - .009, y, z, .02, height, depth + .004);
+    spriteBox(parent, palette.shade, 0, y, z + depth / 2, width - .02, height, .014);
+    if (palette.light && i === rows.length - 1)
+      spriteBox(parent, palette.light, 0, bottom + height + .003, z, width - .025, .012, depth - .025);
+  });
+}
+// 도트 무늬를 입체 표면에 배치. 공백/점은 투명, 행의 첫 줄이 위쪽이다.
+function spritePixels(parent, rows, palette, cell, x, y, z, depth = .024, name = '도트 무늬') {
+  const width = Math.max(...rows.map(r => r.length));
+  rows.forEach((row, iy) => {
+    for (let ix = 0; ix < row.length; ix++) {
+      const c = palette[row[ix]];
+      if (c === undefined) continue;
+      spriteBox(parent, c, x + (ix - (width - 1) / 2) * cell, y - iy * cell, z, cell + .001, cell + .001, depth, name);
     }
-    return list;
-  };
-  return { root, rig, torso, head, tail, ears: [], eyes: [], arms, legs, add, sph, S, eyePair };
-}
-
-function buildChuk() {      // 척추: 뼈다귀 해골 + 빨간 목도리
-  const B = 0xf3ecd2, BD = 0xcdbf93;
-  const h = buildHuman({ body: 0x2a2630, torso: [.3, .5, .22], headMat: B, headS: [.62, .56, .54], armMat: B, legMat: B, armR: .065, legR: .08, footMat: B });
-  const { add, sph, torso, head } = h;
-  torso.children[0].visible = false;                    // 살/옷 없이 뼈만
-  // 척추: 척추뼈 마디 + 뾰족한 가시돌기(등 쪽으로 뻗음) + 가로돌기
-  const SP = new THREE.ConeGeometry(.05, .26, 6), TP = new THREE.CapsuleGeometry(.026, .2, 3, 6);
-  for (let i = 0; i < 12; i++) {
-    const y = .9 + i * .075, k = 1 - Math.abs(i - 5) * .02;
-    add(torso, sph, BD, 0, y, .15, .075 * k, .042, .07 * k);                 // 척추뼈 몸통
-    const sp = add(torso, SP, i % 2 ? 0xfffbe6 : B, 0, y - .03, .3);      // 가시돌기: 뒤쪽 아래로 뾰족
-    sp.rotation.x = Math.PI / 2 + .55;
-    if (i > 1 && i < 10) { const tp = add(torso, TP, BD, 0, y, .17); tp.rotation.z = Math.PI / 2; }
-  }
-  // 갈비뼈: 척추에서 앞쪽 흉골까지 이어지는 고리
-  for (let i = 0; i < 6; i++) {
-    const y = 1.58 - i * .1, w = .3 - Math.abs(i - 1) * .025 - (i > 3 ? (i - 3) * .02 : 0);
-    const g = new THREE.Group(); g.position.set(0, y, 0); g.rotation.y = -Math.PI * .66; torso.add(g);
-    const rib = add(g, new THREE.TorusGeometry(w, .022, 6, 28, Math.PI * 1.68), i % 2 ? B : 0xfffbe6);
-    rib.rotation.x = Math.PI / 2; rib.scale.set(1, .85, 1);
-  }
-  add(torso, new THREE.BoxGeometry(.06, .5, .025), 0xfffbe6, 0, 1.33, -.24);        // 흉골
-  const cl = add(torso, new THREE.CapsuleGeometry(.025, .52, 4, 8), B, 0, 1.62, -.08); cl.rotation.z = Math.PI / 2;   // 쇄골
-  // 골반: 장골 두 장 + 꼬리뼈
-  for (const s of [-1, 1]) { const il = add(torso, sph, BD, s * .13, .82, .04, .14, .09, .09); il.rotation.z = s * .5; }
-  add(torso, new THREE.ConeGeometry(.04, .14, 6), BD, 0, .72, .18);
-  // 두개골 턱 + 이빨
-  add(head, new THREE.BoxGeometry(.4, .17, .3), B, 0, -.45, -.3);
-  for (let i = -2; i <= 2; i++) add(head, new THREE.BoxGeometry(.05, .07, .03), 0x2a2218, i * .075, -.38, -.46);
-  add(head, new THREE.BoxGeometry(.04, .14, .03), 0x2a2218, 0, -.13, -.5);   // 코 구멍
-  // 눈구멍 + 빨간 눈빛
-  h.eyes = h.eyePair(head, { x: .22, y: .06, z: -.46, rw: .15, rh: .17, white: 0x120c14, pupil: new THREE.MeshStandardMaterial({ color: 0xff3030, emissive: 0xff1010, emissiveIntensity: 1.6 }) });
-  // 빨간 목도리: 스트리트파이터 척추처럼 목에 두르고 끝이 뾰족한 세 가닥이 뒤로 날림
-  const RD = 0xd8452e, RDD = 0xa02a1a;
-  add(h.rig, new THREE.TorusGeometry(.2, .07, 10, 28), RD, 0, 1.76, .02).rotation.x = Math.PI / 2;
-  h.tail.position.set(0, 1.76, .2);
-  [[0, .35, 1, 1.0, RD], [-.75, .05, .8, .85, RDD], [.75, .05, .8, .85, RDD]].forEach(([dx, dy, dz, len, col]) => {   // 뒤로 퍼지는 뾰족한 세 가닥
-    const d = new THREE.Vector3(dx, dy, dz).normalize();
-    const sp = add(h.tail, new THREE.ConeGeometry(.13, len, 4), col, d.x * len / 2, d.y * len / 2, d.z * len / 2);
-    sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
   });
+}
+function spriteEyes(h, parent, { x, y, z, w = .125, height = .17, pupil = 0x25201b, white = 0xfff8e6, look = .012 }) {
+  for (const s of [-1, 1]) {
+    const eye = spriteGroup(parent, '깜빡이는 네모 눈', s * x, y, z);
+    spriteBox(eye, white, 0, 0, 0, w, height, .033);
+    spriteBox(eye, pupil, look, -.014, -.024, w * .36, height * .69, .025);
+    h.eyes.push(eye);
+  }
+}
+function makeSpriteRig(name, options = {}) {
+  const root = new THREE.Group(); root.name = name;
+  const rig = spriteGroup(root, '전신 리그');
+  const torso = spriteGroup(rig, '몸통');
+  const head = spriteGroup(rig, '머리', 0, options.headY || 2.02, 0);
+  const tail = spriteGroup(torso, '꼬리 / 보조 장식', 0, 1.02, .30);
+  const h = { root, rig, torso, head, tail, ears: [], eyes: [], arms: [], legs: [], secondary: [] };
+  for (const s of [-1, 1]) {
+    const sh = spriteGroup(torso, s < 0 ? '왼쪽 어깨' : '오른쪽 어깨', s * (options.shoulder || .42), options.shoulderY || 1.51, 0);
+    const el = spriteGroup(sh, '팔꿈치', 0, -.30, 0);
+    const hand = spriteGroup(el, '손 / 소품 장착점', 0, -.27, -.015);
+    h.arms.push({ sh, el, hand, s, carry: 0 });
+    const hip = spriteGroup(rig, '고관절', s * (options.hipX || .19), .74, 0);
+    const knee = spriteGroup(hip, '무릎', 0, -.30, 0);
+    const foot = spriteGroup(knee, '발목', 0, -.30, 0);
+    h.legs.push({ hip, knee, foot, s });
+  }
   return h;
 }
-
-function buildMonkey() {    // 원숭이: 갈색 털 + 연한 얼굴 + 긴 꼬리
-  const M = 0x9a5a2b, MD = 0x6e3b16, F = 0xf2c99a;
-  const h = buildHuman({ body: M, torso: [.46, .5, .4], headMat: M, headS: [.62, .56, .54], armMat: M, handMat: F, legMat: MD, footMat: F, armR: .1, legR: .115 });
-  const { add, sph, torso, head } = h;
-  add(torso, sph, F, 0, 1.12, -.26, .3, .36, .2);                 // 배
-  add(head, sph, F, 0, -.07, -.38, .46, .4, .24);                 // 얼굴 가면
-  add(head, sph, F, 0, -.22, -.55, .26, .2, .16);                 // 주둥이
-  add(head, sph, 0x3a1c08, -.06, -.14, -.69, .03, .025, .02);
-  add(head, sph, 0x3a1c08, .06, -.14, -.69, .03, .025, .02);
-  const mouth = add(head, new THREE.TorusGeometry(.09, .014, 8, 20, Math.PI), 0x5a1f10, 0, -.27, -.67);
-  mouth.rotation.z = Math.PI;
-  h.eyes = h.eyePair(head, { x: .15, y: .1, z: -.63, rw: .075, rh: .09, white: 0xffffff, pupil: 0x14080e });
-  for (const s of [-1, 1]) {
-    const ear = new THREE.Group(); ear.position.set(s * .62, .05, 0); head.add(ear);
-    add(ear, sph, M, 0, 0, 0, .2, .22, .1);
-    add(ear, sph, F, 0, 0, -.06, .12, .14, .05);
-    ear.userData.base = 0; h.ears.push(ear);
-  }
-  // 긴 꼬리
-  const pts = [[0, 0, 0], [0, -.15, .35], [0, -.1, .7], [0, .25, .95], [0, .65, .95], [0, .85, .7]].map(p => new THREE.Vector3(...p));
-  add(h.tail, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, .06, 8), MD);
-  add(h.tail, sph, F, 0, .85, .7, .08, .08, .08);
-  h.tail.position.set(0, .95, .3);
-  return h;
-}
-
-function buildApple() {     // 청사과나무: 팔 없는 나무 몸통(얼굴) + 넓은 잎사귀 왕관 + 청사과 + 뿌리 발
-  const T = 0x8a5a2e, TD = 0x5e3a18, G = 0x3fa045, GD = 0x2a7a32, GL = 0x7fd36a, AP = 0xa6e22e;
-  const h = buildHuman({ body: T, torso: [.6, .66, .52], armMat: T, legMat: TD, footMat: 0x4a2c10, legR: .13 });
-  const { add, sph, torso, head } = h;
-  h.arms.forEach(a => { a.sh.visible = false; });   // 사람이 아니라서 팔 없음
-  // 얼굴(몸통): 눈 + 입
-  h.eyes = h.eyePair(torso, { x: .2, y: 1.28, z: -.48, rw: .08, rh: .105, white: 0xfff6dc, pupil: 0x2a1208 });
-  const mouth = add(torso, new THREE.TorusGeometry(.13, .022, 8, 20, Math.PI), 0x2a1208, 0, 1.02, -.5);
-  mouth.rotation.z = Math.PI;
-  // 잎사귀 왕관: 중앙 + 양옆 덩어리(달릴 때 살랑)
-  add(head, sph, G, 0, .08, 0, .85, .52, .8);
-  add(head, sph, GL, -.3, .4, -.22, .34, .14, .3);
-  add(head, sph, GL, .34, .36, -.1, .22, .1, .2);
-  for (const s of [-1, 1]) {
-    const lobe = new THREE.Group(); lobe.position.set(s * .78, -.02, -.02); head.add(lobe);
-    add(lobe, sph, G, 0, 0, 0, .42, .34, .42);
-    add(lobe, sph, GL, s * -.05, .15, -.1, .18, .08, .16);
-    lobe.userData.base = 0; h.ears.push(lobe);
-  }
-  for (const [x, y, z] of [[-.62, .1, -.5], [.1, .16, -.75], [.62, 0, -.46], [-.12, .5, .05]]) {
-    add(head, sph, AP, x, y, z, .15, .15, .15);
-    add(head, sph, 0xe8ffa8, x - .05, y + .05, z - .08, .035, .035, .02);
-    add(head, new THREE.CylinderGeometry(.012, .012, .09, 6), TD, x, y + .16, z);
-  }
-  // 뿌리 같은 발
-  h.legs.forEach(l => {
-    add(l.foot, new THREE.ConeGeometry(.2, .22, 5), 0x4a2c10, 0, -.06, -.2).rotation.x = -Math.PI / 2;
-    add(l.foot, new THREE.ConeGeometry(.12, .2, 5), 0x4a2c10, .12 * l.s, -.07, .03).rotation.z = -l.s * Math.PI / 2;
+function spriteLimbs(h, p, { arm = .14, leg = .18, shoe = .25, cuff = null } = {}) {
+  h.arms.forEach(({ sh, el, hand, s }) => {
+    spriteBox(sh, p.arm, 0, -.115, 0, arm, .29, arm, '위팔');
+    spriteBox(sh, p.armShade || p.arm, s * arm * .36, -.12, .012, arm * .30, .22, arm);
+    spriteBox(el, p.arm, 0, -.105, -.002, arm * .94, .26, arm * .96, '아래팔');
+    if (cuff) spriteBox(el, cuff, 0, -.205, -.002, arm * 1.10, .075, arm * 1.09, '소매단');
+    spriteBox(hand, p.hand || p.arm, 0, -.015, -.007, arm * 1.22, .13, arm * 1.16, '네모 손');
+    spriteBox(hand, p.handShade || p.armShade || p.arm, s * -.065, -.02, -.045, .045, .075, .09, '엄지');
   });
-  return h;
+  h.legs.forEach(({ hip, knee, foot, s }) => {
+    spriteBox(hip, p.leg, 0, -.14, 0, leg, .30, leg, '허벅지');
+    spriteBox(hip, p.legShade || p.leg, s * leg * .38, -.14, .025, leg * .24, .27, leg);
+    spriteBox(knee, p.leg, 0, -.125, 0, leg * .88, .27, leg * .92, '정강이');
+    spriteBox(foot, p.sole || 0x282127, 0, -.105, -.065, shoe + .025, .065, .38, '검은 밑창');
+    spriteBox(foot, p.shoe || p.leg, 0, -.052, -.075, shoe, .105, .35, '발 / 신발');
+    if (p.shoeLight) spriteBox(foot, p.shoeLight, 0, -.015, -.19, shoe - .03, .028, .12, '발등 하이라이트');
+  });
+}
+// 같은 관절 아래의 정적 블록만 재질별로 병합한다. 관절/눈/소품의 Group은 유지.
+// 외형 디테일은 많지만 수백 개 블록을 개별 draw call로 보내지 않는다.
+function finishSprite(h) {
+  function batch(group) {
+    group.children.filter(c => c.isGroup).forEach(batch);
+    const bins = new Map();
+    for (const child of group.children) {
+      if (!child.isMesh || child.geometry !== SPRITE_BOX) continue;
+      const list = bins.get(child.material) || []; list.push(child); bins.set(child.material, list);
+    }
+    bins.forEach((meshes, mat) => {
+      if (meshes.length < 2) return;
+      const parts = meshes.map(m => { m.updateMatrix(); return m.geometry.clone().applyMatrix4(m.matrix); });
+      const geometry = mergeGeometries(parts, false);
+      parts.forEach(g => g.dispose());
+      if (!geometry) return;
+      geometry.computeBoundingSphere();
+      const combined = new THREE.Mesh(geometry, mat); combined.name = '관절별 병합 도트';
+      combined.castShadow = true; combined.receiveShadow = true;
+      meshes.forEach(m => group.remove(m)); group.add(combined);
+    });
+  }
+  batch(h.rig); return h;
 }
 
-function buildBaker() {     // 제빵사: 하얀 조리복 + 요리사 모자 + 콧수염
-  const W = 0xffffff, SK = 0xf2c29a, PANT = 0x46506b;
-  const h = buildHuman({ body: W, torso: [.52, .55, .46], headMat: SK, headS: [.56, .52, .5], armMat: W, handMat: SK, legMat: PANT, footMat: 0x3a2418, soleMat: 0xe9ddc6, armR: .105, legR: .12 });
-  const { add, sph, torso, head } = h;
-  add(torso, sph, 0xe9d9b8, 0, 1.0, -.32, .36, .34, .18);                      // 앞치마
-  add(torso, new THREE.TorusGeometry(.2, .05, 8, 20), 0xd8452e, 0, 1.68, -.12).rotation.x = Math.PI / 2;   // 스카프
-  for (let i = 0; i < 3; i++) add(torso, sph, 0xd8d2c2, 0, 1.35 - i * .14, -.5, .035, .035, .02);          // 단추
-  h.eyes = h.eyePair(head, { x: .18, y: .06, z: -.44, rw: .07, rh: .09, white: 0xffffff, pupil: 0x14080e });
-  add(head, sph, 0xe8a079, 0, -.08, -.5, .06, .06, .05);                       // 코
-  const sx = add(head, new THREE.CapsuleGeometry(.04, .28, 4, 8), 0x3a2418, 0, -.2, -.5); sx.rotation.z = Math.PI / 2;
-  const mo = add(head, new THREE.TorusGeometry(.07, .012, 8, 16, Math.PI), 0x8a3a2a, 0, -.3, -.46); mo.rotation.z = Math.PI;
+// ───────────────────────── 부타: 분홍 피부 / 각진 주둥이 / 파란 바지 ─────────────────────────
+function buildButa() {
+  const P = { base: 0xee9ab3, shade: 0xc96f8a, light: 0xffb4c9, belly: 0xffcbd6,
+    snout: 0xdf849f, nostril: 0x713347, blue: 0x466dcc, blueD: 0x304b99, hoof: 0x734630, ink: 0x2a2027 };
+  const h = makeSpriteRig('부타 · 도트 리빌드', { shoulder: .43, shoulderY: 1.48, headY: 2.05 });
+  h.tailMotion = { idle: .25, run: .36, pitch: -.20 };
+  const { torso, head } = h;
+  spriteSteps(torso, [[.79,.69,.53,.15],[.94,.82,.64,.22],[1.16,.78,.63,.23],[1.39,.61,.52,.22],[1.61,.43,.40,.12]], P);
+  // 커다란 연분홍 배: 윗부분이 좁고 아래로 넓어지는 픽셀 패치.
+  spritePixels(torso, ['...LLL...','..LLLLL..','.LLLLLLL.','LLLLLLLLL','LLLLLLLLL','.LLLLLLL.','..LLLLL..'],
+    { L: P.belly }, .066, 0, 1.43, -.332, .033, '연분홍 배');
+  spriteBox(torso, P.blueD, 0, .805, 0, .80, .14, .60, '반바지');
+  spriteBox(torso, P.blue, 0, .864, -.012, .87, .105, .65, '파란 수평 허리선');
+  spriteBox(torso, 0x7b98e8, 0, .91, -.347, .82, .026, .023, '허리선 밝은 테두리');
+  spriteBox(torso, P.blueD, 0, .772, -.31, .034, .08, .025, '바지 가운데 솔기');
   for (const s of [-1, 1]) {
-    const ear = new THREE.Group(); ear.position.set(s * .54, 0, 0); head.add(ear);
-    add(ear, sph, SK, 0, 0, 0, .08, .12, .08); ear.userData.base = 0; h.ears.push(ear);
+    spriteBox(torso, P.blueD, s * .28, .825, .31, .15, .062, .02, '뒤 주머니');
+    spriteBox(torso, P.light, s * .32, 1.25, .315, .075, .16, .02, '등 피부 명암');
   }
-  // 요리사 모자
-  add(head, new THREE.CylinderGeometry(.42, .44, .22, 28), W, 0, .45, 0);
-  add(head, sph, W, 0, .72, 0, .42, .3, .42);
-  add(head, sph, W, -.26, .68, 0, .22, .22, .22);
-  add(head, sph, W, .26, .68, 0, .22, .22, .22);
-  add(head, new THREE.CylinderGeometry(.445, .445, .05, 28), 0xd8dde8, 0, .37, 0);
-  return h;
+  spriteSteps(head, [[-.40,.56,.48,.12],[-.28,.84,.65,.18],[-.10,1.00,.73,.22],[.12,.94,.71,.22],[.34,.73,.59,.12]], P);
+  // 길게 돌출된 사각 주둥이 + 두 개의 네모 콧구멍.
+  spriteBox(head, P.base, 0, -.115, -.45, .53, .35, .27, '주둥이 연결');
+  spriteBox(head, P.shade, 0, -.12, -.59, .57, .26, .23, '주둥이 측면');
+  spriteBox(head, P.snout, 0, -.105, -.719, .48, .25, .038, '네모 코');
+  spriteBox(head, P.light, 0, .025, -.688, .40, .031, .085, '코 윗면');
+  for (const s of [-1,1]) spriteBox(head, P.nostril, s*.112, -.102, -.744, .062, .060, .018, '콧구멍');
+  spriteBox(head, P.nostril, 0, -.267, -.52, .22, .026, .035, '짧은 입');
+  spriteEyes(h, head, { x: .28, y: .15, z: -.378, w: .145, height: .18, look: -.013 });
+  // 삼각 원뿔이 아닌 도트식 두 단 귀. 내측 분홍 패치도 독립 배치.
+  for (const s of [-1,1]) {
+    const ear = spriteGroup(head, '계단 귀', s*.34, .39, -.015);
+    spriteBox(ear, P.shade, 0, .095, 0, .235, .25, .17);
+    spriteBox(ear, P.base, s*.035, .225, 0, .14, .10, .15);
+    spriteBox(ear, 0xf6b5c8, 0, .09, -.092, .12, .16, .021);
+    spriteBox(ear, P.ink, s*.055, .28, 0, .11, .023, .16, '귀 끝 외곽선');
+    ear.userData.base = s * -.11; ear.userData.baseX = -.08; h.ears.push(ear);
+  }
+  spriteLimbs(h, { arm:P.base, armShade:P.shade, hand:P.belly, handShade:P.shade,
+    leg:P.base, legShade:P.shade, shoe:P.hoof, sole:P.ink, shoeLight:0x9c6547 }, { arm:.155, leg:.17, shoe:.29 });
+  h.arms.forEach(({ hand }) => {
+    spriteBox(hand, P.shade, -.028, -.079, -.08, .012,.035,.018, '손가락 홈');
+    spriteBox(hand, P.shade, .028, -.079, -.08, .012,.035,.018, '손가락 홈');
+  });
+  h.legs.forEach(({ hip }) => spriteBox(hip, P.blueD, 0, -.025, 0, .23,.11,.23, '반바지 밑단'));
+  h.tail.position.set(-.10, 1.13, .31);
+  const curl = [[0,0,0],[0,0,.18],[-.15,0,.18],[-.15,.15,.18],[.005,.15,.18],[.005,.075,.18],[-.06,.075,.18]];
+  for (let i=1;i<curl.length;i++) spriteBeam(h.tail, i%2 ? P.shade:P.base, curl[i-1],curl[i],.065,.065,'꺾인 돼지 꼬리');
+  return finishSprite(h);
+}
+
+// ───────────────────────── 척추: 비어 있는 흉곽 / 붉은 눈 / 세 갈래 목도리 ─────────────────────────
+function buildChuk() {
+  const P = { base:0xf2efd0, shade:0xb7b28b, light:0xfffbe3, ink:0x25211e, red:0xcc4029, redD:0x842a20 };
+  const h = makeSpriteRig('척추 · 도트 리빌드', { shoulder:.36, shoulderY:1.55, headY:2.08, hipX:.22 });
+  h.tailMotion = { idle: .07, run: .17, pitch: -.16 };
+  const { head, torso } = h;
+  // 척추뼈는 앞/뒤가 모두 보이도록 마디마다 골체·가로돌기·극돌기를 분리.
+  for (let i=0;i<10;i++) {
+    const y = .87 + i*.075;
+    spriteBox(torso,P.shade,0,y,.115,.135,.054,.12,'척추 골체');
+    spriteBox(torso,P.base,0,y+.015,.09,.16,.031,.12,'척추 밝은 마디');
+    spriteBox(torso,P.base,0,y,.215,.060,.040,.13,'등 가시돌기');
+    if (i>1) spriteBox(torso,P.shade,0,y,.135,.25,.028,.055,'가로돌기');
+  }
+  // 늑골의 빈 공간은 실제 빈 공간이다. 어두운 몸통 구체로 메우지 않는다.
+  const ribs = [[1.49,.56],[1.34,.61],[1.19,.57],[1.04,.48]];
+  ribs.forEach(([y,w]) => {
+    spriteBox(torso,P.light,0,y,-.177,w,.062,.075,'전면 갈비뼈');
+    for (const s of [-1,1]) {
+      spriteBox(torso,P.base,s*w*.5,y+.018,-.02,.065,.094,.32,'측면 갈비뼈');
+      spriteBeam(torso,P.shade,[s*w*.5,y+.035,.14],[s*.06,y+.067,.16],.045,.055,'등 갈비뼈');
+    }
+  });
+  spriteBox(torso,P.base,0,1.34,-.216,.068,.38,.05,'흉골');
+  spriteBox(torso,P.base,0,1.59,0,.66,.055,.10,'쇄골');
+  for (const s of [-1,1]) {
+    spriteBox(torso,P.base,s*.20,.84,.015,.22,.19,.25,'골반 장골');
+    spriteBox(torso,P.shade,s*.12,.755,-.015,.15,.08,.22,'골반 아래');
+  }
+  spriteBox(torso,P.light,0,.90,-.10,.53,.065,.13,'골반 능선');
+  spriteSteps(head, [[-.38,.49,.43,.12],[-.26,.77,.57,.17],[-.09,.96,.66,.27],[.18,.84,.61,.17],[.35,.62,.51,.11]], P);
+  spriteBox(head,P.base,0,.49,.015,.10,.09,.19,'두개골 꼭대기 픽셀');
+  // 검은 사각 안와에 작은 적색 동공만 남긴다. 흰 눈알은 사용하지 않는다.
+  for (const s of [-1,1]) {
+    const eye = spriteGroup(head,'검은 안와와 붉은 눈',s*.225,.085,-.345);
+    spriteBox(eye,P.shade,0,0,.006,.235,.24,.035,'안와 테두리');
+    spriteBox(eye,P.ink,0,0,-.014,.195,.20,.03,'안와');
+    spriteBox(eye,0xd9402e,s*-.013,.006,-.035,.060,.067,.016,'붉은 동공',.15);
+    spriteBox(eye,0xffa56a,s*-.013,.025,-.046,.024,.020,.012,'동공 하이라이트');
+    h.eyes.push(eye);
+  }
+  spriteBox(head,P.ink,0,-.125,-.342,.066,.115,.035,'코 구멍');
+  spriteBox(head,P.ink,0,-.30,-.282,.40,.088,.034,'치아 사이 빈 공간');
+  for (let i=-2;i<=2;i++) spriteBox(head,P.light,i*.078,-.30,-.31,.044,.10,.035,'분리된 치아');
+  spriteBox(head,P.base,0,-.40,-.16,.48,.075,.29,'아래턱');
+  spriteBox(head,P.shade,-.20,.345,-.27,.055,.08,.025,'두개골 금');
+  spriteBox(head,P.shade,-.15,.305,-.31,.055,.025,.022,'두개골 금');
+  // 뼈 팔: 위팔뼈와 두 줄의 아래팔뼈, 관절의 둥근 인상은 작은 계단 블록으로 표현.
+  h.arms.forEach(({ sh, el, hand, s }) => {
+    spriteBeam(sh,P.base,[0,-.025,0],[s*.025,-.25,0],.085,.09,'위팔뼈');
+    spriteBox(sh,P.light,0,-.02,0,.14,.105,.14,'어깨 관절');
+    spriteBox(el,P.shade,0,0,0,.13,.11,.13,'팔꿈치');
+    const long = s>0 ? .10 : 0;
+    for (const side of [-1,1]) spriteBeam(el,side<0?P.base:P.light,[side*.038,-.035,0],[side*.031,-.245-long,-.015],.040,.055,'요골 / 척골');
+    hand.position.y -= long;
+    spriteBox(hand,P.base,0,-.02,0,.14,.105,.10,'손목 뼈');
+    for (let i=-1;i<=1;i++) {
+      spriteBox(hand,P.light,i*.045,-.10,-.015,.034,.08,.045,'손가락 마디');
+      spriteBox(hand,P.shade,i*.045,-.149,-.035,.033,.027,.045,'손가락 끝');
+    }
+  });
+  h.legs.forEach(({ hip, knee, foot }) => {
+    spriteBox(hip,P.base,0,-.13,0,.105,.27,.12,'대퇴골');
+    spriteBox(hip,P.light,0,-.03,0,.16,.11,.16,'대퇴골 관절');
+    spriteBox(knee,P.light,0,-.015,-.015,.16,.12,.15,'슬개골');
+    spriteBox(knee,P.base,-.036,-.15,0,.070,.24,.085,'경골');
+    spriteBox(knee,P.shade,.046,-.15,.025,.036,.24,.05,'비골');
+    spriteBox(foot,P.ink,0,-.106,-.07,.29,.045,.36,'발 외곽');
+    spriteBox(foot,P.shade,0,-.066,-.07,.255,.065,.32,'발뼈');
+    for (let i=-1;i<=1;i++) spriteBox(foot,P.base,i*.075,-.037,-.185,.065,.07,.14,'발가락뼈');
+  });
+  spriteBox(torso,P.redD,0,1.715,.015,.45,.14,.39,'목도리 목 감싸기');
+  spriteBox(torso,P.red,0,1.74,-.19,.43,.105,.08,'목도리 정면');
+  spriteBox(torso,0xe65a37,-.24,1.705,.05,.17,.16,.21,'목도리 매듭');
+  h.tail.position.set(-.20,1.72,.18); h.tail.name='세 갈래 붉은 목도리';
+  const ribbons = [
+    [[-.04,.03,.01],[-.32,.14,.21],[-.60,.30,.30],[-.78,.42,.34]],
+    [[-.04,-.01,.02],[-.38,-.02,.23],[-.71,.02,.34],[-.86,.02,.38]],
+    [[-.02,-.05,.02],[-.28,-.19,.20],[-.57,-.23,.34],[-.73,-.18,.38]],
+  ];
+  ribbons.forEach((pts,i) => {
+    const ribbon=spriteGroup(h.tail,'목도리 꼬리 '+i);
+    for(let k=1;k<pts.length;k++) {
+      spriteBeam(ribbon,i===1?P.redD:P.red,pts[k-1],pts[k],.10-k*.016,.045,'계단형 천');
+    }
+    h.secondary.push({ node:ribbon, axis:'x', amplitude:.08, speed:4.1, phase:i*.9, base:0 });
+  });
+  return finishSprite(h);
+}
+
+// ───────────────────────── 원숭이: 갈색 털 / 밝은 얼굴과 배 / 말린 꼬리 / 바나나 ─────────────────────────
+function buildMonkey() {
+  const P={base:0x955b2c,shade:0x653d1d,light:0xb67b3c,face:0xf0c58f,faceL:0xffdba6,ink:0x30231b};
+  const h=makeSpriteRig('원숭이 · 도트 리빌드',{shoulder:.40,shoulderY:1.49,headY:2.06});
+  h.tailMotion = { idle: .11, run: .23, pitch: -.20 };
+  const {torso,head}=h;
+  spriteSteps(torso,[[.79,.63,.46,.16],[.95,.73,.54,.24],[1.19,.70,.52,.23],[1.42,.51,.43,.20]],P);
+  spritePixels(torso,['..LLL..','.LLLLL.','.LLLLL.','LLLLLLL','LLLLLLL','.LLLLL.','..LLL..'],{L:P.face},.063,0,1.39,-.289,.035,'아몬드색 배');
+  spriteBox(torso,P.faceL,-.055,1.30,-.312,.11,.16,.025,'배 밝은 면');
+  spriteSteps(head,[[-.35,.57,.45,.11],[-.24,.83,.60,.19],[-.05,.99,.68,.24],[.19,.80,.60,.15],[.34,.54,.47,.10]],P);
+  // 정수리 털이 픽셀 단위로 뾰족하게 솟고, 옆머리는 세 단으로 넓어진다.
+  spriteBox(head,P.shade,-.08,.46,.015,.14,.12,.20,'정수리 털');
+  spriteBox(head,P.base,.065,.435,0,.12,.08,.24,'정수리 털');
+  for(const s of [-1,1]) {
+    spriteBox(head,P.base,s*.51,-.01,-.005,.15,.20,.31,'옆머리');
+    const ear=spriteGroup(head,'네모 귀',s*.59,-.005,.015);
+    spriteBox(ear,P.shade,0,0,0,.20,.25,.18);
+    spriteBox(ear,P.base,s*.035,0,-.015,.20,.16,.20);
+    spriteBox(ear,P.face,0,0,-.123,.11,.115,.026);
+    ear.userData.base=s*-.04; ear.userData.baseX=0; h.ears.push(ear);
+  }
+  // 눈 주위 두 봉우리 + 넓은 주둥이를 하나의 계단 얼굴 패치로 연결.
+  spritePixels(head,['..LL.LL..','.LLLLLLL.','LLLLLLLLL','LLLLLLLLL','.LLLLLLL.','..LLLLL..'],
+    {L:P.face},.075,0,.225,-.358,.045,'연한 얼굴 마스크');
+  spriteBox(head,P.face,0,-.145,-.435,.53,.24,.19,'돌출된 입 주변');
+  spriteBox(head,P.faceL,0,-.20,-.54,.43,.075,.028,'아랫입술 밝은 면');
+  spriteEyes(h,head,{x:.17,y:.13,z:-.395,w:.13,height:.17,look:-.01});
+  spriteBox(head,P.shade,-.05,-.075,-.54,.039,.045,.018,'왼쪽 콧구멍');
+  spriteBox(head,P.shade,.05,-.075,-.54,.039,.045,.018,'오른쪽 콧구멍');
+  spriteBox(head,P.shade,0,-.185,-.561,.24,.025,.02,'입');
+  spriteBox(head,P.shade,.128,-.159,-.554,.03,.05,.021,'웃는 입꼬리');
+  spriteLimbs(h,{arm:P.base,armShade:P.shade,hand:P.face,handShade:0xc48c55,leg:P.shade,legShade:0x4d301b,
+    shoe:P.face,sole:P.ink,shoeLight:P.faceL},{arm:.17,leg:.18,shoe:.30});
+  for(const {sh} of h.arms) spriteBox(sh,P.light,0,-.07,-.096,.11,.15,.022,'팔 털 명암');
+  // 몸 왼쪽으로 크게 말린 긴 꼬리. 뒷모습에서도 명확한 갈색 실루엣.
+  h.tail.position.set(-.25,1.00,.25);
+  const curl=[[0,0,0],[-.23,-.02,.17],[-.46,.03,.24],[-.55,.22,.30],[-.54,.48,.32],[-.39,.67,.32],[-.23,.76,.28]];
+  for(let i=1;i<curl.length;i++) spriteBeam(h.tail,i%2?P.shade:P.base,curl[i-1],curl[i],.11,.11,'각진 긴 꼬리');
+  spriteBox(h.tail,P.light,-.23,.76,.28,.105,.085,.105,'꼬리 끝');
+  // 오른손 바나나: 갈색 꼭지 / 초록 목 / 밝은 과육면 / 황토색 바깥 굴곡.
+  const arm=h.arms[1]; arm.carry=.75;
+  const banana=spriteGroup(arm.hand,'바나나',.105,-.025,-.055);
+  const pieces=[
+    [.015,.04,0,.10,.12,.12,0x827018],
+    [.035,-.065,0,.16,.17,.15,0xffdf2b],
+    [.095,-.21,0,.17,.18,.16,0xffda16],
+    [.16,-.35,0,.17,.17,.16,0xf6ce13],
+    [.18,-.49,0,.15,.16,.15,0xe4b80d],
+    [.12,-.59,0,.14,.10,.14,0x776017],
+  ];
+  pieces.forEach(([x,y,z,w,hh,d,c])=>spriteBox(banana,c,x,y,z,w,hh,d,'바나나 곡선'));
+  spriteBox(banana,0xfff286,.005,-.075,-.088,.06,.14,.025,'바나나 안쪽 빛');
+  spriteBox(banana,0xffed57,.065,-.23,-.092,.065,.17,.025,'바나나 밝은 면');
+  spriteBox(banana,0xb88b07,.25,-.40,.005,.035,.19,.155,'바나나 바깥 면');
+  spriteBox(arm.hand,P.face,-.005,-.02,-.142,.14,.075,.065,'바나나를 쥔 손가락');
+  h.secondary.push({node:banana,axis:'z',amplitude:.045,speed:3.2,phase:.4,base:-.06});
+  return finishSprite(h);
+}
+
+// ───────────────────────── 청사과나무: 계단 잎 / 청사과 / 나무 얼굴 / 파란 휴대폰 ─────────────────────────
+function buildApple() {
+  const P={base:0x8b5b2b,shade:0x5b3b1e,light:0xb17b3a,leaf:0x3da641,leafD:0x237d36,leafL:0x70c94e,apple:0xb5eb47,ink:0x2b2219};
+  const h=makeSpriteRig('청사과나무 · 도트 리빌드',{shoulder:.43,shoulderY:1.24,headY:2.12,hipX:.22});
+  const {torso,head}=h;
+  spriteSteps(torso,[[.50,.70,.52,.20],[.70,.74,.55,.46],[1.16,.72,.53,.46],[1.62,.67,.49,.26]],P);
+  // 나무껍질: 세로 홈, 짧은 가로 금, 밝은 벗겨진 조각. 앞/옆/뒤를 모두 만든다.
+  const bark=[[-.29,1.48,.045,.32],[-.22,.87,.035,.23],[.25,1.54,.035,.23],[.29,.86,.04,.22],[-.10,1.68,.035,.18],[.11,.66,.045,.15]];
+  bark.forEach(([x,y,w,hh])=>spriteBox(torso,P.shade,x,y,-.282,w,hh,.025,'앞 껍질 홈'));
+  [[-.28,1.30],[.27,1.12],[-.24,.70],[.22,1.75]].forEach(([x,y])=>spriteBox(torso,P.light,x,y,-.291,.07,.08,.025,'껍질 조각'));
+  for(const s of [-1,1]) {
+    spriteBox(torso,P.shade,s*.371,1.18,.05,.018,.65,.045,'측면 껍질 홈');
+    spriteBox(torso,P.light,s*.375,1.48,-.08,.02,.15,.10,'측면 밝은 껍질');
+  }
+  for(const [x,y,hh] of [[-.23,1.35,.55],[.08,1.10,.78],[.25,1.63,.26]])
+    spriteBox(torso,P.shade,x,y,.29,.044,hh,.022,'등 껍질 홈');
+  // 나이테 모양의 뒤 옹이.
+  spritePixels(torso,['.DDD.','D.L.D','D.D.D','D.L.D','.DDD.'],{D:P.shade,L:P.light},.04,-.17,1.02,.302,.02,'등 옹이');
+  spriteEyes(h,torso,{x:.155,y:1.235,z:-.302,w:.135,height:.18,look:-.015});
+  spriteBox(torso,P.light,0,1.105,-.33,.095,.11,.09,'나무 코');
+  spriteBox(torso,P.ink,0,.963,-.302,.30,.037,.035,'넓은 웃음');
+  spriteBox(torso,P.ink,-.18,1.00,-.302,.06,.043,.035,'왼쪽 입꼬리');
+  spriteBox(torso,P.ink,.18,1.00,-.302,.06,.043,.035,'오른쪽 입꼬리');
+  spriteBox(torso,P.ink,-.215,1.045,-.302,.03,.06,.035,'웃음 끝');
+  spriteBox(torso,0xe4bf71,0,.919,-.299,.16,.024,.027,'입 아래 밝은 나무');
+  // 왕관의 중앙 덩어리와 좌우 가지를 분리. 넓고 낮은 픽셀 실루엣을 유지한다.
+  const leafP={base:P.leaf,shade:P.leafD,light:P.leafL};
+  spriteSteps(head,[[-.42,.96,.72,.14],[-.28,1.27,.91,.20],[-.08,1.40,.95,.22],[.14,1.17,.85,.20],[.34,.82,.64,.16],[.50,.38,.38,.08]],leafP);
+  for(const s of [-1,1]) {
+    const lobe=spriteGroup(head,'좌우 잎사귀',s*.68,-.16,0);
+    spriteBox(lobe,P.leafD,0,-.04,0,.32,.29,.63,'잎 아래 그림자');
+    spriteBox(lobe,P.leaf,s*.045,.08,-.015,.31,.25,.62);
+    spriteBox(lobe,P.leaf,s*.09,-.035,-.005,.24,.17,.65);
+    spriteBox(lobe,P.leafL,-s*.03,.22,-.03,.20,.06,.43);
+    lobe.userData.base=0; lobe.userData.baseX=0; lobe.userData.flapScale=.24; h.ears.push(lobe);
+  }
+  spritePixels(head,['.LLL...','LLLLL..','.LLLLL.','...LLL.'],{L:P.leafL},.105,-.32,.27,-.488,.026,'좌측 밝은 잎');
+  spritePixels(head,['..LLL.','.LLLLL','LLLLL.','.LLL..'],{L:0x58b946},.09,.34,.09,-.494,.025,'우측 잎');
+  spritePixels(head,['.DDD.','DDDDD','.DDD.'],{D:0x30913a},.09,.05,-.17,-.489,.024,'아래 잎 명암');
+  // 네 개의 십자형 청사과: 원본의 노란 연두 도트를 두 단계 두께로 구현.
+  const apples=[[-.54,.01,-.50],[.02,.37,-.405],[.49,.10,-.50],[-.19,-.25,-.50]];
+  apples.forEach(([x,y,z],i)=>{
+    const apple=spriteGroup(head,'청사과 '+(i+1),x,y,z);
+    spriteBox(apple,P.apple,0,0,0,.18,.11,.10);
+    spriteBox(apple,P.apple,0,0,0,.11,.20,.10);
+    spriteBox(apple,0xe7ff85,-.035,.035,-.059,.057,.055,.025,'사과 하이라이트');
+    spriteBox(apple,0x8dc338,.058,-.025,-.052,.038,.08,.022,'사과 그림자');
+    spriteBox(apple,P.shade,0,.115,.015,.027,.055,.032,'사과 꼭지');
+    spriteBox(apple,0xd0f164,.049,.113,-.01,.075,.037,.04,'사과 잎');
+  });
+  // 뒷면도 빈 구가 되지 않게 잎 패치와 사과를 추가한다.
+  spritePixels(head,['.LLL.','LLLLL','.LLL.'],{L:0x64bc47},.11,-.24,.18,.485,.024,'뒤 잎 패치');
+  spriteBox(head,P.apple,.34,.04,.50,.16,.16,.09,'뒤 청사과');
+  spriteBox(head,0xe7ff85,.31,.08,.552,.045,.046,.016);
+  // 짧은 가지 팔. 휴대폰을 든 오른손도 실제 어깨/팔꿈치 관절에 연결된다.
+  h.arms.forEach(({sh,el,hand,s})=>{
+    spriteBox(sh,P.shade,0,-.09,0,.115,.23,.14,'가지 위팔');
+    spriteBox(el,P.base,0,-.10,0,.105,.24,.13,'가지 아래팔');
+    spriteBox(hand,P.base,0,0,-.02,.13,.13,.13,'나무 손');
+    spriteBox(sh,P.light,s*.052,-.09,-.035,.024,.12,.07,'가지 껍질');
+  });
+  h.legs.forEach(({hip,knee,foot,s})=>{
+    spriteBox(hip,P.shade,0,-.13,.015,.16,.29,.18,'뿌리 위다리');
+    spriteBox(knee,P.shade,0,-.13,.01,.13,.27,.14,'뿌리 아래다리');
+    spriteBox(knee,P.base,s*.05,-.125,-.035,.035,.21,.07,'뿌리 밝은 선');
+    spriteBox(foot,P.ink,s*.045,-.107,-.055,.36,.055,.34,'평평한 뿌리 바닥');
+    spriteBox(foot,P.shade,s*.035,-.067,-.06,.30,.075,.29,'뿌리 발');
+    spriteBeam(foot,P.shade,[0,-.06,0],[s*.23,-.08,-.07],.065,.09,'옆 뿌리');
+    spriteBeam(foot,P.shade,[0,-.07,-.08],[s*.08,-.08,-.26],.06,.07,'앞 뿌리');
+  });
+  const arm=h.arms[1]; arm.carry=1;
+  const phone=spriteGroup(arm.hand,'파란 휴대폰',.15,.10,-.09);
+  spriteBox(phone,0x232333,0,0,0,.34,.61,.105,'휴대폰 검은 테두리');
+  spriteBox(phone,0x315bd1,0,0,-.061,.29,.55,.03,'파란 케이스');
+  spriteBox(phone,0xf7f5e9,0,.012,-.083,.215,.43,.018,'아이보리 화면',.17);
+  spriteBox(phone,0xdce6d9,-.045,.134,-.096,.047,.074,.009,'화면 빛');
+  spriteBox(phone,0xa9baf4,0,.248,-.084,.065,.013,.012,'스피커');
+  spriteBox(phone,0x9aadea,0,-.245,-.084,.055,.018,.012,'홈 버튼');
+  spriteBox(phone,0x294aa4,0,0,.059,.29,.55,.023,'케이스 뒷면');
+  spriteBox(phone,0x151d33,-.075,.19,.077,.075,.08,.015,'뒷면 카메라');
+  spriteBox(phone,0x6484d9,-.075,.19,.087,.032,.033,.009,'카메라 렌즈');
+  spriteBox(arm.hand,P.light,.022,-.03,-.12,.10,.13,.08,'휴대폰 잡은 손');
+  return finishSprite(h);
+}
+
+// ───────────────────────── 제빵사: 높은 흰 모자 / 붉은 스카프 / 앞치마 / 바게트 ─────────────────────────
+function buildBaker() {
+  const P={base:0xf0c69b,shade:0xcb996d,light:0xffdcaf,white:0xfffdf6,cloth:0xe3e6e9,
+    apron:0xe4d7b6,apronD:0xbbae8e,hair:0x49301d,red:0xd8452b,pants:0x404d6e,ink:0x282129};
+  const h=makeSpriteRig('제빵사 · 도트 리빌드',{shoulder:.42,shoulderY:1.49,headY:2.02});
+  const {head,torso}=h;
+  spriteSteps(torso,[[.70,.73,.46,.17],[.87,.78,.51,.30],[1.17,.75,.51,.28],[1.45,.60,.43,.20]],
+    {base:P.white,shade:P.cloth,light:0xffffff});
+  // 조리복 앞섶과 작은 단추. 앞치마 위로 보이는 부분에만 배치.
+  spriteBox(torso,P.cloth,0,1.38,-.27,.025,.35,.018,'조리복 앞섶');
+  for(const y of [1.47,1.34]) spriteBox(torso,0xb9bcc6,.18,y,-.278,.035,.035,.024,'조리복 단추');
+  spriteBox(torso,P.apron,0,1.08,-.285,.53,.66,.045,'앞치마 본체');
+  spriteBox(torso,P.apron,0,.745,-.29,.64,.14,.044,'앞치마 아래 넓은 단');
+  spriteBox(torso,0xf1e6c9,0,1.40,-.292,.44,.055,.037,'앞치마 윗단');
+  spriteBox(torso,P.apronD,-.257,1.055,-.313,.026,.59,.018,'앞치마 옆 박음질');
+  spriteBox(torso,P.apronD,.257,1.055,-.313,.026,.59,.018,'앞치마 옆 박음질');
+  spriteBox(torso,0xd6c7a4,0,.94,-.318,.29,.20,.025,'앞치마 포켓');
+  spriteBox(torso,0xf5ead0,0,1.038,-.334,.29,.025,.015,'포켓 입구');
+  spriteBox(torso,0xbcae86,-.15,1.15,-.322,.045,.049,.015,'앞치마 밀가루 자국');
+  spriteBox(torso,0xc7b894,.14,.845,-.327,.04,.04,.015,'앞치마 작은 자국');
+  // 등에 둘러진 앞치마 끈 + 묶인 매듭. 달릴 때에도 캐릭터 정체성이 보인다.
+  spriteBox(torso,P.apron,0,1.05,.272,.78,.065,.033,'등 허리끈');
+  spriteBox(torso,P.apronD,0,1.05,.31,.10,.09,.055,'앞치마 매듭');
+  for(const s of [-1,1]) {
+    const tie=spriteGroup(torso,'앞치마 리본',s*.09,1.05,.31);
+    spriteBox(tie,P.apron,s*.04,0,0,.16,.10,.04);
+    spriteBox(tie,P.apron,s*.015,-.14,.012,.065,.23,.035);
+    h.secondary.push({node:tie,axis:'z',base:s*.18,amplitude:.06,speed:4,phase:s});
+    spriteBox(torso,P.apron,s*.20,1.40,.25,.055,.38,.028,'앞치마 어깨끈');
+  }
+  spriteBox(torso,P.red,0,1.645,.008,.43,.10,.37,'붉은 목 스카프');
+  spriteBox(torso,0xad3020,0,1.565,-.263,.105,.12,.065,'스카프 매듭');
+  spriteBox(torso,P.red,-.035,1.435,-.303,.068,.22,.035,'스카프 긴 끝');
+  spriteBox(torso,0xee6040,.045,1.48,-.30,.065,.14,.034,'스카프 짧은 끝');
+  spriteSteps(head,[[-.34,.50,.43,.10],[-.24,.64,.52,.19],[-.05,.72,.58,.27],[.22,.67,.55,.12]],P);
+  spriteBox(head,P.hair,0,.25,.22,.68,.18,.15,'뒤 머리카락');
+  for(const s of [-1,1]) {
+    spriteBox(head,P.hair,s*.335,.11,.025,.055,.26,.38,'옆머리');
+    const ear=spriteGroup(head,'귀',s*.39,-.01,.01);
+    spriteBox(ear,P.base,0,0,0,.10,.17,.15);
+    spriteBox(ear,P.shade,0,-.01,-.079,.042,.072,.02);
+    ear.userData.base=0; ear.userData.baseX=0; h.ears.push(ear);
+  }
+  spriteEyes(h,head,{x:.16,y:.075,z:-.308,w:.12,height:.15,look:-.014});
+  spriteBox(head,P.light,0,-.045,-.38,.135,.125,.17,'각진 코');
+  spriteBox(head,P.shade,0,-.108,-.425,.13,.028,.08,'코 아래 명암');
+  // 원본처럼 두꺼운 일자 콧수염. 끝을 한 픽셀 낮춰 계단형으로 마무리.
+  spriteBox(head,P.hair,0,-.173,-.337,.48,.085,.08,'일자 콧수염');
+  spriteBox(head,P.hair,-.255,-.195,-.32,.055,.047,.07,'콧수염 끝');
+  spriteBox(head,P.hair,.255,-.195,-.32,.055,.047,.07,'콧수염 끝');
+  spriteBox(head,0x8c5038,0,-.268,-.283,.17,.024,.025,'입');
+  // 높은 흰 제빵 모자: 직선 밴드 + 세 단으로 부풀어 오른 왕관. 회색 접힘선.
+  const hat=spriteGroup(head,'흰 제빵 모자',0,.35,0);
+  spriteBox(hat,0xc9d0df,0,.01,0,.76,.085,.64,'모자 밴드 그림자');
+  spriteBox(hat,P.white,0,.085,-.003,.79,.12,.66,'모자 밴드');
+  spriteBox(hat,P.white,0,.235,0,.92,.24,.71,'모자 넓은 중앙');
+  spriteBox(hat,P.white,0,.385,0,.82,.12,.67,'모자 윗단');
+  spriteBox(hat,P.white,-.255,.44,0,.24,.075,.52,'모자 왼쪽 봉우리');
+  spriteBox(hat,P.white,.255,.44,0,.24,.075,.52,'모자 오른쪽 봉우리');
+  spriteBox(hat,0xffffff,0,.455,0,.21,.085,.56,'모자 중앙 봉우리');
+  for(const x of [-.29,-.105,.105,.29]) {
+    spriteBox(hat,0xe6e9ef,x,.255,-.365,.022,.18,.012,'모자 앞 주름');
+    spriteBox(hat,0xdce1e9,x,.255,.365,.024,.18,.012,'모자 뒤 주름');
+  }
+  spriteLimbs(h,{arm:P.white,armShade:P.cloth,hand:P.base,handShade:P.shade,leg:P.pants,legShade:0x313b56,
+    shoe:0x4b342a,sole:P.ink,shoeLight:0x76503b},{arm:.18,leg:.19,shoe:.29,cuff:0xd4d9e2});
+  h.legs.forEach(({hip})=>spriteBox(hip,0x526180,0,-.07,-.105,.15,.12,.023,'바지 밝은 주름'));
+  // 오른손의 길쭉한 바게트. 노란 속빛, 갈색 크러스트, 다섯 개 사선 칼집.
+  const arm=h.arms[1]; arm.carry=.92;
+  const bread=spriteGroup(arm.hand,'바게트',.10,-.03,-.055); bread.rotation.z=.20;
+  const breadP={base:0xd89428,shade:0x92601c,light:0xf5c454};
+  spriteSteps(bread,[[-.59,.12,.15,.10],[-.49,.21,.19,.16],[-.33,.25,.21,.43],[.10,.21,.19,.13],[.23,.12,.14,.08]],breadP);
+  spriteBox(bread,0xf2bb47,-.035,-.15,-.112,.095,.59,.026,'빵의 황금색 면');
+  for(let i=0;i<5;i++) {
+    const score=spriteBox(bread,0xffdb82,.01,.14-i*.137,-.132,.14,.045,.022,'바게트 칼집');
+    score.rotation.z=-.34;
+    const crust=spriteBox(bread,0xad6b1d,.028,.104-i*.137,-.13,.135,.019,.022,'칼집 아래 구운 면');
+    crust.rotation.z=-.34;
+  }
+  spriteBox(arm.hand,P.base,.005,-.025,-.16,.155,.09,.075,'빵을 쥔 손가락');
+  h.secondary.push({node:bread,axis:'z',base:.20,amplitude:.035,speed:3.8,phase:.7});
+  return finishSprite(h);
 }
 
 // ───────────────────────── 스킨 선택 ─────────────────────────
@@ -759,6 +956,7 @@ function setSkin(i, pop) {
   for (const o of SKINS) if (o.rig) o.rig.root.visible = false;
   buta = sk.rig;
   buta.root.visible = true;
+  if (!prev) buta.root.rotation.y = Math.PI; // 최초 선택 화면에서는 얼굴부터 보여준다.
   if (prev && prev !== buta) { buta.root.rotation.y = prev.root.rotation.y; buta.root.position.x = prev.root.position.x; }
   if (pop) swapT = .28;
   const nm = $('skName'); if (nm) nm.textContent = sk.icon + ' ' + sk.name;
@@ -1326,7 +1524,7 @@ function restart() {
     mode: 'intro', lane: 0, y: 0, vy: 0, air: false, landT: 0, dist: 0, coins: 0, fall: 0, deadT: 0, overShown: false, shake: 0, duckT: 0, duckK: 0, streak: 0,
     nextRow: 10, lastGap: 22, lastLanes: [], why: '',
   });
-  buta.root.rotation.y = 0;
+  buta.root.rotation.y = Math.PI;
   $('coins').textContent = '0';
   $('over').classList.remove('show');
   $('hud').style.display = 'none';
@@ -1405,7 +1603,7 @@ function animateButa(dt) {
     foot.rotation.x = mix(mix(mix(0, -Math.sin(q) * .35 + .2, rb), .3, jb), .65, dkk);
   });
   // 팔: 다리와 반대로 흔들고 팔꿈치 굽힘
-  b.arms.forEach(({ sh, el, s: side }) => {
+  b.arms.forEach(({ sh, el, s: side, carry = 0 }) => {
     const q = p + (side > 0 ? Math.PI : 0);
     const idleSw = Math.sin(it * 1.8 + side) * .05;
     const runSw = Math.sin(q) * 1.0;
@@ -1413,6 +1611,12 @@ function animateButa(dt) {
     sh.rotation.x = mix(mix(mix(idleSw, runSw, rb), 2.5, jb), 1.3, dkk);       // 숙이기: 팔을 앞으로 모아 머리 보호
     sh.rotation.z = side * mix(mix(mix(.12, .2, rb), .45, jb), -.15, dkk);
     el.rotation.x = mix(mix(mix(.1, 1.25 + Math.max(0, Math.cos(q)) * .3, rb), .3, jb), 2.0, dkk);
+    // 바나나·휴대폰·빵을 쥔 팔은 몸통을 관통하지 않도록 보폭을 줄인다.
+    // 점프/숙이기는 원래 포즈를 사용하여 조작과 판정을 바꾸지 않는다.
+    const hold = carry * (1 - jb) * (1 - dkk);
+    sh.rotation.x = mix(sh.rotation.x, idleSw + Math.sin(q) * .30 * rb, hold);
+    sh.rotation.z = mix(sh.rotation.z, side * .20, hold);
+    el.rotation.x = mix(el.rotation.x, .16 + Math.max(0, Math.cos(q)) * .16 * rb, hold);
   });
   // 몸: 통통 튀고 앞으로 기울이고 비틀기
   const dk = s.duckK;
@@ -1429,13 +1633,19 @@ function animateButa(dt) {
   const dx = s.x - s.lane * LANE;
   b.rig.rotation.z = THREE.MathUtils.clamp(dx * .16, -.3, .3);
   // 꼬리·귀
-  b.tail.rotation.z = Math.sin(it * 3 + p * 1) * .35 * (1 - rb) + Math.sin(p * 2) * .5 * rb;
-  b.tail.rotation.x = -.35 * rb;
+  const tm = b.tailMotion || { idle: .15, run: .25, pitch: -.20 };
+  b.tail.rotation.z = Math.sin(it * 3 + p) * tm.idle * (1 - rb) + Math.sin(p * 2) * tm.run * rb;
+  b.tail.rotation.x = tm.pitch * rb;
   b.ears.forEach((ear, i) => {
     const side = i === 0 ? -1 : 1;
     const flap = Math.sin(p * 2 + 1) * .22 * rb + Math.sin(it * 2.5 + i) * .03;
-    ear.rotation.z = ear.userData.base + side * -flap * -1 + side * .25 * rb;
-    ear.rotation.x = -.25 + .35 * rb * .6;
+    const strength = ear.userData.flapScale ?? 1;
+    ear.rotation.z = (ear.userData.base || 0) + (side * flap + side * .25 * rb) * strength;
+    ear.rotation.x = (ear.userData.baseX ?? -.25) + .21 * rb * strength;
+  });
+  // 목도리 세 갈래, 앞치마 끈, 손에 든 소품의 작은 2차 움직임.
+  (b.secondary || []).forEach(({ node, axis, base = 0, amplitude, speed, phase = 0 }) => {
+    node.rotation[axis] = base + Math.sin(it * speed + p * .45 + phase) * amplitude * (.35 + rb * .65) * (1 - dk * .75);
   });
   // 눈 깜빡임
   s.nextBlink -= dt;
