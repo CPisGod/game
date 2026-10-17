@@ -135,6 +135,7 @@
   .drow { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; } .drow .big { flex: 2 1 160px; } .drow .btn { flex: 1 1 110px; } #dPick { margin-top: 0 !important; }
   .dbtns { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; } .dbtns .big { flex: 1; }
   #mu .rt { font-size: clamp(9px, 1.8vw, 12px); line-height: 1.4; } #mu .rt .st { margin-right: 5px; }
+  #offPanel { margin-top: 6px; } #benchPanel { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; } #benchPanel h5 { margin: 0 0 2px; font-size: 13px; color: var(--gold); }
   #penPanel { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; } #penPanel h5 { margin: 0 0 2px; font-size: 13px; color: var(--gold); }
   #subBtn { flex: 0 0 auto !important; } #subBtn:disabled { opacity: .4; cursor: default; }
   #controls { margin-top: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; min-height: 64px; }
@@ -279,6 +280,10 @@
         <div id="pitchBar"></div>
         <div class="ctlrow"><button id="throwBtn" class="btn primary big">⚾ 던지기</button><button id="subBtn" class="btn">🔁 투수 교체</button></div>
         <div id="penPanel" class="hidden"></div>
+      </div>
+      <div id="offPanel" class="hidden">
+        <div class="ctlrow"><button id="phBtn" class="btn">🔁 대타 교체</button></div>
+        <div id="benchPanel" class="hidden"></div>
       </div>
       <button id="quitBtn" class="btn">↩ 설정으로 나가기</button>
     </div>
@@ -669,7 +674,7 @@ const V = {
   info: null,             // 투구 정보 (구종·구속)
   fb: null,               // 타이밍 피드백 {text, t0}
   fplan: null,            // 타구 연출 (공·야수·주자 움직임)
-  canSwing: false,
+  canSwing: false, pendingPH: null, benchOpen: false,
   atBat: 0,
 };
 let swingReq = null;
@@ -786,7 +791,7 @@ function setTip(html) { $('#tip').innerHTML = html; }
 function newGame() {
   G = { inning: 1, half: 0, outs: 0, balls: 0, strikes: 0, bases: [null, null, null], score: [[], []], hits: [0, 0], over: false, lastSpeed: 0, lastPitch: null, note: '',
     order: [0, 0],
-    roster: [0, 1].map(t => { const sp = { ...SQUAD[t].sp, pc: 0, r: 0 }; return { bat: SQUAD[t].bat.map(p => ({ ...p, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0 })), sp, pen: (SQUAD[t].rp || []).map(p => ({ ...p, pc: 0, r: 0 })), used: [sp] }; }) };
+    roster: [0, 1].map(t => { const sp = { ...SQUAD[t].sp, pc: 0, r: 0 }; return { bat: SQUAD[t].bat.map(p => ({ ...p, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0 })), sp, pen: (SQUAD[t].rp || []).map(p => ({ ...p, pc: 0, r: 0 })), used: [sp], bench: (SQUAD[t].bench || []).map(p => ({ ...p, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0 })), gone: [] }; }) };
   V.atBat = 0; V.batHand = 'R'; V.mode = 'idle'; V.fplan = null; V.ball = null; V.swing = null; V.mark = null; V.info = null; V.fb = null;
 }
 
@@ -829,6 +834,7 @@ function advanceHalf() {
 async function plateAppearance() {
   G.balls = 0; G.strikes = 0; G.lastSpeed = 0; G.lastPitch = null;
   await cpuManage(1 - G.half, false);
+  await cpuPinch(G.half);
   renderHUD();
   while (true) {
     const r = await doPitch();
@@ -876,6 +882,47 @@ $('#penPanel').addEventListener('click', e => {
   res({ sub: np });
 });
 
+/* ---- 대타 ---- */
+async function doPinch(team, np) {
+  const R = G.roster[team], idx = G.order[team] % 9, old = R.bat[idx];
+  R.bench = R.bench.filter(x => x !== np); R.gone.push(old); np.ph = true; np.pos = '대타'; R.bat[idx] = np;
+  renderHUD();
+  await banner('대타 기용', `${old.n} → ${np.n}`, '', 1200);
+}
+async function applyPendingPH() {           // 사람이 예약한 대타를 다음 투구 직전에 적용 (그 사이 타자가 바뀌었으면 취소)
+  const ph = V.pendingPH; if (!ph) return; V.pendingPH = null;
+  const R = G.roster[ph.team];
+  if (G.half === ph.team && R.bat[G.order[ph.team] % 9] === ph.target && R.bench.includes(ph.np)) await doPinch(ph.team, ph.np);
+}
+async function cpuPinch(team) {             // CPU 감독: 후반 득점권/박빙 상황에서 더 강한 대타가 있으면 교체
+  if (isHuman(team)) return;
+  const R = G.roster[team]; if (!R.bench.length || G.inning < Math.max(1, S.innings - 2)) return;
+  const cur = R.bat[G.order[team] % 9], trail = sc(1 - team) - sc(team);
+  if (!(G.bases[1] || G.bases[2] || (trail >= 0 && trail <= 2))) return;
+  const best = [...R.bench].sort((a, b) => ovr(b) - ovr(a))[0];
+  if (ovr(best) > ovr(cur) + 6) await doPinch(team, best);
+}
+const benchHit = p => `<button class="prow ben" data-id="${p.id}"><span class="pn">${esc(p.n)}<small>${esc(p.team)}</small></span><span class="pp">${p.pos}</span><span class="pm">${HAND_BAT[p.hand]}</span><span class="ps">${statLine(p)}</span><span class="po">${Math.round(ovr(p))}</span></button>`;
+$('#phBtn').addEventListener('click', () => {
+  const panel = $('#benchPanel');
+  if (!panel.classList.contains('hidden')) { panel.classList.add('hidden'); V.benchOpen = false; return; }
+  const R = G.roster[G.half];
+  panel.innerHTML = '<h5>벤치 — 대타로 내보낼 타자를 고르세요 (교체되면 다시 못 나와요 · 다음 투구 전에 적용)</h5>' + (R.bench.length ? R.bench.map(benchHit).join('') : '<div style="color:var(--dim)">남은 벤치 선수가 없어요.</div>');
+  panel.classList.remove('hidden'); V.benchOpen = true;       // 열려 있는 동안은 투구가 시작되지 않음
+});
+$('#benchPanel').addEventListener('click', e => {
+  const r = e.target.closest('.ben'); if (!r) return;
+  const R = G.roster[G.half], np = R.bench.find(x => x.id === r.dataset.id); if (!np) return;
+  V.pendingPH = { team: G.half, target: R.bat[G.order[G.half] % 9], np };
+  $('#benchPanel').classList.add('hidden'); V.benchOpen = false;
+  setTip(`✅ <b>${esc(np.n)}</b> 대타 예약 — 다음 투구 직전에 교체돼요.`);
+});
+function syncOffPanel(show) {
+  const R = G.roster[G.half];
+  $('#offPanel').classList.toggle('hidden', !(show && R.bench.length));
+  if (!show) { $('#benchPanel').classList.add('hidden'); V.benchOpen = false; }
+}
+
 function fatigueOf(pit) { return Math.max(0, pit.pc - (50 + pit.sta * 0.55)); }
 function scatterSigma(pit, key, human) {        // 던질 때 목표에서 벗어나는 정도(칸). 제구·체력·구종이 영향
   const base = human ? DIFF.normal.pScat : DIFF[S.diff].pScat;
@@ -885,8 +932,11 @@ function scatterSigma(pit, key, human) {        // 던질 때 목표에서 벗�
 async function doPitch() {
   const defTeam = 1 - G.half, batTeam = G.half;
   const defHuman = isHuman(defTeam), batHuman = isHuman(batTeam);
-  const pit = G.roster[defTeam].sp, bat = G.roster[batTeam].bat[G.order[batTeam] % 9];
-  const batHand = bat.hand === 'S' ? (pit.hand === 'R' ? 'L' : 'R') : bat.hand;
+  await applyPendingPH();
+  const pit = G.roster[defTeam].sp;
+  let bat = G.roster[batTeam].bat[G.order[batTeam] % 9];
+  const handOf = b => b.hand === 'S' ? (pit.hand === 'R' ? 'L' : 'R') : b.hand;
+  let batHand = handOf(bat);
   V.atBat = batTeam; V.batHand = batHand;
   V.swing = null; V.fb = null; V.ball = null; V.windup = null; V.canSwing = false; swingReq = null;
   V.showAim = batHuman;
@@ -894,16 +944,21 @@ async function doPitch() {
   /* 1) 투수: 구종·코스 선택 */
   let ch;
   if (defHuman) {
+    syncOffPanel(false);
     ch = await humanPitch(pit);
     if (ch.sub) { $('#defPanel').classList.add('hidden'); await doSub(defTeam, ch.sub); return { ev: 'sub' }; }
   } else {
     V.mode = 'wait';
     setTip(batHuman ? `<b>${esc(pit.n)}</b> 투수가 던질 준비를 합니다. 마우스로 <b>공 위치를 조준</b>하세요.` : '');
     $('#defPanel').classList.add('hidden');
-    await sleep(batHuman ? 700 : 450);
+    syncOffPanel(batHuman);
+    await sleep(batHuman ? (G.balls || G.strikes ? 800 : 1800) : 450);   // 사람 타자는 첫 구 전에 대타를 고를 시간
+    while (V.benchOpen) await sleep(100);
+    if (V.pendingPH) { await applyPendingPH(); bat = G.roster[batTeam].bat[G.order[batTeam] % 9]; batHand = handOf(bat); V.batHand = batHand; }
     ch = cpuPitch(pit);
   }
   $('#defPanel').classList.add('hidden');
+  syncOffPanel(batHuman);
 
   const pt = PITCHES[ch.type];
   const fat = fatigueOf(pit);
@@ -1648,7 +1703,7 @@ function nextTurn() {
   if (!isHuman(t)) { D.busy = true; renderDraft(); D.timer = setTimeout(() => doPick(t, cpuChoose(t)), 800); }
 }
 function finishDraft() {
-  SQUAD = D.picks.map(list => ({ bat: autoOrder(list.filter(p => !p.isP)), sp: list.find(p => p.role === 'SP'), rp: list.filter(p => p.role === 'RP') }));
+  SQUAD = addBench(D.picks.map(list => ({ bat: autoOrder(list.filter(p => !p.isP)), sp: list.find(p => p.role === 'SP'), rp: list.filter(p => p.role === 'RP') })));
   renderDraft();
   $('#dStart').classList.remove('hidden');
 }
@@ -1677,7 +1732,15 @@ function setDraftNote(s) { $('#dSub').textContent = s; }
 $('#dStart').onclick = () => startGame();
 $('#dBack').onclick = () => show('#setup');
 
+function addBench(squads) {       // 두 팀 모두 뽑지 않은 타자 중 능력치 높은 순으로 번갈아 3명씩 대타 요원 배정
+  const used = new Set(); squads.forEach(q => q.bat.forEach(p => used.add(p.id)));
+  const rest = HITTERS.filter(p => !used.has(p.id)).sort((a, b) => ovr(b) - ovr(a));
+  squads.forEach(q => { q.bench = []; });
+  for (let i = 0; i < 6 && i < rest.length; i++) squads[i % 2].bench.push(rest[i]);
+  return squads;
+}
 function presetSquad() { return [0, 1].map(t => { const r = ROSTERS[S.lineups[t]]; return { bat: r.bat.slice(), sp: r.sp, rp: r.rp }; }); }
+const presetSquadWithBench = () => addBench(presetSquad());
 
 
 /* =====================================================================
@@ -1706,12 +1769,12 @@ function endGame() {
   if (G.note) res += ` (${G.note})`;
   $('#endRes').textContent = res;
   $('#endLine').innerHTML = lineHTML(true) + '<div class="box">' + [0, 1].map(t =>
-    `<div><h4>${esc(S.names[t])} 타자</h4>` + G.roster[t].bat.map(p => `<div><span>${esc(p.n)}</span><span>${p.ab}타수 ${p.h}안타${p.hr ? ` ${p.hr}홈런` : ''} ${p.rbi}타점${p.bb ? ` ${p.bb}볼넷` : ''}</span></div>`).join('') + '</div>').join('') + '</div>'
+    `<div><h4>${esc(S.names[t])} 타자</h4>` + [...G.roster[t].bat, ...G.roster[t].gone].map(p => `<div><span>${esc(p.n)}${p.ph ? ' (대타)' : ''}</span><span>${p.ab}타수 ${p.h}안타${p.hr ? ` ${p.hr}홈런` : ''} ${p.rbi}타점${p.bb ? ` ${p.bb}볼넷` : ''}</span></div>`).join('') + '</div>').join('') + '</div>'
     + '<div class="box">' + [0, 1].map(t => `<div><h4>${esc(S.names[t])} 투수</h4>` + G.roster[t].used.map(p => `<div><span>${esc(p.n)}</span><span>투구수 ${p.pc} · 실점 ${p.r}</span></div>`).join('') + '</div>').join('') + '</div>';
   show('#end');
 }
 
-$('#startBtn').onclick = () => { readSetup(); if (S.squad === 'draft') startDraft(); else if (S.squad === 'random') { startDraft(); autoRandomAll(); } else { SQUAD = presetSquad(); startGame(); } };
+$('#startBtn').onclick = () => { readSetup(); if (S.squad === 'draft') startDraft(); else if (S.squad === 'random') { startDraft(); autoRandomAll(); } else { SQUAD = presetSquadWithBench(); startGame(); } };
 $('#againBtn').onclick = () => startGame();
 $('#toSetupBtn').onclick = () => { show('#setup'); };
 $('#quitBtn').onclick = () => { if (confirm('경기를 중단하고 설정 화면으로 나갈까요?')) location.reload(); };
