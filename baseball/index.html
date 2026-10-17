@@ -132,8 +132,11 @@
   .tboard h4 { margin: 0 0 6px; font-size: 14px; } .tboard h4 i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
   .slot { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; border-bottom: 1px solid #ffffff12; color: var(--dim); }
   .slot span { width: 44px; font-size: 11px; } .slot b { color: var(--dim); font-weight: 700; } .slot.on b { color: var(--text); } .slot small { color: var(--dim); font-size: 10px; }
+  .drow { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; } .drow .big { flex: 2 1 160px; } .drow .btn { flex: 1 1 110px; } #dPick { margin-top: 0 !important; }
   .dbtns { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; } .dbtns .big { flex: 1; }
   #mu .rt { font-size: clamp(9px, 1.8vw, 12px); line-height: 1.4; } #mu .rt .st { margin-right: 5px; }
+  #penPanel { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; } #penPanel h5 { margin: 0 0 2px; font-size: 13px; color: var(--gold); }
+  #subBtn { flex: 0 0 auto !important; } #subBtn:disabled { opacity: .4; cursor: default; }
   #controls { margin-top: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; min-height: 64px; }
   #tip { font-size: 14px; color: var(--dim); margin-bottom: 8px; line-height: 1.5; }
   #tip b { color: var(--text); }
@@ -211,7 +214,7 @@
       </div>
       <div class="opt">
         <label>팀 구성</label>
-        <select id="selSquad"><option value="draft">선수 드래프트 (번갈아 지명)</option><option value="preset">KBO 구단 선수단 그대로</option></select>
+        <select id="selSquad"><option value="draft">선수 드래프트 (번갈아 지명)</option><option value="random">랜덤 드래프트 (자동으로 팀 구성)</option><option value="preset">KBO 구단 선수단 그대로</option></select>
       </div>
       <div class="opt">
         <label>타구 판정 방식</label>
@@ -220,7 +223,7 @@
     </div>
 
     <div class="howto">
-      <b>수비(투수)</b> 구종 선택 → 5×5 격자에서 코스 선택(안쪽 3×3이 스트라이크 존) → 한 번 더 누르거나 <b>던지기</b>.<br>
+      <b>수비(투수)</b> 구종 선택 → 5×5 격자에서 코스 선택(안쪽 3×3 + 공이 선에 걸치는 곳까지가 스트라이크) → 한 번 더 누르거나 <b>던지기</b>.<br>
       <b>공격(타자)</b> 마우스로 공 위치를 조준하고 <b>공이 홈플레이트에 닿을 때</b> 클릭(또는 Space). 터치는 드래그로 조준(손가락 위쪽에 표시) 후 손을 떼면 스윙.<br>
       타이밍이 정확하고 조준이 공 중심에 가까울수록 좋은 타구. <b>공보다 살짝 아래</b>를 때리면 뜬공(홈런 각도), 위를 때리면 땅볼. 빠르면 당겨치고 늦으면 밀어치며, 너무 빠르거나 늦으면 파울.<br>
       <b>타구 결과</b>는 수비 시뮬레이션으로 정해져요: 담장을 넘기면 홈런, 수비수가 공이 떨어지기 전에 잡으면 아웃, 못 잡으면 안타. 땅볼은 송구가 타자주자보다 먼저 1루에 닿으면 아웃이고, 주자는 송구 시간과 비교해 갈 수 있는 만큼만 달려요.<br>
@@ -238,7 +241,7 @@
       <div class="dpool">
         <div id="dFilter" class="chips"></div>
         <div id="dList" class="plist"></div>
-        <button id="dPick" class="btn primary big" disabled>✅ 지명하기</button>
+        <div class="drow"><button id="dPick" class="btn primary big" disabled>✅ 지명하기</button><button id="dRand" class="btn">🎲 랜덤 지명</button><button id="dRandAll" class="btn">🎲 남은 전부 랜덤</button></div>
       </div>
       <div class="dteams"><div id="dTeam0" class="tboard"></div><div id="dTeam1" class="tboard"></div></div>
     </div>
@@ -274,7 +277,8 @@
       <div id="tip"></div>
       <div id="defPanel" class="hidden">
         <div id="pitchBar"></div>
-        <div class="ctlrow"><button id="throwBtn" class="btn primary big">⚾ 던지기</button></div>
+        <div class="ctlrow"><button id="throwBtn" class="btn primary big">⚾ 던지기</button><button id="subBtn" class="btn">🔁 투수 교체</button></div>
+        <div id="penPanel" class="hidden"></div>
       </div>
       <button id="quitBtn" class="btn">↩ 설정으로 나가기</button>
     </div>
@@ -322,6 +326,7 @@ const WIND_MS = 1100;                   // 와인드업 시간
 const WIN = 150;                       // 타이밍 허용(±ms). 이 안에서만 맞을 수 있음
 const BAT_R = 1.1;                     // 배트 조준 반경(칸)
 const FENCE = 100;                     // 펜스 거리(m)
+const BALL_R = 0.23, ZE = 1.5 + BALL_R;   // 공 반지름(칸) / 스트라이크 판정선: 공이 3x3 선에 조금이라도 걸치면 스트라이크
 const FOUL_ANGLE = 45;                 // 스프레이 각도가 이 값을 넘으면 파울
 const HAND = { x: 318, y: 420 };       // 타자 손 위치(화면)
 
@@ -379,15 +384,31 @@ const PITCH_DATA = [
   ['박종훈', 'SSG', 'R', 'under', 72, 70, 70, -14, ['fast', 'curve', 'change']],
   ['우규민', '삼성', 'R', 'side', 62, 85, 70, -10, ['fast', 'slider', 'sinker', 'change']],
 ];
+const RELIEF_DATA = [      // 구원투수 (팀당 2명 · 체력은 낮음)
+  ['유영찬', 'LG', 'R', 'over', 84, 72, 25, 4, ['fast', 'fork']], ['김진성', 'LG', 'R', 'over', 66, 70, 30, -2, ['fast', 'slider', 'fork']],
+  ['정해영', 'KIA', 'R', 'over', 82, 74, 25, 3, ['fast', 'slider']], ['전상현', 'KIA', 'R', 'over', 74, 72, 30, 1, ['fast', 'slider', 'fork']],
+  ['오승환', '삼성', 'R', 'over', 80, 78, 25, -1, ['fast', 'slider']], ['김재윤', '삼성', 'R', 'over', 76, 70, 28, 2, ['fast', 'slider', 'fork']],
+  ['홍건희', '두산', 'R', 'over', 74, 68, 30, 1, ['fast', 'slider']], ['이병헌', '두산', 'L', 'three', 70, 66, 30, 0, ['fast', 'slider']],
+  ['조병현', 'SSG', 'R', 'over', 84, 70, 25, 5, ['fast', 'fork']], ['노경은', 'SSG', 'R', 'over', 70, 76, 35, -1, ['fast', 'slider', 'curve']],
+  ['김원중', '롯데', 'R', 'over', 82, 72, 25, 3, ['fast', 'fork', 'curve']], ['구승민', '롯데', 'R', 'over', 72, 70, 30, 0, ['fast', 'slider', 'fork']],
+  ['류진욱', 'NC', 'R', 'over', 76, 72, 28, 1, ['fast', 'slider']], ['김영규', 'NC', 'L', 'three', 78, 70, 30, 1, ['fast', 'slider', 'change']],
+  ['김서현', '한화', 'R', 'over', 92, 60, 22, 8, ['fast', 'slider']], ['주현상', '한화', 'R', 'three', 72, 74, 30, -1, ['fast', 'change', 'slider']],
+  ['박영현', 'KT', 'R', 'over', 88, 70, 25, 4, ['fast', 'slider', 'change']], ['김민', 'KT', 'R', 'side', 68, 76, 32, -6, ['fast', 'slider', 'sinker']],
+  ['주승우', '키움', 'R', 'over', 74, 68, 28, 2, ['fast', 'slider']], ['김재웅', '키움', 'L', 'side', 70, 74, 32, -5, ['fast', 'slider', 'change']],
+];
 const STYLE_KO = { over: '오버핸드', three: '쓰리쿼터', side: '사이드암', under: '언더핸드' };
 const HAND_BAT = { R: '우타', L: '좌타', S: '양타' }, HAND_PIT = { R: '우투', L: '좌투' };
-const PITCHERS = PITCH_DATA.map(([n, team, hand, style, stuff, ctrl, sta, velo, pitches], i) => ({ id: 'p' + i, n, team, hand, style, stuff, ctrl, sta, velo, pitches, pos: '선발투수', isP: true }));
+const PITCHERS = PITCH_DATA.map(([n, team, hand, style, stuff, ctrl, sta, velo, pitches], i) => ({ id: 'p' + i, n, team, hand, style, stuff, ctrl, sta, velo, pitches, pos: '선발투수', role: 'SP', isP: true }));
+const RELIEVERS = RELIEF_DATA.map(([n, team, hand, style, stuff, ctrl, sta, velo, pitches], i) => ({ id: 'r' + i, n, team, hand, style, stuff, ctrl, sta, velo, pitches, pos: '구원투수', role: 'RP', isP: true }));
 const HITTERS = [];
 const ROSTERS = TEAM_DATA.map(([team, sp, bats]) => ({
-  team, sp: PITCHERS.find(p => p.n === sp),
+  team, sp: PITCHERS.find(p => p.n === sp), rp: RELIEVERS.filter(r => team.startsWith(r.team)),
   bat: bats.map(([n, pos, hand, c, p, e, s]) => { const h = { id: 'h' + HITTERS.length, n, pos, hand, c, p, e, s, team }; HITTERS.push(h); return h; }),
 }));
-const SLOTS = ['선발투수', '포수', '1루수', '2루수', '3루수', '유격수', '좌익수', '중견수', '우익수', '지명타자'];
+const TOTAL = 24;                                        // 드래프트 지명 수 (팀당 12명)
+const allPlayers = () => [...PITCHERS, ...RELIEVERS, ...HITTERS];
+const BOARD = ['선발투수', '구원투수', '구원투수', '포수', '1루수', '2루수', '3루수', '유격수', '좌익수', '중견수', '우익수', '지명타자'];
+const SLOTS = ['선발투수', '구원투수', '포수', '1루수', '2루수', '3루수', '유격수', '좌익수', '중견수', '우익수', '지명타자'];
 const ovr = p => p.isP ? p.stuff * 0.45 + p.ctrl * 0.4 + p.sta * 0.15 : p.c * 0.35 + p.p * 0.3 + p.e * 0.15 + p.s * 0.2;
 function autoOrder(bats) {     // 능력치 순위대로 2·3·1·4·5… 번 타순 배치
   const sc_ = h => h.c * 0.5 + h.p * 0.4 + h.e * 0.1, s = [...bats].sort((a, b) => sc_(b) - sc_(a));
@@ -484,7 +505,7 @@ function playBall(b, st) {
     Th = clamp(2 * b.ev * sn / 9.8 * 0.95, 1.1, 6.5);
     const Hm = clamp(b.ev * b.ev * sn * sn / 19.6 * 0.6, 1.5, 45);
     if (b.dist >= FENCE && b.L >= 14) {
-      hr = true; seg(0, Th, home, polar(b.spray, FENCE + 12), Hm);
+      hr = true; seg(0, Th, home, polar(b.spray, FENCE + 12), Hm); plan.gone = Th + 0.9;
     } else {
       const ld = clamp(Math.min(b.dist, FENCE - 1), 8, FENCE - 1); land = polar(b.spray, ld);
       const rr = Math.min(clamp(6 + 0.14 * ld, 6, 22), FENCE - ld);
@@ -529,7 +550,7 @@ function playBall(b, st) {
       if (arrive + 0.3 < A) { sf = true; r3.f = 4; r3.startT = Th + 0.1; }
     }
     if (sf) { throwTo(Th + XFER, pf, home); res.kind = 'SF'; res.label = `${FNAME[fi]} 희생플라이`; res.ab = false; fGo(8, 0.3, 1, home); }
-    else throwTo(Th + 0.4, pf, FPOS[0]);
+    else if (fi !== 0) throwTo(Th + 0.4, pf, FPOS[0]);          // (투수가 직접 잡았으면 던질 필요 없음)
     return settle();
   }
 
@@ -544,12 +565,12 @@ function playBall(b, st) {
     const carry = fi === 2 || fi === 3;
     const A2 = carry ? tf + gd(pf, bpos(2)) / FSPEED : A(2);
     if (A2 < btm(run(1), 2)) {
-      if (carry) fGo(fi, tf, A2, bpos(2)); else { toBag(2); throwTo(tf + XFER, pf, bpos(2)); }
+      if (carry) { fGo(fi, tf, A2, bpos(2)); seg(tf, A2, pf, bpos(2)); } else { toBag(2); throwTo(tf + XFER, pf, bpos(2)); }
       const r1 = run(1); r1.f = 2; r1.out = true; r1.outT = A2;
       flash(A2, bpos(2), 'OUT!', 'out');
       const A1b = A2 + 0.45 + gd(bpos(2), bpos(1)) / THROW;
       throwTo(A2 + 0.45, bpos(2), bpos(1));
-      fGo(1, 0.3, 0.3 + gd(FPOS[1], bpos(1)) / FSPEED, bpos(1));
+      toBag(1);
       if (A1b < btm(bat, 1)) {
         bat.f = 1; bat.out = true; bat.outT = A1b; flash(A1b, bpos(1), 'OUT!', 'out');
         res.kind = 'DP'; res.label = '병살타!';
@@ -571,7 +592,7 @@ function playBall(b, st) {
   let A1;
   if (fi === 1) A1 = tf + gd(pf, B1) / FSPEED; else A1 = A(1);
   if (A1 < btm(bat, 1)) {
-    if (fi === 1) fGo(1, tf, A1, B1); else { toBag(1); throwTo(tf + XFER, pf, B1); }
+    if (fi === 1) { fGo(1, tf, A1, B1); seg(tf, A1, pf, B1); } else { toBag(1); throwTo(tf + XFER, pf, B1); }
     bat.f = 1; bat.out = true; bat.outT = A1; flash(A1, B1, 'OUT!', 'out');
     res.kind = 'GO'; res.label = `${FNAME[fi]} ${b.type === 'ground' ? '땅볼' : '타구'} 아웃`;
     if (!endIfOut(1)) {
@@ -615,6 +636,7 @@ function foulPlan(b) {
   const Th = clamp(2 * b.ev * sn / 9.8 * 0.75, 0.9, 5), d = clamp(b.dist, 18, 80);
   plan.ball.push({ t0: 0, t1: Th, a: BASEP[3], b: polar(b.spray, d), arc: clamp(b.ev * b.ev * sn * sn / 19.6 * 0.6, 1, 40) });
   plan.ev.push({ t: Th, p: polar(b.spray, d), text: 'FOUL', cls: 'foul' });
+  plan.gone = Th + 0.7;
   G.bases.forEach((on, i) => { if (on) plan.mov.push({ s: i + 1, f: i + 1, p: on }); });
   buildPaths(plan);
   return plan;
@@ -659,7 +681,7 @@ let selectResolve = null;
 function loadSettings() {
   try { Object.assign(S, JSON.parse(localStorage.getItem('baseball.settings') || '{}')); } catch (e) {}
   if (!RESULT_SYSTEMS[S.system]) S.system = 'sim';
-  if (S.squad !== 'draft' && S.squad !== 'preset') S.squad = 'draft';
+  if (!['draft', 'random', 'preset'].includes(S.squad)) S.squad = 'draft';
   if (!Array.isArray(S.lineups) || S.lineups.some(i => !ROSTERS[i])) S.lineups = [0, 1];
   S.names = (S.names || DEFAULTS.names).slice(0, 2); S.colors = (S.colors || DEFAULTS.colors).slice(0, 2);
 }
@@ -677,7 +699,7 @@ function refreshSetup() {
   $('#inVal').textContent = S.innings;
   $('#selSquad').value = S.squad;
   document.querySelectorAll('select.line').forEach(el => el.classList.toggle('hidden', S.squad !== 'preset'));
-  $('#startBtn').textContent = S.squad === 'draft' ? '▶ 다음: 선수 드래프트' : '▶ 경기 시작';
+  $('#startBtn').textContent = S.squad === 'draft' ? '▶ 다음: 선수 드래프트' : S.squad === 'random' ? '▶ 랜덤 팀 구성' : '▶ 경기 시작';
 }
 function initSetup() {
   loadSettings();
@@ -742,7 +764,7 @@ function renderMatchup() {
   $('#mu').style.setProperty('--tc', S.colors[t]);
   $('#mu').innerHTML = `<div class="bt"><b>${i + 1}번</b>${esc(p.n)}<small>${esc(p.pos)} · ${hand}</small></div>`
     + `<div class="rt">${statLine(p)}</div><div class="st">${st}</div>`
-    + `<div class="pt">⚾ ${esc(sp.n)}<small>${HAND_PIT[sp.hand]} · ${STYLE_KO[sp.style]} · 투구수 ${sp.pc}</small></div><div class="rt">${statLine(sp)}</div>`;
+    + `<div class="pt">⚾ ${esc(sp.n)}<small>${sp.role === 'RP' ? '구원 · ' : ''}${HAND_PIT[sp.hand]} · ${STYLE_KO[sp.style]} · 투구수 ${sp.pc}</small></div><div class="rt">${statLine(sp)}</div>`;
 }
 
 /* ---- 배너 ---- */
@@ -764,7 +786,7 @@ function setTip(html) { $('#tip').innerHTML = html; }
 function newGame() {
   G = { inning: 1, half: 0, outs: 0, balls: 0, strikes: 0, bases: [null, null, null], score: [[], []], hits: [0, 0], over: false, lastSpeed: 0, lastPitch: null, note: '',
     order: [0, 0],
-    roster: [0, 1].map(t => ({ bat: SQUAD[t].bat.map(p => ({ ...p, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0 })), sp: { ...SQUAD[t].sp, pc: 0 } })) };
+    roster: [0, 1].map(t => { const sp = { ...SQUAD[t].sp, pc: 0, r: 0 }; return { bat: SQUAD[t].bat.map(p => ({ ...p, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0 })), sp, pen: (SQUAD[t].rp || []).map(p => ({ ...p, pc: 0, r: 0 })), used: [sp] }; }) };
   V.atBat = 0; V.batHand = 'R'; V.mode = 'idle'; V.fplan = null; V.ball = null; V.swing = null; V.mark = null; V.info = null; V.fb = null;
 }
 
@@ -783,6 +805,7 @@ async function playHalf() {
   renderHUD();
   const extra = G.inning > S.innings ? ' (연장)' : '';
   await banner(`${G.inning}회 ${G.half ? '말' : '초'}${extra}`, `${tn(G.half)} 공격`, '', 1500);
+  await cpuManage(1 - G.half, true);
   while (G.outs < 3 && !G.over) await plateAppearance();
 }
 
@@ -805,6 +828,7 @@ function advanceHalf() {
 
 async function plateAppearance() {
   G.balls = 0; G.strikes = 0; G.lastSpeed = 0; G.lastPitch = null;
+  await cpuManage(1 - G.half, false);
   renderHUD();
   while (true) {
     const r = await doPitch();
@@ -812,11 +836,46 @@ async function plateAppearance() {
     else if (r.ev === 'strike') { G.strikes++; if (G.strikes >= 3) { await finishPA(r.looking ? 'KL' : 'K'); return; } }
     else if (r.ev === 'foul') { if (G.strikes < 2) G.strikes++; }
     else if (r.ev === 'inplay') { await finishPA('BIP', r.ball); return; }
+    else if (r.ev === 'sub') { /* 투수 교체 후 같은 카운트로 계속 */ }
     renderHUD();
   }
 }
 
 /* ---- 한 구 ---- */
+/* ---- 구원투수 교체 ---- */
+async function doSub(team, np) {
+  const R = G.roster[team], old = R.sp;
+  R.pen = R.pen.filter(x => x !== np); R.sp = np; R.used.push(np);
+  V.pitchType = np.pitches[0];
+  renderHUD();
+  await banner('투수 교체', `${old.n} → ${np.n}`, '', 1300);
+}
+async function cpuManage(team, halfStart) {       // CPU 감독: 지치거나 난타당하면 교체, 마지막 이닝 리드 시 마무리 등판
+  if (isHuman(team)) return;
+  const R = G.roster[team]; if (!R.pen.length) return;
+  const p = R.sp, lead = sc(team) - sc(1 - team);
+  const closer = halfStart && p.role === 'SP' && G.inning >= S.innings && lead >= 1 && lead <= 3;
+  const tired = fatigueOf(p) > 4 || (p.r >= 4 && p.pc >= 40);
+  if (!closer && !tired) return;
+  const np = [...R.pen].sort((a, b) => (b.stuff + b.ctrl * 0.3) - (a.stuff + a.ctrl * 0.3))[0];
+  await doSub(team, np);
+}
+const benchRow = p => `<button class="prow pen" data-id="${p.id}"><span class="pn">${esc(p.n)}<small>${esc(p.team)}</small></span><span class="pp">${p.role === 'RP' ? '구원' : '선발'}</span><span class="pm">${HAND_PIT[p.hand]} · ${STYLE_KO[p.style]} ${pitchIcons(p)}</span><span class="ps">${statLine(p)}</span><span class="po">${Math.round(ovr(p))}</span></button>`;
+$('#subBtn').addEventListener('click', () => {
+  if (!selectResolve) return;
+  const pen = G.roster[1 - G.half].pen, panel = $('#penPanel');
+  if (!panel.classList.contains('hidden')) { panel.classList.add('hidden'); return; }
+  panel.innerHTML = `<h5>불펜 — 등판시킬 투수를 고르세요 (교체되면 다시 못 나와요)</h5>` + (pen.length ? pen.map(benchRow).join('') : '<div style="color:var(--dim)">남은 구원투수가 없어요.</div>');
+  panel.classList.remove('hidden');
+});
+$('#penPanel').addEventListener('click', e => {
+  const r = e.target.closest('.pen'); if (!r || !selectResolve) return;
+  const np = G.roster[1 - G.half].pen.find(x => x.id === r.dataset.id); if (!np) return;
+  const res = selectResolve; selectResolve = null; V.mode = 'wait';
+  $('#penPanel').classList.add('hidden');
+  res({ sub: np });
+});
+
 function fatigueOf(pit) { return Math.max(0, pit.pc - (50 + pit.sta * 0.55)); }
 function scatterSigma(pit, key, human) {        // 던질 때 목표에서 벗어나는 정도(칸). 제구·체력·구종이 영향
   const base = human ? DIFF.normal.pScat : DIFF[S.diff].pScat;
@@ -836,6 +895,7 @@ async function doPitch() {
   let ch;
   if (defHuman) {
     ch = await humanPitch(pit);
+    if (ch.sub) { $('#defPanel').classList.add('hidden'); await doSub(defTeam, ch.sub); return { ev: 'sub' }; }
   } else {
     V.mode = 'wait';
     setTip(batHuman ? `<b>${esc(pit.n)}</b> 투수가 던질 준비를 합니다. 마우스로 <b>공 위치를 조준</b>하세요.` : '');
@@ -849,7 +909,7 @@ async function doPitch() {
   const fat = fatigueOf(pit);
   const sig = scatterSigma(pit, ch.type, defHuman);
   const loc = { u: clamp(ch.u + gauss() * sig, -2.7, 2.7), v: clamp(ch.v + gauss() * sig, -2.7, 2.7) };
-  const zEdge = 1.5 - (bat.e - 70) * 0.002;                  // 선구안 좋은 타자는 존 가장자리가 볼로 판정되기 쉬움
+  const zEdge = ZE - (bat.e - 70) * 0.002;                  // 선구안 좋은 타자는 존 가장자리가 볼로 판정되기 쉬움
   const inZone = Math.abs(loc.u) <= zEdge && Math.abs(loc.v) <= zEdge;
   const speed = rnd(pt.spd) + pit.velo - fat * 0.05;
   const T = (1100 + (150 - speed) * 10) * (batHuman ? DIFF[S.diff].tScale : 1);
@@ -927,8 +987,8 @@ function timingText(dt) {
 }
 
 function zoneName(u, v) {
-  if (Math.abs(u) > 1.5 || Math.abs(v) > 1.5) {
-    const h = Math.abs(u) > 1.5 ? (u < 0 ? '좌' : '우') : '', w = Math.abs(v) > 1.5 ? (v < 0 ? '위' : '아래') : '';
+  if (Math.abs(u) > ZE || Math.abs(v) > ZE) {
+    const h = Math.abs(u) > ZE ? (u < 0 ? '좌' : '우') : '', w = Math.abs(v) > ZE ? (v < 0 ? '위' : '아래') : '';
     return `볼 (${h}${w})`;
   }
   const c = u < -0.5 ? '좌' : u > 0.5 ? '우' : '중', r = v < -0.5 ? '상' : v > 0.5 ? '하' : '중';
@@ -970,8 +1030,8 @@ function cpuTarget(behind, ahead, type) {         // 존 안(모서리 포함)·
     return { u, v };
   }
   let u = (rand() * 2 - 1) * 1.5, v = (rand() * 2 - 1) * 1.5;
-  if (rand() < 0.5) u = sgn() * (1.7 + rand() * 0.6); else v = sgn() * (1.7 + rand() * 0.6);
-  if (type === 'fork' || type === 'curve') v = 1.8 + rand() * 0.6;
+  if (rand() < 0.5) u = sgn() * (1.95 + rand() * 0.5); else v = sgn() * (1.95 + rand() * 0.5);
+  if (type === 'fork' || type === 'curve') v = 2.0 + rand() * 0.5;
   return { u, v };
 }
 function cpuPitch(pit) {
@@ -991,7 +1051,7 @@ function cpuPitch(pit) {
 function cpuBatPlan(loc, pt, speed, inZone, bat) {
   const D = DIFF[S.diff];
   const m = Math.max(Math.abs(loc.u), Math.abs(loc.v));
-  let ps = inZone ? D.zone : D.chase * clamp(1.6 - (m - 1.5) * 1.4, 0, 1.2) * clamp(1 + (70 - bat.e) * 0.01, 0.3, 1.8);
+  let ps = inZone ? D.zone : D.chase * clamp(1.6 - (m - ZE) * 1.4, 0, 1.2) * clamp(1 + (70 - bat.e) * 0.01, 0.3, 1.8);
   if (G.strikes === 2) ps = inZone ? Math.max(ps, 0.92) : Math.min(0.6, ps + 0.18);
   if (G.balls === 3 && G.strikes < 2 && !inZone) ps *= 0.4;
   if (!G.strikes && !G.balls && inZone) ps *= 0.9;
@@ -1008,6 +1068,8 @@ function humanPitch(pit) {
   V.mode = 'select'; V.sel = null; V.hover = null;
   if (!pit.pitches.includes(V.pitchType)) V.pitchType = pit.pitches[0];
   buildPitchBar(pit);
+  $('#penPanel').classList.add('hidden');
+  $('#subBtn').disabled = !G.roster[1 - G.half].pen.length;
   $('#defPanel').classList.remove('hidden');
   setTip(`<b>${esc(pit.n)}</b> (${HAND_PIT[pit.hand]} · ${STYLE_KO[pit.style]}) — 구종을 고르고 <b>존 안팎 어디든</b> 클릭해 코스를 잡으세요(모서리도 OK). 같은 자리를 한 번 더 누르면 던집니다. <span style="color:var(--gold)">(키 1~${pit.pitches.length} 구종 · Space 던지기)</span>`);
   return new Promise(res => { selectResolve = res; });
@@ -1067,6 +1129,7 @@ async function finishPA(kind, b) {
     res = { kind, label: LABEL[kind], runs: 0, outs: 1, nb: G.bases.slice(), hit: false, ab: true, rbi: 0 };
   }
   const runs = G.outs + res.outs >= 3 && !res.hit ? 0 : res.runs;
+  G.roster[1 - batTeam].sp.r += runs;
   G.bases = res.nb; G.outs += res.outs;
   G.score[batTeam][G.inning - 1] = (G.score[batTeam][G.inning - 1] || 0) + runs;
   if (res.ab) p.ab++;
@@ -1327,6 +1390,8 @@ function drawZone(now) {
     if (V.hover) ret(V.hover, false);
     if (V.sel) ret(V.sel, true);
   }
+  const ze = z2s(-ZE, -ZE);       // 공이 걸치면 스트라이크인 바깥 판정선
+  ctx.save(); ctx.setLineDash([6, 5]); ctx.strokeStyle = 'rgba(255,211,77,.45)'; ctx.lineWidth = 1.5; ctx.strokeRect(ze.x, ze.y, CELL * 2 * ZE, CELL * 2 * ZE); ctx.restore();
   ctx.strokeStyle = full ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.55)'; ctx.lineWidth = full ? 3 : 2;
   ctx.strokeRect(z0.x, z0.y, CELL * 3, CELL * 3);
   if (!full) {
@@ -1429,9 +1494,11 @@ function drawField(now) {
   });
   // 공
   const bl = evalBall(plan.ball, t), bs = m2s(bl.x, bl.y), hh = bl.h * 3.2;
+  if (plan.gone === undefined || t < plan.gone) {
   ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(bs.x, bs.y, 5.5, 2.8, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bs.x, bs.y - hh, 4.5 + hh / 40, 0, 7); ctx.fill();
   ctx.strokeStyle = '#d33'; ctx.lineWidth = 1; ctx.stroke();
+  }
   // 이벤트 문구
   ctx.textBaseline = 'alphabetic';
   plan.ev.forEach(e => {
@@ -1522,23 +1589,23 @@ function statLine(p) {
     : `${statSpan('컨', p.c)}${statSpan('파', p.p)}${statSpan('선', p.e)}${statSpan('주', p.s)}`;
 }
 const pitchIcons = p => p.pitches.map(k => PITCHES[k].icon).join('');
-const filled = (t, pos) => D.picks[t].some(x => x.pos === pos);
+const filled = (t, pos) => D.picks[t].filter(x => x.pos === pos).length >= (pos === '구원투수' ? 2 : 1);
 
 function startDraft() {
   D.picks = [[], []]; D.taken = new Set(); D.n = 0; D.filter = '전체'; D.sel = null; D.busy = false;
-  D.order = Array.from({ length: 20 }, (_, i) => i % 2);            // 원정 → 홈 → 원정 …
+  D.order = Array.from({ length: TOTAL }, (_, i) => i % 2);            // 원정 → 홈 → 원정 …
   $('#dStart').classList.add('hidden');
   show('#draft'); renderDraft(); nextTurn();
 }
 function curTeam() { return D.order[D.n]; }
 function renderDraft() {
-  const done = D.n >= 20, t = done ? -1 : curTeam();
-  $('#dTitle').textContent = done ? '드래프트 완료!' : `${D.n + 1}/20 번째 지명 — ${tn(t)}`;
+  const done = D.n >= TOTAL, t = done ? -1 : curTeam();
+  $('#dTitle').textContent = done ? '드래프트 완료!' : `${D.n + 1}/${TOTAL} 번째 지명 — ${tn(t)}`;
   $('#dSub').textContent = done ? '라인업이 확정됐어요. 타순은 능력치 순으로 자동 배치됩니다.'
-    : (isHuman(t) ? '원하는 선수를 골라 [지명하기]를 누르세요. (각 포지션 1명씩, 선발투수 1명 + 타자 9명)' : 'CPU가 고르는 중…');
+    : (isHuman(t) ? '원하는 선수를 골라 [지명하기]를 누르세요. (선발투수 1 + 구원투수 2 + 타자 9명, 포지션별 1명씩)' : 'CPU가 고르는 중…');
   const chips = ['전체', ...SLOTS];
-  $('#dFilter').innerHTML = chips.map(c => `<button class="chip ${D.filter === c ? 'on' : ''}" data-f="${c}">${c === '선발투수' ? '투수' : c}</button>`).join('');
-  const pool = [...PITCHERS, ...HITTERS].filter(p => D.filter === '전체' || p.pos === D.filter).sort((a, b) => ovr(b) - ovr(a));
+  $('#dFilter').innerHTML = chips.map(c => `<button class="chip ${D.filter === c ? 'on' : ''}" data-f="${c}">${c === '선발투수' ? '선발' : c === '구원투수' ? '구원' : c}</button>`).join('');
+  const pool = allPlayers().filter(p => D.filter === '전체' || p.pos === D.filter).sort((a, b) => ovr(b) - ovr(a));
   $('#dList').innerHTML = pool.map(p => {
     const taken = D.taken.has(p.id), blocked = !done && !taken && filled(t, p.pos);
     const meta = p.isP ? `${HAND_PIT[p.hand]} · ${STYLE_KO[p.style]} ${pitchIcons(p)}` : `${HAND_BAT[p.hand]}`;
@@ -1546,14 +1613,19 @@ function renderDraft() {
       <span class="pn">${esc(p.n)}<small>${esc(p.team)}</small></span><span class="pp">${p.pos}</span><span class="pm">${meta}</span><span class="ps">${statLine(p)}</span><span class="po">${Math.round(ovr(p))}</span></button>`;
   }).join('');
   [0, 1].forEach(tm => {
-    $('#dTeam' + tm).innerHTML = `<h4><i style="background:${S.colors[tm]}"></i>${esc(S.names[tm])}</h4>` + SLOTS.map(pos => {
-      const p = D.picks[tm].find(x => x.pos === pos);
-      return `<div class="slot ${p ? 'on' : ''}"><span>${pos === '선발투수' ? '투수' : pos}</span><b>${p ? esc(p.n) : '—'}</b>${p ? `<small>${p.isP ? `${HAND_PIT[p.hand]}` : HAND_BAT[p.hand]}</small>` : ''}</div>`;
+    const seen = {};
+    $('#dTeam' + tm).innerHTML = `<h4><i style="background:${S.colors[tm]}"></i>${esc(S.names[tm])}</h4>` + BOARD.map(pos => {
+      const k = seen[pos] = (seen[pos] || 0) + 1;
+      const p = D.picks[tm].filter(x => x.pos === pos)[k - 1];
+      const lab = pos === '선발투수' ? '선발' : pos === '구원투수' ? '구원' : pos;
+      return `<div class="slot ${p ? 'on' : ''}"><span>${lab}</span><b>${p ? esc(p.n) : '—'}</b>${p ? `<small>${p.isP ? HAND_PIT[p.hand] : HAND_BAT[p.hand]}</small>` : ''}</div>`;
     }).join('');
   });
   const myTurn = !done && isHuman(t);
   $('#dPick').disabled = !(myTurn && D.sel && !D.busy);
   $('#dPick').classList.toggle('hidden', done);
+  $('#dRand').disabled = !myTurn || D.busy;
+  ['#dRand', '#dRandAll'].forEach(q => $(q).classList.toggle('hidden', done));
 }
 function canPick(t, p) { return !D.taken.has(p.id) && !filled(t, p.pos); }
 function doPick(t, p) {
@@ -1563,41 +1635,49 @@ function doPick(t, p) {
 function cpuChoose(t) {
   const noise = { easy: 14, normal: 6, hard: 2 }[S.diff] || 6;
   let best = null, bs = -1e9;
-  [...PITCHERS, ...HITTERS].forEach(p => {
+  allPlayers().forEach(p => {
     if (!canPick(t, p)) return;
-    const s = ovr(p) + (p.isP ? 7 : 0) + (rand() * 2 - 1) * noise;
+    const s = ovr(p) + (p.role === 'SP' ? 7 : p.role === 'RP' ? 1 : 0) + (rand() * 2 - 1) * noise;
     if (s > bs) { bs = s; best = p; }
   });
   return best;
 }
 function nextTurn() {
-  if (D.n >= 20) { finishDraft(); return; }
+  if (D.n >= TOTAL) { finishDraft(); return; }
   const t = curTeam();
-  if (!isHuman(t)) { D.busy = true; renderDraft(); setTimeout(() => doPick(t, cpuChoose(t)), 800); }
+  if (!isHuman(t)) { D.busy = true; renderDraft(); D.timer = setTimeout(() => doPick(t, cpuChoose(t)), 800); }
 }
 function finishDraft() {
-  SQUAD = D.picks.map(list => ({ bat: autoOrder(list.filter(p => !p.isP)), sp: list.find(p => p.isP) }));
+  SQUAD = D.picks.map(list => ({ bat: autoOrder(list.filter(p => !p.isP)), sp: list.find(p => p.role === 'SP'), rp: list.filter(p => p.role === 'RP') }));
   renderDraft();
   $('#dStart').classList.remove('hidden');
 }
 $('#dFilter').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { D.filter = b.dataset.f; renderDraft(); } });
 $('#dList').addEventListener('click', e => {
-  const r = e.target.closest('.prow'); if (!r || D.n >= 20) return;
+  const r = e.target.closest('.prow'); if (!r || D.n >= TOTAL) return;
   const t = curTeam(); if (!isHuman(t) || D.busy) return;
-  const p = [...PITCHERS, ...HITTERS].find(x => x.id === r.dataset.id);
+  const p = allPlayers().find(x => x.id === r.dataset.id);
   if (!canPick(t, p)) { setDraftNote(`${tn(t)}은(는) 이미 ${p.pos} 자리를 채웠어요.`); return; }
   D.sel = p.id; renderDraft();
 });
 $('#dList').addEventListener('dblclick', e => { if (!$('#dPick').disabled) $('#dPick').click(); });
 $('#dPick').addEventListener('click', () => {
-  const t = curTeam(), p = [...PITCHERS, ...HITTERS].find(x => x.id === D.sel);
+  const t = curTeam(), p = allPlayers().find(x => x.id === D.sel);
   if (p && isHuman(t) && canPick(t, p)) doPick(t, p);
 });
+function randomLegal(t) { const c = allPlayers().filter(p => canPick(t, p)); return c[Math.floor(rand() * c.length)]; }
+function autoRandomAll() {        // 남은 지명을 전부 무작위로 채움
+  clearTimeout(D.timer);
+  while (D.n < TOTAL) { const t = curTeam(), p = randomLegal(t); D.picks[t].push(p); D.taken.add(p.id); D.n++; }
+  D.busy = false; D.sel = null; finishDraft();
+}
+$('#dRand').addEventListener('click', () => { const t = curTeam(); if (D.n < TOTAL && isHuman(t) && !D.busy) doPick(t, randomLegal(t)); });
+$('#dRandAll').addEventListener('click', autoRandomAll);
 function setDraftNote(s) { $('#dSub').textContent = s; }
 $('#dStart').onclick = () => startGame();
 $('#dBack').onclick = () => show('#setup');
 
-function presetSquad() { return [0, 1].map(t => { const r = ROSTERS[S.lineups[t]]; return { bat: r.bat.slice(), sp: r.sp }; }); }
+function presetSquad() { return [0, 1].map(t => { const r = ROSTERS[S.lineups[t]]; return { bat: r.bat.slice(), sp: r.sp, rp: r.rp }; }); }
 
 
 /* =====================================================================
@@ -1626,11 +1706,12 @@ function endGame() {
   if (G.note) res += ` (${G.note})`;
   $('#endRes').textContent = res;
   $('#endLine').innerHTML = lineHTML(true) + '<div class="box">' + [0, 1].map(t =>
-    `<div><h4>${esc(S.names[t])} 타자</h4>` + G.roster[t].bat.map(p => `<div><span>${esc(p.n)}</span><span>${p.ab}타수 ${p.h}안타${p.hr ? ` ${p.hr}홈런` : ''} ${p.rbi}타점${p.bb ? ` ${p.bb}볼넷` : ''}</span></div>`).join('') + '</div>').join('') + '</div>';
+    `<div><h4>${esc(S.names[t])} 타자</h4>` + G.roster[t].bat.map(p => `<div><span>${esc(p.n)}</span><span>${p.ab}타수 ${p.h}안타${p.hr ? ` ${p.hr}홈런` : ''} ${p.rbi}타점${p.bb ? ` ${p.bb}볼넷` : ''}</span></div>`).join('') + '</div>').join('') + '</div>'
+    + '<div class="box">' + [0, 1].map(t => `<div><h4>${esc(S.names[t])} 투수</h4>` + G.roster[t].used.map(p => `<div><span>${esc(p.n)}</span><span>투구수 ${p.pc} · 실점 ${p.r}</span></div>`).join('') + '</div>').join('') + '</div>';
   show('#end');
 }
 
-$('#startBtn').onclick = () => { readSetup(); if (S.squad === 'draft') startDraft(); else { SQUAD = presetSquad(); startGame(); } };
+$('#startBtn').onclick = () => { readSetup(); if (S.squad === 'draft') startDraft(); else if (S.squad === 'random') { startDraft(); autoRandomAll(); } else { SQUAD = presetSquad(); startGame(); } };
 $('#againBtn').onclick = () => startGame();
 $('#toSetupBtn').onclick = () => { show('#setup'); };
 $('#quitBtn').onclick = () => { if (confirm('경기를 중단하고 설정 화면으로 나갈까요?')) location.reload(); };
