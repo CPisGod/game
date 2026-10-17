@@ -497,7 +497,7 @@ function playBall(b, st) {
   plan.mov = mov;
   const run = s => mov.find(m => m.s === s);
   const res = { plan, hit: false, ab: true, kind: '', label: '' };
-  let tf, pf, fi, caught = false, hr = false, Th = 0, land = null;
+  let tf, pf, fi, caught = false, hr = false, Th = 0, land = null, landDist = null;
 
   /* 1) 공의 궤적과 수비수 */
   if (b.type === 'ground') {
@@ -510,9 +510,9 @@ function playBall(b, st) {
     Th = clamp(2 * b.ev * sn / 9.8 * 0.95, 1.1, 6.5);
     const Hm = clamp(b.ev * b.ev * sn * sn / 19.6 * 0.6, 1.5, 45);
     if (b.dist >= FENCE && b.L >= 14) {
-      hr = true; seg(0, Th, home, polar(b.spray, FENCE + 12), Hm); plan.gone = Th + 0.9;
+      hr = true; landDist = b.dist; seg(0, Th, home, polar(b.spray, FENCE + 12), Hm); plan.gone = Th + 0.9;
     } else {
-      const ld = clamp(Math.min(b.dist, FENCE - 1), 8, FENCE - 1); land = polar(b.spray, ld);
+      const ld = clamp(Math.min(b.dist, FENCE - 1), 8, FENCE - 1); land = polar(b.spray, ld); landDist = ld;
       const rr = Math.min(clamp(6 + 0.14 * ld, 6, 22), FENCE - ld);
       const pos = t => t <= Th ? land : polar(b.spray, ld + rr * (1 - Math.pow(1 - clamp((t - Th) / 1.6, 0, 1), 3)));
       seg(0, Th, home, land, Hm);
@@ -522,6 +522,7 @@ function playBall(b, st) {
     }
   }
 
+  plan.stat = { L: b.L, kmh: b.ev * 3.6, dist: b.type === 'ground' ? null : landDist, hang: b.type === 'ground' ? null : Th, type: b.type };
   const settle = () => {
     buildPaths(plan);
     let outs = 0, runs = 0; const nb = [false, false, false];
@@ -642,6 +643,7 @@ function foulPlan(b) {
   plan.ball.push({ t0: 0, t1: Th, a: BASEP[3], b: polar(b.spray, d), arc: clamp(b.ev * b.ev * sn * sn / 19.6 * 0.6, 1, 40) });
   plan.ev.push({ t: Th, p: polar(b.spray, d), text: 'FOUL', cls: 'foul' });
   plan.gone = Th + 0.7;
+  plan.stat = { L: b.L, kmh: b.ev * 3.6, dist: d, hang: Th, type: b.type, foul: true };
   G.bases.forEach((on, i) => { if (on) plan.mov.push({ s: i + 1, f: i + 1, p: on }); });
   buildPaths(plan);
   return plan;
@@ -1498,6 +1500,44 @@ function drawOverlayText(now) {
   }
 }
 
+const TYPE_KO = { ground: '땅볼', line: '라인드라이브', fly: '뜬공', popup: '팝플라이' };
+function drawHitStat(plan) {           // 타구 수치: 발사각 · 속도 · 비거리 · 체공시간
+  const st = plan.stat; if (!st) return;
+  const lines = [
+    `${TYPE_KO[st.type]}${st.foul ? ' (파울)' : ''}`,
+    `발사각 ${st.L.toFixed(0)}°`,
+    `타구속도 ${st.kmh.toFixed(0)}km/h`,
+    st.dist ? `비거리 ${st.dist.toFixed(0)}m` : '굴러가는 타구',
+    st.hang ? `체공 ${st.hang.toFixed(1)}초` : '',
+  ].filter(Boolean);
+  ctx.font = '700 15px "Malgun Gothic", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  const w = 170, h = 14 + lines.length * 21, x0 = W - 14 - w;
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(x0, 14, w, h);
+  ctx.fillStyle = '#ffd34d'; ctx.fillRect(x0, 14, 4, h);
+  lines.forEach((l, i) => { ctx.fillStyle = i === 0 ? '#ffd34d' : '#fff'; ctx.fillText(l, x0 + 14, 36 + i * 21); });
+}
+function drawSideView(plan, t) {        // 옆에서 본 타구 궤적: 가로=거리, 세로=높이
+  const X0 = 14, Y0 = 14, PW = 270, PH = 130, PAD = 12, maxD = 125, maxH = 50;
+  const gx = d => X0 + PAD + d / maxD * (PW - 2 * PAD), gy = h => Y0 + PH - 22 - h / maxH * (PH - 40);
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(X0, Y0, PW, PH);
+  ctx.font = '700 11px "Malgun Gothic", sans-serif'; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#9fb0d8'; ctx.fillText('옆에서 본 타구 (높이)', X0 + 8, Y0 + 14);
+  ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1; ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.textAlign = 'right';
+  [10, 20, 30, 40].forEach(h => { ctx.beginPath(); ctx.moveTo(gx(0), gy(h)); ctx.lineTo(gx(maxD), gy(h)); ctx.stroke(); ctx.fillText(h + 'm', X0 + PW - 4, gy(h) - 2); });
+  ctx.strokeStyle = '#3a8a55'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(gx(0), gy(0)); ctx.lineTo(gx(maxD), gy(0)); ctx.stroke();   // 지면
+  ctx.strokeStyle = '#ffb347'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(gx(FENCE), gy(0)); ctx.lineTo(gx(FENCE), gy(4)); ctx.stroke();    // 담장
+  ctx.fillStyle = '#ffb347'; ctx.textAlign = 'center'; ctx.fillText('담장', gx(FENCE), gy(0) + 13);
+  ctx.fillStyle = '#7dff9a'; ctx.fillText('홈', gx(0), gy(0) + 13);
+  // 지나온 궤적
+  ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 2; ctx.beginPath();
+  const tEnd = Math.min(t, plan.gone !== undefined ? plan.gone : t);
+  for (let k = 0; k <= 40; k++) { const tt = tEnd * k / 40, b = evalBall(plan.ball, tt); const px = gx(Math.min(Math.hypot(b.x, b.y), maxD)), py = gy(Math.min(b.h, maxH)); if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
+  ctx.stroke();
+  const bl = evalBall(plan.ball, tEnd);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(gx(Math.min(Math.hypot(bl.x, bl.y), maxD)), gy(Math.min(bl.h, maxH)), 4.5, 0, 7); ctx.fill();
+  ctx.textAlign = 'left';
+}
+
 function drawField(now) {
   const F = V.fplan, plan = F.plan, t = (now - F.t0) / 1000 * plan.speed;
   // 배경
@@ -1550,10 +1590,18 @@ function drawField(now) {
   // 공
   const bl = evalBall(plan.ball, t), bs = m2s(bl.x, bl.y), hh = bl.h * 3.2;
   if (plan.gone === undefined || t < plan.gone) {
+  if (hh > 6) {      // 높이선: 그림자에서 공까지 이어서 얼마나 떴는지 한눈에
+    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(bs.x, bs.y); ctx.lineTo(bs.x, bs.y - hh); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = '700 12px "Malgun Gothic", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffe066';
+    ctx.fillText(`${bl.h.toFixed(0)}m`, bs.x + 9, bs.y - hh);
+  }
   ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(bs.x, bs.y, 5.5, 2.8, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bs.x, bs.y - hh, 4.5 + hh / 40, 0, 7); ctx.fill();
   ctx.strokeStyle = '#d33'; ctx.lineWidth = 1; ctx.stroke();
   }
+  drawSideView(plan, t);
+  drawHitStat(plan);
   // 이벤트 문구
   ctx.textBaseline = 'alphabetic';
   plan.ev.forEach(e => {
@@ -1571,7 +1619,10 @@ function drawField(now) {
   });
 }
 
+let muHidden = false;
 function draw(now) {
+  const hideMu = V.mode === 'field' && !!V.fplan;      // 필드 화면에서는 왼쪽 위 선수 박스를 숨겨 '옆에서 본 타구' 패널을 보이게
+  if (hideMu !== muHidden) { muHidden = hideMu; $('#mu').style.visibility = hideMu ? 'hidden' : 'visible'; }
   if (V.mode === 'field' && V.fplan) { drawField(now); return; }
   ctx.drawImage(BG, 0, 0);
   drawPitcher(now);
