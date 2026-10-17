@@ -107,6 +107,33 @@
   @media (max-width: 640px) { .box { grid-template-columns: 1fr; } }
   .box h4 { margin: 0 0 4px; color: var(--gold); }
   .box div div { padding: 2px 0; border-bottom: 1px solid #ffffff12; display: flex; justify-content: space-between; gap: 8px; }
+  #draft h2 { margin: 0 0 4px; font-size: clamp(20px, 4.5vw, 28px); }
+  #draft .sub { color: var(--dim); margin: 0 0 10px; font-size: 14px; }
+  .dgrid { display: grid; grid-template-columns: 1.7fr 1fr; gap: 12px; }
+  @media (max-width: 820px) { .dgrid { grid-template-columns: 1fr; } }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .chip { border: 1px solid var(--line); background: #0c1426; border-radius: 999px; padding: 5px 11px; cursor: pointer; font-size: 13px; font-weight: 700; }
+  .chip.on { background: var(--gold); color: #1b1300; border-color: var(--gold); }
+  .plist { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
+  .prow { display: grid; grid-template-columns: minmax(84px, 1.1fr) 62px minmax(70px, 1fr) minmax(150px, 1.6fr) 32px; gap: 6px; align-items: center; text-align: left;
+    border: 1px solid var(--line); background: var(--panel2); border-radius: 8px; padding: 6px 9px; cursor: pointer; font-size: 13px; }
+  @media (max-width: 640px) { .prow { grid-template-columns: 1fr 52px 32px; } .prow .pm, .prow .ps { grid-column: 1 / -1; } }
+  .prow .pn { font-weight: 800; } .prow .pn small { color: var(--dim); font-weight: 600; margin-left: 5px; font-size: 11px; }
+  .prow .pp { color: var(--dim); font-size: 12px; } .prow .pm { font-size: 12px; color: #c9d4f2; }
+  .prow .po { font-weight: 900; color: var(--gold); text-align: right; }
+  .prow.sel { border-color: var(--gold); background: #3a3210; }
+  .prow.blocked { opacity: .45; } .prow.taken { opacity: .25; text-decoration: line-through; cursor: default; }
+  .prow:not(.taken):not(.blocked):hover { border-color: var(--gold); }
+  .st { display: inline-block; margin-right: 6px; font-size: 11px; color: var(--dim); } .st b { margin-left: 2px; font-size: 13px; }
+  .st.hi b { color: #ffd34d; } .st.mid b { color: #7dff9a; } .st.ok b { color: #e9eefc; } .st.lo b { color: #8b98bd; }
+  #dPick { width: 100%; margin-top: 8px; } #dPick:disabled { opacity: .45; cursor: default; }
+  .dteams { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: start; }
+  .tboard { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px; font-size: 13px; }
+  .tboard h4 { margin: 0 0 6px; font-size: 14px; } .tboard h4 i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+  .slot { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; border-bottom: 1px solid #ffffff12; color: var(--dim); }
+  .slot span { width: 44px; font-size: 11px; } .slot b { color: var(--dim); font-weight: 700; } .slot.on b { color: var(--text); } .slot small { color: var(--dim); font-size: 10px; }
+  .dbtns { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; } .dbtns .big { flex: 1; }
+  #mu .rt { font-size: clamp(9px, 1.8vw, 12px); line-height: 1.4; } #mu .rt .st { margin-right: 5px; }
   #controls { margin-top: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; min-height: 64px; }
   #tip { font-size: 14px; color: var(--dim); margin-bottom: 8px; line-height: 1.5; }
   #tip b { color: var(--text); }
@@ -183,6 +210,10 @@
         <select id="selCold"><option value="0">없음</option><option value="10">10점차</option><option value="7">7점차</option></select>
       </div>
       <div class="opt">
+        <label>팀 구성</label>
+        <select id="selSquad"><option value="draft">선수 드래프트 (번갈아 지명)</option><option value="preset">KBO 구단 선수단 그대로</option></select>
+      </div>
+      <div class="opt">
         <label>타구 판정 방식</label>
         <select id="selSys"></select>
       </div>
@@ -197,6 +228,21 @@
     </div>
 
     <button id="startBtn" class="btn primary big">▶ 경기 시작</button>
+  </section>
+
+  <!-- ===== 드래프트 ===== -->
+  <section id="draft" class="card hidden">
+    <h2 id="dTitle"></h2>
+    <p id="dSub" class="sub"></p>
+    <div class="dgrid">
+      <div class="dpool">
+        <div id="dFilter" class="chips"></div>
+        <div id="dList" class="plist"></div>
+        <button id="dPick" class="btn primary big" disabled>✅ 지명하기</button>
+      </div>
+      <div class="dteams"><div id="dTeam0" class="tboard"></div><div id="dTeam1" class="tboard"></div></div>
+    </div>
+    <div class="dbtns"><button id="dBack" class="btn">← 설정으로</button><button id="dStart" class="btn primary big hidden">▶ 경기 시작</button></div>
   </section>
 
   <!-- ===== 경기 ===== -->
@@ -272,7 +318,7 @@ const W = 960, H = 600;
 const CELL = 56;                       // 격자 한 칸(px). 존 좌표 1.0 = 한 칸
 const ZC = { x: 480, y: 410 };         // 존 중심 화면 좌표
 const REL = { x: 488, y: 199 };        // 투수 릴리스 포인트
-const WIND_MS = 700;                   // 와인드업 시간
+const WIND_MS = 1100;                   // 와인드업 시간
 const WIN = 150;                       // 타이밍 허용(±ms). 이 안에서만 맞을 수 있음
 const BAT_R = 1.1;                     // 배트 조준 반경(칸)
 const FENCE = 100;                     // 펜스 거리(m)
@@ -297,21 +343,57 @@ const DIFF = {
 };
 
 /* =====================================================================
- *  KBO 선수 명단 (대표 선수 위주 · 실제 최신 로스터와 다를 수 있어요)
- *  [이름, 포지션] 9명 타순 + 선발투수
+ *  KBO 선수 데이터 (대표 선수 위주 · 소속/타석 방향은 최신과 다를 수 있고,
+ *  능력치(0~99)는 이 게임용으로 임의 설정한 값입니다)
+ *    타자 : [이름, 포지션, 타석(R우/L좌/S양), 컨택, 파워, 선구안, 주력]
+ *    투수 : [이름, 소속, 투구손(R/L), 폼, 구위, 제구, 체력, 구속보정(km/h), 구종들]
+ *    폼   : over 오버핸드 · three 쓰리쿼터 · side 사이드암 · under 언더핸드
  * ===================================================================== */
-const ROSTERS = [
-  { team: 'LG 트윈스', sp: '임찬규', bat: [['홍창기', '우익수'], ['신민재', '2루수'], ['김현수', '좌익수'], ['오스틴', '1루수'], ['문보경', '3루수'], ['오지환', '유격수'], ['박동원', '포수'], ['박해민', '중견수'], ['문성주', '지명타자']] },
-  { team: 'KIA 타이거즈', sp: '양현종', bat: [['박찬호', '유격수'], ['김도영', '3루수'], ['나성범', '우익수'], ['최형우', '지명타자'], ['김선빈', '2루수'], ['이우성', '1루수'], ['한준수', '포수'], ['최원준', '중견수'], ['소크라테스', '좌익수']] },
-  { team: '삼성 라이온즈', sp: '원태인', bat: [['김지찬', '중견수'], ['이재현', '유격수'], ['구자욱', '좌익수'], ['디아즈', '1루수'], ['김영웅', '3루수'], ['강민호', '포수'], ['류지혁', '2루수'], ['김헌곤', '우익수'], ['박병호', '지명타자']] },
-  { team: '두산 베어스', sp: '곽빈', bat: [['정수빈', '중견수'], ['강승호', '2루수'], ['양의지', '포수'], ['김재환', '좌익수'], ['양석환', '1루수'], ['박준영', '유격수'], ['이유찬', '3루수'], ['김인태', '우익수'], ['조수행', '지명타자']] },
-  { team: 'SSG 랜더스', sp: '김광현', bat: [['최지훈', '중견수'], ['박성한', '유격수'], ['최정', '3루수'], ['에레디아', '좌익수'], ['한유섬', '우익수'], ['고명준', '1루수'], ['이지영', '포수'], ['정준재', '2루수'], ['오태곤', '지명타자']] },
-  { team: '롯데 자이언츠', sp: '박세웅', bat: [['황성빈', '중견수'], ['고승민', '2루수'], ['레이예스', '우익수'], ['전준우', '좌익수'], ['나승엽', '1루수'], ['손호영', '3루수'], ['유강남', '포수'], ['박승욱', '유격수'], ['윤동희', '지명타자']] },
-  { team: 'NC 다이노스', sp: '구창모', bat: [['박민우', '2루수'], ['김주원', '유격수'], ['박건우', '우익수'], ['데이비슨', '1루수'], ['권희동', '좌익수'], ['서호철', '3루수'], ['김형준', '포수'], ['천재환', '중견수'], ['김휘집', '지명타자']] },
-  { team: '한화 이글스', sp: '류현진', bat: [['문현빈', '좌익수'], ['황영묵', '2루수'], ['노시환', '3루수'], ['채은성', '1루수'], ['플로리얼', '중견수'], ['하주석', '유격수'], ['최재훈', '포수'], ['장진혁', '우익수'], ['이도윤', '지명타자']] },
-  { team: 'KT 위즈', sp: '고영표', bat: [['김민혁', '좌익수'], ['김상수', '2루수'], ['로하스', '우익수'], ['강백호', '지명타자'], ['황재균', '3루수'], ['장성우', '포수'], ['문상철', '1루수'], ['배정대', '중견수'], ['오윤석', '유격수']] },
-  { team: '키움 히어로즈', sp: '하영민', bat: [['이주형', '중견수'], ['송성문', '3루수'], ['최주환', '2루수'], ['김건희', '포수'], ['김태진', '1루수'], ['이형종', '좌익수'], ['박수종', '우익수'], ['어준서', '유격수'], ['김웅빈', '지명타자']] },
+const TEAM_DATA = [
+  ['LG 트윈스', '임찬규', [['홍창기', '우익수', 'L', 90, 45, 95, 70], ['신민재', '2루수', 'L', 80, 40, 70, 85], ['김현수', '좌익수', 'L', 90, 70, 80, 45], ['오스틴', '1루수', 'R', 80, 88, 75, 50], ['문보경', '3루수', 'L', 82, 78, 80, 55], ['오지환', '유격수', 'L', 70, 78, 65, 72], ['박동원', '포수', 'R', 68, 82, 70, 40], ['박해민', '중견수', 'L', 78, 35, 75, 88], ['문성주', '지명타자', 'L', 82, 45, 78, 60]]],
+  ['KIA 타이거즈', '양현종', [['박찬호', '유격수', 'R', 78, 40, 65, 85], ['김도영', '3루수', 'R', 90, 92, 75, 92], ['나성범', '우익수', 'L', 80, 88, 70, 65], ['최형우', '지명타자', 'L', 92, 80, 92, 35], ['김선빈', '2루수', 'R', 88, 35, 85, 50], ['이우성', '1루수', 'R', 75, 70, 65, 50], ['한준수', '포수', 'L', 70, 55, 60, 50], ['최원준', '중견수', 'L', 78, 35, 68, 80], ['소크라테스', '좌익수', 'R', 78, 75, 60, 70]]],
+  ['삼성 라이온즈', '원태인', [['김지찬', '중견수', 'L', 82, 28, 75, 90], ['이재현', '유격수', 'R', 75, 70, 60, 75], ['구자욱', '좌익수', 'L', 86, 86, 75, 70], ['디아즈', '1루수', 'L', 80, 95, 70, 45], ['김영웅', '3루수', 'L', 70, 88, 55, 65], ['강민호', '포수', 'R', 72, 75, 70, 35], ['류지혁', '2루수', 'R', 76, 40, 70, 70], ['김헌곤', '우익수', 'L', 72, 50, 60, 68], ['박병호', '지명타자', 'R', 66, 86, 80, 30]]],
+  ['두산 베어스', '곽빈', [['정수빈', '중견수', 'L', 84, 35, 75, 85], ['강승호', '2루수', 'R', 75, 68, 60, 65], ['양의지', '포수', 'R', 88, 85, 85, 35], ['김재환', '좌익수', 'L', 74, 88, 65, 50], ['양석환', '1루수', 'R', 72, 82, 60, 40], ['박준영', '유격수', 'R', 66, 60, 55, 72], ['이유찬', '3루수', 'R', 70, 35, 60, 82], ['김인태', '우익수', 'L', 72, 50, 65, 60], ['조수행', '지명타자', 'R', 58, 30, 50, 92]]],
+  ['SSG 랜더스', '김광현', [['최지훈', '중견수', 'L', 80, 50, 72, 85], ['박성한', '유격수', 'L', 82, 40, 78, 70], ['최정', '3루수', 'R', 80, 92, 88, 45], ['에레디아', '좌익수', 'L', 92, 70, 75, 70], ['한유섬', '우익수', 'L', 72, 86, 65, 55], ['고명준', '1루수', 'R', 64, 82, 55, 50], ['이지영', '포수', 'R', 74, 40, 75, 40], ['정준재', '2루수', 'L', 70, 35, 65, 80], ['오태곤', '지명타자', 'R', 70, 68, 60, 70]]],
+  ['롯데 자이언츠', '박세웅', [['황성빈', '중견수', 'L', 78, 30, 65, 95], ['고승민', '2루수', 'L', 82, 55, 72, 75], ['레이예스', '우익수', 'S', 92, 65, 78, 60], ['전준우', '좌익수', 'R', 80, 75, 78, 45], ['나승엽', '1루수', 'L', 78, 72, 70, 55], ['손호영', '3루수', 'R', 80, 72, 65, 65], ['유강남', '포수', 'R', 70, 65, 65, 38], ['박승욱', '유격수', 'R', 74, 45, 62, 70], ['윤동희', '지명타자', 'R', 82, 55, 72, 72]]],
+  ['NC 다이노스', '구창모', [['박민우', '2루수', 'L', 86, 35, 82, 78], ['김주원', '유격수', 'R', 72, 68, 60, 85], ['박건우', '우익수', 'R', 86, 62, 78, 60], ['데이비슨', '1루수', 'R', 74, 95, 62, 45], ['권희동', '좌익수', 'L', 74, 60, 85, 50], ['서호철', '3루수', 'R', 76, 50, 68, 62], ['김형준', '포수', 'R', 62, 78, 55, 50], ['천재환', '중견수', 'R', 68, 50, 55, 80], ['김휘집', '지명타자', 'L', 68, 66, 60, 65]]],
+  ['한화 이글스', '류현진', [['문현빈', '좌익수', 'L', 84, 55, 70, 75], ['황영묵', '2루수', 'L', 80, 30, 75, 70], ['노시환', '3루수', 'R', 74, 94, 70, 60], ['채은성', '1루수', 'R', 84, 78, 78, 45], ['플로리얼', '중견수', 'R', 78, 70, 70, 80], ['하주석', '유격수', 'L', 68, 58, 55, 65], ['최재훈', '포수', 'R', 72, 40, 82, 42], ['장진혁', '우익수', 'L', 68, 60, 60, 75], ['이도윤', '지명타자', 'R', 66, 35, 60, 78]]],
+  ['KT 위즈', '고영표', [['김민혁', '좌익수', 'L', 86, 38, 76, 70], ['김상수', '2루수', 'L', 78, 35, 72, 75], ['로하스', '우익수', 'S', 85, 92, 80, 70], ['강백호', '지명타자', 'L', 92, 80, 85, 60], ['황재균', '3루수', 'R', 76, 70, 68, 58], ['장성우', '포수', 'R', 72, 70, 72, 38], ['문상철', '1루수', 'R', 74, 76, 62, 45], ['배정대', '중견수', 'R', 70, 55, 60, 78], ['오윤석', '유격수', 'L', 66, 35, 58, 68]]],
+  ['키움 히어로즈', '하영민', [['이주형', '중견수', 'L', 80, 60, 68, 85], ['송성문', '3루수', 'R', 88, 70, 76, 68], ['최주환', '2루수', 'R', 78, 62, 76, 40], ['김건희', '포수', 'R', 68, 58, 60, 50], ['김태진', '1루수', 'L', 76, 40, 70, 65], ['이형종', '좌익수', 'R', 72, 64, 62, 62], ['박수종', '우익수', 'L', 70, 40, 60, 80], ['어준서', '유격수', 'R', 62, 35, 55, 72], ['김웅빈', '지명타자', 'R', 66, 64, 62, 55]]],
 ];
+const PITCH_DATA = [
+  ['임찬규', 'LG', 'R', 'three', 74, 72, 78, 0, ['fast', 'change', 'curve', 'slider']],
+  ['양현종', 'KIA', 'L', 'three', 76, 82, 92, -3, ['fast', 'slider', 'change', 'curve']],
+  ['원태인', '삼성', 'R', 'over', 82, 80, 84, 1, ['fast', 'change', 'slider', 'curve']],
+  ['곽빈', '두산', 'R', 'over', 88, 70, 80, 4, ['fast', 'fork', 'slider', 'curve']],
+  ['김광현', 'SSG', 'L', 'three', 80, 78, 80, 0, ['fast', 'slider', 'curve', 'change']],
+  ['박세웅', '롯데', 'R', 'over', 78, 72, 85, 1, ['fast', 'fork', 'slider', 'curve', 'change']],
+  ['구창모', 'NC', 'L', 'over', 90, 78, 60, 2, ['fast', 'slider', 'curve', 'change']],
+  ['류현진', '한화', 'L', 'three', 78, 95, 82, -4, ['change', 'curve', 'fast', 'slider']],
+  ['고영표', 'KT', 'R', 'under', 76, 92, 84, -14, ['change', 'fast', 'curve', 'sinker']],
+  ['하영민', '키움', 'R', 'over', 70, 74, 78, -1, ['fast', 'slider', 'change', 'curve']],
+  ['문동주', '한화', 'R', 'over', 92, 68, 70, 7, ['fast', 'slider', 'curve', 'change']],
+  ['안우진', '키움', 'R', 'over', 96, 78, 82, 6, ['fast', 'slider', 'curve', 'change']],
+  ['폰세', '한화', 'R', 'over', 94, 80, 84, 5, ['fast', 'curve', 'change', 'slider']],
+  ['네일', 'KIA', 'R', 'over', 86, 82, 80, 2, ['fast', 'slider', 'sinker', 'curve']],
+  ['박종훈', 'SSG', 'R', 'under', 72, 70, 70, -14, ['fast', 'curve', 'change']],
+  ['우규민', '삼성', 'R', 'side', 62, 85, 70, -10, ['fast', 'slider', 'sinker', 'change']],
+];
+const STYLE_KO = { over: '오버핸드', three: '쓰리쿼터', side: '사이드암', under: '언더핸드' };
+const HAND_BAT = { R: '우타', L: '좌타', S: '양타' }, HAND_PIT = { R: '우투', L: '좌투' };
+const PITCHERS = PITCH_DATA.map(([n, team, hand, style, stuff, ctrl, sta, velo, pitches], i) => ({ id: 'p' + i, n, team, hand, style, stuff, ctrl, sta, velo, pitches, pos: '선발투수', isP: true }));
+const HITTERS = [];
+const ROSTERS = TEAM_DATA.map(([team, sp, bats]) => ({
+  team, sp: PITCHERS.find(p => p.n === sp),
+  bat: bats.map(([n, pos, hand, c, p, e, s]) => { const h = { id: 'h' + HITTERS.length, n, pos, hand, c, p, e, s, team }; HITTERS.push(h); return h; }),
+}));
+const SLOTS = ['선발투수', '포수', '1루수', '2루수', '3루수', '유격수', '좌익수', '중견수', '우익수', '지명타자'];
+const ovr = p => p.isP ? p.stuff * 0.45 + p.ctrl * 0.4 + p.sta * 0.15 : p.c * 0.35 + p.p * 0.3 + p.e * 0.15 + p.s * 0.2;
+function autoOrder(bats) {     // 능력치 순위대로 2·3·1·4·5… 번 타순 배치
+  const sc_ = h => h.c * 0.5 + h.p * 0.4 + h.e * 0.1, s = [...bats].sort((a, b) => sc_(b) - sc_(a));
+  return [s[1], s[2], s[0], s[3], s[4], s[5], s[6], s[7], s[8]];
+}
+let SQUAD = null;      // [{ bat:[9], sp }, { bat:[9], sp }]
 
 /* =====================================================================
  *  타구 판정 시스템  (여기를 갈아끼우면 출루 방식이 바뀝니다)
@@ -329,13 +411,14 @@ const ROSTERS = [
  *    · 주자는 '수비수가 공을 잡은 위치·시간'과 '송구 시간'을 비교해 더 갈 수 있는 만큼만 진루
  *    · 위 어느 기준도 해당하지 않으면 그냥 아웃으로 처리
  * ===================================================================== */
-const SPRINT = 8.4, START = 0.35, TB = 27.4 / SPRINT;     // 주자 속도 / 출발 지연 / 한 베이스 시간
+const START = 0.35;                                        // 출발 지연 (주자 속도는 선수 '주력' 능력치로 결정)
+const sprintOf = p => p ? 6.6 + 2.6 * p.s / 99 : 8.4;
 const THROW = 27, XFER = 0.7, FSPEED = 7.0, REACT = 0.45; // 송구 속도 / 송구 준비 / 수비수 속도 / 반응
 const polar = (a, d) => { const r = a * Math.PI / 180; return { x: Math.sin(r) * d, y: Math.cos(r) * d }; };
 const gd = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
 const BASEP = [polar(45, 27.4), polar(0, 38.8), polar(-45, 27.4), { x: 0, y: 0 }];
 const bpos = n => BASEP[(n + 3) % 4];                      // 0=홈, 1~3=루, 4=홈(득점)
-const bt = (s, n) => START + (n - s) * TB;                 // s루에서 n루까지 걸리는 시간
+const btm = (m, n) => START + (n - m.s) * 27.4 / sprintOf(m.p);   // 주자 m이 n루까지 걸리는 시간
 const FNAME = ['투수', '1루수', '2루수', '유격수', '3루수', '좌익수', '중견수', '우익수', '포수'];
 const FSHORT = ['투', '1', '2', '유', '3', '좌', '중', '우', '포'];
 const FPOS = [polar(0, 18.4), polar(38, 30), polar(14, 41), polar(-14, 41), polar(-38, 30), polar(-26, 82), polar(0, 92), polar(26, 82), { x: 0, y: -1.5 }];
@@ -368,7 +451,7 @@ function buildPaths(plan) {
     m.pts = [{ t: 0, x: p0.x, y: p0.y }];
     if (m.f > m.s) {
       m.pts.push({ t: st, x: p0.x, y: p0.y });
-      for (let k = m.s + 1; k <= m.f; k++) { const p = bpos(k); m.pts.push({ t: st + (k - m.s) * TB, x: p.x, y: p.y }); }
+      for (let k = m.s + 1; k <= m.f; k++) { const p = bpos(k); m.pts.push({ t: st + (k - m.s) * 27.4 / sprintOf(m.p), x: p.x, y: p.y }); }
     }
   });
 }
@@ -383,8 +466,8 @@ function playBall(b, st) {
   const throwTo = (t, from, to) => { const t1 = t + Math.max(0.25, gd(from, to) / THROW); seg(t, t1, from, to, 1.5 + gd(from, to) * 0.04); return t1; };
   const sample = (t0, t1, pos, arc) => { const n = Math.max(1, Math.ceil((t1 - t0) / 0.12)); for (let k = 0; k < n; k++) { const a = lerp(t0, t1, k / n), c = lerp(t0, t1, (k + 1) / n); seg(a, c, pos(a), pos(c), arc); } };
 
-  const bat = { s: 0, f: 0 };
-  const mov = [bat]; bases.forEach((on, i) => { if (on) mov.push({ s: i + 1, f: i + 1 }); });
+  const bat = { s: 0, f: 0, p: st.batter };
+  const mov = [bat]; bases.forEach((on, i) => { if (on) mov.push({ s: i + 1, f: i + 1, p: on }); });
   plan.mov = mov;
   const run = s => mov.find(m => m.s === s);
   const res = { plan, hit: false, ab: true, kind: '', label: '' };
@@ -416,7 +499,7 @@ function playBall(b, st) {
   const settle = () => {
     buildPaths(plan);
     let outs = 0, runs = 0; const nb = [false, false, false];
-    mov.forEach(m => { if (m.out) outs++; else if (m.f === 4) runs++; else if (m.f >= 1) nb[m.f - 1] = true; });
+    mov.forEach(m => { if (m.out) outs++; else if (m.f === 4) runs++; else if (m.f >= 1) nb[m.f - 1] = m.p || true; });
     res.outs = outs; res.runs = runs; res.nb = nb; res.rbi = res.kind === 'DP' ? 0 : runs;
     return res;
   };
@@ -442,7 +525,7 @@ function playBall(b, st) {
     let sf = false;
     const r3 = run(3);
     if (res.kind === 'FO' && r3 && outs0 < 2 && gd(pf, home) >= 45) {       // 희생플라이: 태그업 후 홈 송구보다 빨리 들어오면
-      const arrive = Th + 0.1 + TB, A = Th + XFER + gd(pf, home) / THROW;
+      const arrive = Th + 0.1 + 27.4 / sprintOf(r3.p), A = Th + XFER + gd(pf, home) / THROW;
       if (arrive + 0.3 < A) { sf = true; r3.f = 4; r3.startT = Th + 0.1; }
     }
     if (sf) { throwTo(Th + XFER, pf, home); res.kind = 'SF'; res.label = `${FNAME[fi]} 희생플라이`; res.ab = false; fGo(8, 0.3, 1, home); }
@@ -460,18 +543,18 @@ function playBall(b, st) {
   if (run(1) && outs0 < 2) {
     const carry = fi === 2 || fi === 3;
     const A2 = carry ? tf + gd(pf, bpos(2)) / FSPEED : A(2);
-    if (A2 < bt(1, 2)) {
+    if (A2 < btm(run(1), 2)) {
       if (carry) fGo(fi, tf, A2, bpos(2)); else { toBag(2); throwTo(tf + XFER, pf, bpos(2)); }
       const r1 = run(1); r1.f = 2; r1.out = true; r1.outT = A2;
       flash(A2, bpos(2), 'OUT!', 'out');
       const A1b = A2 + 0.45 + gd(bpos(2), bpos(1)) / THROW;
       throwTo(A2 + 0.45, bpos(2), bpos(1));
       fGo(1, 0.3, 0.3 + gd(FPOS[1], bpos(1)) / FSPEED, bpos(1));
-      if (A1b < bt(0, 1)) {
+      if (A1b < btm(bat, 1)) {
         bat.f = 1; bat.out = true; bat.outT = A1b; flash(A1b, bpos(1), 'OUT!', 'out');
         res.kind = 'DP'; res.label = '병살타!';
       } else {
-        bat.f = 1; flash(bt(0, 1), bpos(1), 'SAFE', 'safe');
+        bat.f = 1; flash(btm(bat, 1), bpos(1), 'SAFE', 'safe');
         res.kind = 'FC'; res.label = '야수 선택';
       }
       if (!endIfOut(res.kind === 'DP' ? 2 : 1)) {                              // 포스 연쇄 진루
@@ -487,7 +570,7 @@ function playBall(b, st) {
   const B1 = bpos(1);
   let A1;
   if (fi === 1) A1 = tf + gd(pf, B1) / FSPEED; else A1 = A(1);
-  if (A1 < bt(0, 1)) {
+  if (A1 < btm(bat, 1)) {
     if (fi === 1) fGo(1, tf, A1, B1); else { toBag(1); throwTo(tf + XFER, pf, B1); }
     bat.f = 1; bat.out = true; bat.outT = A1; flash(A1, B1, 'OUT!', 'out');
     res.kind = 'GO'; res.label = `${FNAME[fi]} ${b.type === 'ground' ? '땅볼' : '타구'} 아웃`;
@@ -505,20 +588,20 @@ function playBall(b, st) {
 
   // 안타: 타자주자가 갈 수 있는 만큼 (송구 도착 시간과 비교)
   let bB = 1;
-  while (bB < 3 && bt(0, bB + 1) - 0.2 <= A(bB + 1)) bB++;
+  while (bB < 3 && btm(bat, bB + 1) - 0.2 <= A(bB + 1)) bB++;
   bat.f = bB;
   let lead = 99;
   for (let s = 3; s >= 1; s--) {
     const r = run(s); if (!r) continue;
     let n = Math.min(4, s + bB);
-    while (n < 4 && (n + 1 < lead || n + 1 === 4) && bt(s, n + 1) - 0.2 <= A(n + 1)) n++;
+    while (n < 4 && (n + 1 < lead || n + 1 === 4) && btm(r, n + 1) - 0.2 <= A(n + 1)) n++;
     r.f = n; lead = n === 4 ? 99 : n;
   }
   const scoring = mov.some(m => m.s > 0 && m.f === 4);
   const tgt = scoring ? 4 : bB;
   if (tgt === 4) fGo(8, 0.3, 1, home); else toBag(tgt);
   const Ar = throwTo(tf + XFER, pf, bpos(tgt));
-  flash(Math.max(Ar, bt(0, bB)) + 0.05, bpos(bB), 'SAFE', 'safe');
+  flash(Math.max(Ar, btm(bat, bB)) + 0.05, bpos(bB), 'SAFE', 'safe');
   const inf = gd(pf, home) < 45;
   res.kind = ['1B', '2B', '3B'][bB - 1]; res.hit = true;
   const zone = b.spray < -12 ? '좌' : b.spray > 12 ? '우' : '중';
@@ -532,7 +615,7 @@ function foulPlan(b) {
   const Th = clamp(2 * b.ev * sn / 9.8 * 0.75, 0.9, 5), d = clamp(b.dist, 18, 80);
   plan.ball.push({ t0: 0, t1: Th, a: BASEP[3], b: polar(b.spray, d), arc: clamp(b.ev * b.ev * sn * sn / 19.6 * 0.6, 1, 40) });
   plan.ev.push({ t: Th, p: polar(b.spray, d), text: 'FOUL', cls: 'foul' });
-  G.bases.forEach((on, i) => { if (on) plan.mov.push({ s: i + 1, f: i + 1 }); });
+  G.bases.forEach((on, i) => { if (on) plan.mov.push({ s: i + 1, f: i + 1, p: on }); });
   buildPaths(plan);
   return plan;
 }
@@ -544,7 +627,7 @@ const RESULT_SYSTEMS = {
 /* =====================================================================
  *  상태
  * ===================================================================== */
-const DEFAULTS = { names: ['원정팀', '홈팀'], colors: ['#e0443e', '#3b82f6'], mode: '1p', side: 0, innings: 3, diff: 'normal', extra: '3', cold: 0, system: 'sim', lineups: [0, 1] };
+const DEFAULTS = { names: ['원정팀', '홈팀'], colors: ['#e0443e', '#3b82f6'], mode: '1p', side: 0, innings: 3, diff: 'normal', extra: '3', cold: 0, system: 'sim', lineups: [0, 1], squad: 'draft' };
 let S = { ...DEFAULTS };
 let G = null;
 
@@ -576,6 +659,7 @@ let selectResolve = null;
 function loadSettings() {
   try { Object.assign(S, JSON.parse(localStorage.getItem('baseball.settings') || '{}')); } catch (e) {}
   if (!RESULT_SYSTEMS[S.system]) S.system = 'sim';
+  if (S.squad !== 'draft' && S.squad !== 'preset') S.squad = 'draft';
   if (!Array.isArray(S.lineups) || S.lineups.some(i => !ROSTERS[i])) S.lineups = [0, 1];
   S.names = (S.names || DEFAULTS.names).slice(0, 2); S.colors = (S.colors || DEFAULTS.colors).slice(0, 2);
 }
@@ -591,6 +675,9 @@ function refreshSetup() {
   $('#optSide').classList.toggle('hidden', S.mode !== '1p');
   $('#optDiff').classList.toggle('hidden', S.mode !== '1p');
   $('#inVal').textContent = S.innings;
+  $('#selSquad').value = S.squad;
+  document.querySelectorAll('select.line').forEach(el => el.classList.toggle('hidden', S.squad !== 'preset'));
+  $('#startBtn').textContent = S.squad === 'draft' ? '▶ 다음: 선수 드래프트' : '▶ 경기 시작';
 }
 function initSetup() {
   loadSettings();
@@ -602,6 +689,7 @@ function initSetup() {
   const opts = ROSTERS.map((r, i) => `<option value="${i}">${esc(r.team)} 선수단</option>`).join('');
   $('#lineAway').innerHTML = opts; $('#lineHome').innerHTML = opts;
   $('#lineAway').value = S.lineups[0]; $('#lineHome').value = S.lineups[1];
+  $('#selSquad').onchange = () => { S.squad = $('#selSquad').value; refreshSetup(); };
   segInit('#segMode', () => S.mode, v => S.mode = v);
   segInit('#segSide', () => S.side, v => S.side = +v);
   $('#inMinus').onclick = () => { S.innings = clamp(S.innings - 1, 1, 12); refreshSetup(); };
@@ -613,7 +701,7 @@ function readSetup() {
   if (S.names[0] === S.names[1]) S.names[1] += ' ';
   S.colors = [$('#colAway').value, $('#colHome').value];
   S.diff = $('#selDiff').value; S.extra = $('#selExtra').value; S.cold = +$('#selCold').value; S.system = $('#selSys').value;
-  S.lineups = [+$('#lineAway').value, +$('#lineHome').value];
+  S.lineups = [+$('#lineAway').value, +$('#lineHome').value]; S.squad = $('#selSquad').value;
   saveSettings();
 }
 
@@ -650,8 +738,11 @@ function renderMatchup() {
   const t = G.half, d = 1 - t, i = G.order[t] % 9;
   const p = G.roster[t].bat[i], sp = G.roster[d].sp;
   const st = p.ab || p.bb ? `오늘 ${p.ab}타수 ${p.h}안타${p.hr ? ` ${p.hr}홈런` : ''}${p.rbi ? ` ${p.rbi}타점` : ''}${p.bb ? ` ${p.bb}볼넷` : ''}` : '오늘 첫 타석';
+  const hand = p.hand === 'S' ? (sp.hand === 'R' ? '양타(좌)' : '양타(우)') : HAND_BAT[p.hand];
   $('#mu').style.setProperty('--tc', S.colors[t]);
-  $('#mu').innerHTML = `<div class="bt"><b>${i + 1}번</b>${esc(p.n)}<small>${esc(p.pos)}</small></div><div class="st">${st}</div><div class="pt">⚾ ${esc(sp.n)}<small>투구수 ${sp.pc}</small></div>`;
+  $('#mu').innerHTML = `<div class="bt"><b>${i + 1}번</b>${esc(p.n)}<small>${esc(p.pos)} · ${hand}</small></div>`
+    + `<div class="rt">${statLine(p)}</div><div class="st">${st}</div>`
+    + `<div class="pt">⚾ ${esc(sp.n)}<small>${HAND_PIT[sp.hand]} · ${STYLE_KO[sp.style]} · 투구수 ${sp.pc}</small></div><div class="rt">${statLine(sp)}</div>`;
 }
 
 /* ---- 배너 ---- */
@@ -671,10 +762,10 @@ function setTip(html) { $('#tip').innerHTML = html; }
  *  경기 진행
  * ===================================================================== */
 function newGame() {
-  G = { inning: 1, half: 0, outs: 0, balls: 0, strikes: 0, bases: [false, false, false], score: [[], []], hits: [0, 0], over: false, lastSpeed: 0, lastPitch: null, note: '',
+  G = { inning: 1, half: 0, outs: 0, balls: 0, strikes: 0, bases: [null, null, null], score: [[], []], hits: [0, 0], over: false, lastSpeed: 0, lastPitch: null, note: '',
     order: [0, 0],
-    roster: [0, 1].map(t => { const r = ROSTERS[S.lineups[t]]; return { team: r.team, bat: r.bat.map(([n, pos]) => ({ n, pos, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0 })), sp: { n: r.sp, pc: 0 } }; }) };
-  V.mode = 'idle'; V.fplan = null; V.ball = null; V.swing = null; V.mark = null; V.info = null; V.fb = null;
+    roster: [0, 1].map(t => ({ bat: SQUAD[t].bat.map(p => ({ ...p, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0 })), sp: { ...SQUAD[t].sp, pc: 0 } })) };
+  V.atBat = 0; V.batHand = 'R'; V.mode = 'idle'; V.fplan = null; V.ball = null; V.swing = null; V.mark = null; V.info = null; V.fb = null;
 }
 
 async function playGame() {
@@ -686,7 +777,7 @@ async function playGame() {
 }
 
 async function playHalf() {
-  G.outs = 0; G.bases = [false, false, false]; G.balls = 0; G.strikes = 0;
+  G.outs = 0; G.bases = [null, null, null]; G.balls = 0; G.strikes = 0; V.atBat = G.half;
   if (G.score[G.half][G.inning - 1] === undefined) G.score[G.half][G.inning - 1] = 0;
   V.mode = 'idle'; V.fplan = null; V.ball = null; V.swing = null; V.mark = null; V.info = null;
   renderHUD();
@@ -726,47 +817,59 @@ async function plateAppearance() {
 }
 
 /* ---- 한 구 ---- */
+function fatigueOf(pit) { return Math.max(0, pit.pc - (50 + pit.sta * 0.55)); }
+function scatterSigma(pit, key, human) {        // 던질 때 목표에서 벗어나는 정도(칸). 제구·체력·구종이 영향
+  const base = human ? DIFF.normal.pScat : DIFF[S.diff].pScat;
+  return base * PITCHES[key].sc * (1.5 - 0.8 * pit.ctrl / 99) * (1 + fatigueOf(pit) * 0.02);
+}
+
 async function doPitch() {
   const defTeam = 1 - G.half, batTeam = G.half;
   const defHuman = isHuman(defTeam), batHuman = isHuman(batTeam);
-  V.atBat = batTeam;
+  const pit = G.roster[defTeam].sp, bat = G.roster[batTeam].bat[G.order[batTeam] % 9];
+  const batHand = bat.hand === 'S' ? (pit.hand === 'R' ? 'L' : 'R') : bat.hand;
+  V.atBat = batTeam; V.batHand = batHand;
   V.swing = null; V.fb = null; V.ball = null; V.windup = null; V.canSwing = false; swingReq = null;
   V.showAim = batHuman;
 
   /* 1) 투수: 구종·코스 선택 */
   let ch;
   if (defHuman) {
-    ch = await humanPitch();
+    ch = await humanPitch(pit);
   } else {
     V.mode = 'wait';
-    setTip(batHuman ? `<b>${esc(tn(defTeam))}</b> 투수가 던질 준비를 합니다. 마우스로 <b>공 위치를 조준</b>하세요.` : '');
+    setTip(batHuman ? `<b>${esc(pit.n)}</b> 투수가 던질 준비를 합니다. 마우스로 <b>공 위치를 조준</b>하세요.` : '');
     $('#defPanel').classList.add('hidden');
     await sleep(batHuman ? 700 : 450);
-    ch = cpuPitch();
+    ch = cpuPitch(pit);
   }
   $('#defPanel').classList.add('hidden');
 
   const pt = PITCHES[ch.type];
-  const sig = (defHuman ? DIFF.normal.pScat : DIFF[S.diff].pScat) * pt.sc;
+  const fat = fatigueOf(pit);
+  const sig = scatterSigma(pit, ch.type, defHuman);
   const loc = { u: clamp(ch.u + gauss() * sig, -2.7, 2.7), v: clamp(ch.v + gauss() * sig, -2.7, 2.7) };
-  const inZone = Math.abs(loc.u) <= 1.5 && Math.abs(loc.v) <= 1.5;
-  const speed = rnd(pt.spd);
+  const zEdge = 1.5 - (bat.e - 70) * 0.002;                  // 선구안 좋은 타자는 존 가장자리가 볼로 판정되기 쉬움
+  const inZone = Math.abs(loc.u) <= zEdge && Math.abs(loc.v) <= zEdge;
+  const speed = rnd(pt.spd) + pit.velo - fat * 0.05;
   const T = (1100 + (150 - speed) * 10) * (batHuman ? DIFF[S.diff].tScale : 1);
+  const A = [pt.A[0] * (pit.hand === 'L' ? -1 : 1), pt.A[1] + (pit.style === 'under' ? 0.45 : 0)];   // 좌투는 반대로 휘고, 언더는 떠오르듯 날아옴
+  const start = releasePoint(pit);
 
   /* 2) 와인드업 → 릴리스 */
   V.mode = 'pitch'; V.sel = null; V.hover = null; V.mark = null; V.info = null;
   if (batHuman) setTip('공이 홈플레이트에 닿을 때 <b>클릭 / Space / 터치 후 떼기</b>로 스윙!');
-  else setTip(`<b>${esc(tn(defTeam))}</b> 투구 중…`);
+  else setTip(`<b>${esc(pit.n)}</b> 투구 중…`);
   V.windup = { t0: performance.now() };
   await sleep(WIND_MS);
   const rel = performance.now();
-  V.ball = { loc, pt, rel, T, hidden: false };
+  V.ball = { loc, pt, A, start, rel, T, hidden: false };
   V.canSwing = batHuman;
-  G.roster[defTeam].sp.pc++; renderMatchup();
+  pit.pc++; renderMatchup();
 
   /* CPU 타자 계획 */
   let plan = null;
-  if (!batHuman) plan = cpuBatPlan(loc, pt, speed, inZone);
+  if (!batHuman) plan = cpuBatPlan(loc, pt, speed, inZone, bat);
   const arrive = rel + T;
 
   /* 3) 스윙 대기 */
@@ -796,7 +899,7 @@ async function doPitch() {
   const dt = swingTs - arrive;
   V.swing = { t0: swingTs, u: aim.u, v: aim.v };
   V.fb = { text: timingText(dt), t0: performance.now() };
-  const b = contactBall(dt, aim.u, aim.v, loc, pt, inZone);
+  const b = contactBall(dt, aim.u, aim.v, loc, pt, inZone, bat, pit, batHand);
 
   if (!b) {                                     // 헛스윙
     await waitUntil(arrive + 150);
@@ -808,7 +911,7 @@ async function doPitch() {
   finishInfo();
   if (b.foul) {
     await playPlan(foulPlan(b));
-    await banner('파울!', G.strikes >= 2 ? '' : '', 'bad', 600);
+    await banner('파울!', '', 'bad', 600);
     return { ev: 'foul' };
   }
   return { ev: 'inplay', ball: b };
@@ -833,16 +936,20 @@ function zoneName(u, v) {
 }
 
 /* ---- 타구 계산 ---- */
-function contactBall(dt, au, av, loc, pt, inZone) {
-  const tq = Math.max(0, 1 - Math.abs(dt) / WIN);
+function contactBall(dt, au, av, loc, pt, inZone, bat, pit, batHand) {
+  const cm = (1 + (bat.c - 70) * 0.004) * (batHand === pit.hand ? 0.96 : 1);   // 컨택 능력 · 같은 손 투수에겐 약간 불리
+  const win = WIN * cm, br = BAT_R * cm;
+  const tq = Math.max(0, 1 - Math.abs(dt) / win);
   const d = Math.hypot(au - loc.u, av - loc.v);
-  const lq = Math.max(0, 1 - d / BAT_R);
+  const lq = Math.max(0, 1 - d / br);
   if (tq <= 0 || lq <= 0) return null;
-  let q = Math.pow(0.5 * tq + 0.5 * lq, 0.85);
+  let q = Math.pow(0.5 * tq + 0.5 * lq, 0.85) * (1.06 - 0.16 * pit.stuff / 99);  // 투수 구위가 좋을수록 타구 품질 하락
   if (!inZone) q *= 0.8;
+  q = Math.min(q, 1);
   const L = 12 + (av - loc.v) * 26 + gauss() * 6 + pt.lb;
-  const spray = -(dt / WIN) * 70 + (au - loc.u) * 14 + gauss() * 11;
-  const ev = 24 + 32 * q;
+  const pull = batHand === 'R' ? -1 : 1;                                       // 좌타는 당겨치면 우측으로
+  const spray = pull * (dt / WIN) * 70 + (au - loc.u) * 14 + gauss() * 11;
+  const ev = Math.min(60, (24 + 32 * q) * (0.88 + 0.24 * bat.p / 99));         // 파워 능력
   const th = Math.max(0, L) * Math.PI / 180;
   let dist = ev * ev * Math.sin(2 * th) / 9.8 * 0.5;
   if (L < 25) dist += ev * 0.8 * (1 - Math.max(0, L) / 25);
@@ -851,58 +958,71 @@ function contactBall(dt, au, av, loc, pt, inZone) {
 }
 
 /* ---- CPU ---- */
-function cpuPitch() {
-  const behind = G.balls >= 2 && G.balls > G.strikes, ahead = G.strikes === 2;
-  const w = { fast: 30, slider: 20, curve: 12, change: 12, fork: 10, sinker: 16 };
-  if (ahead) { w.fork += 15; w.curve += 8; w.slider += 6; }
-  if (behind) { w.fast += 25; w.sinker += 10; w.fork = 3; w.curve = 4; }
-  if (G.lastPitch) w[G.lastPitch] *= 0.45;
-  let tot = 0; for (const k in w) tot += w[k];
-  let x = rand() * tot, type = 'fast';
-  for (const k in w) { x -= w[k]; if (x <= 0) { type = k; break; } }
-  const strikeP = behind ? 0.88 : ahead ? 0.35 : 0.62;
-  let u, v;
-  if (rand() < strikeP) { u = Math.floor(rand() * 3) - 1; v = Math.floor(rand() * 3) - 1; if (!ahead && rand() < 0.3) { u = 0; v = 0; } }
-  else {
-    const edge = [-2, -1, 0, 1, 2];
-    do { u = edge[Math.floor(rand() * 5)]; v = edge[Math.floor(rand() * 5)]; } while (Math.max(Math.abs(u), Math.abs(v)) < 2);
-    if (type === 'fork' || type === 'curve') v = 2;
+function cpuTarget(behind, ahead, type) {         // 존 안(모서리 포함)·밖을 자유롭게 노림
+  const sgn = () => rand() < 0.5 ? -1 : 1;
+  if (rand() < (behind ? 0.88 : ahead ? 0.35 : 0.62)) {
+    let u, v;
+    const r = rand();
+    if (r < 0.5) { u = sgn() * (0.8 + rand() * 0.55); v = sgn() * (0.8 + rand() * 0.55); }       // 모서리
+    else if (r < 0.8) { u = (rand() * 2 - 1) * 1.3; v = (rand() * 2 - 1) * 1.3; }
+    else { u = (rand() * 2 - 1) * 0.5; v = (rand() * 2 - 1) * 0.5; }
+    if (behind) { u *= 0.7; v *= 0.7; }
+    return { u, v };
   }
-  return { type, u, v };
+  let u = (rand() * 2 - 1) * 1.5, v = (rand() * 2 - 1) * 1.5;
+  if (rand() < 0.5) u = sgn() * (1.7 + rand() * 0.6); else v = sgn() * (1.7 + rand() * 0.6);
+  if (type === 'fork' || type === 'curve') v = 1.8 + rand() * 0.6;
+  return { u, v };
+}
+function cpuPitch(pit) {
+  const behind = G.balls >= 2 && G.balls > G.strikes, ahead = G.strikes === 2;
+  const w = {};
+  pit.pitches.forEach(k => { w[k] = k === 'fast' ? 32 : 16; });
+  const add = (k, n) => { if (w[k] !== undefined) w[k] += n; };
+  if (ahead) { add('fork', 12); add('curve', 8); add('slider', 6); add('change', 5); }
+  if (behind) { add('fast', 25); add('sinker', 8); if (w.fork) w.fork = 3; if (w.curve) w.curve = 4; }
+  if (G.lastPitch && w[G.lastPitch] !== undefined) w[G.lastPitch] *= 0.45;
+  let tot = 0; for (const k in w) tot += w[k];
+  let x = rand() * tot, type = pit.pitches[0];
+  for (const k in w) { x -= w[k]; if (x <= 0) { type = k; break; } }
+  return { type, ...cpuTarget(behind, ahead, type) };
 }
 
-function cpuBatPlan(loc, pt, speed, inZone) {
+function cpuBatPlan(loc, pt, speed, inZone, bat) {
   const D = DIFF[S.diff];
   const m = Math.max(Math.abs(loc.u), Math.abs(loc.v));
-  let ps = inZone ? D.zone : D.chase * clamp(1.6 - (m - 1.5) * 1.4, 0, 1.2);
+  let ps = inZone ? D.zone : D.chase * clamp(1.6 - (m - 1.5) * 1.4, 0, 1.2) * clamp(1 + (70 - bat.e) * 0.01, 0.3, 1.8);
   if (G.strikes === 2) ps = inZone ? Math.max(ps, 0.92) : Math.min(0.6, ps + 0.18);
   if (G.balls === 3 && G.strikes < 2 && !inZone) ps *= 0.4;
   if (!G.strikes && !G.balls && inZone) ps *= 0.9;
   if (rand() > ps) return { swing: false };
+  const skill = 1 + (70 - bat.c) * 0.006;
   const mis = G.lastSpeed ? clamp(Math.abs(speed - G.lastSpeed) / 30, 0, 1.2) : 0;
-  const tSig = D.tSig * (1 + 0.9 * mis);
-  const aSig = D.aSig * (1 + 0.3 * Math.min(Math.hypot(loc.u, loc.v) / 1.5, 1.5)) * (pt.brk ? 1.15 : 1);
+  const tSig = D.tSig * (1 + 0.9 * mis) * skill;
+  const aSig = D.aSig * (1 + 0.3 * Math.min(Math.hypot(loc.u, loc.v) / 1.5, 1.5)) * (pt.brk ? 1.15 : 1) * skill;
   return { swing: true, dt: gauss() * tSig, u: loc.u + gauss() * aSig, v: loc.v + 0.12 + gauss() * aSig };
 }
 
 /* ---- 사람 투수 입력 ---- */
-function humanPitch() {
+function humanPitch(pit) {
   V.mode = 'select'; V.sel = null; V.hover = null;
-  buildPitchBar();
+  if (!pit.pitches.includes(V.pitchType)) V.pitchType = pit.pitches[0];
+  buildPitchBar(pit);
   $('#defPanel').classList.remove('hidden');
-  setTip(`<b>${esc(tn(1 - G.half))}</b> 투수 — 구종을 고르고 코스를 선택하세요. 같은 칸을 한 번 더 누르면 던집니다. <span style="color:var(--gold)">(키보드 1~6 구종 · Space 던지기)</span>`);
+  setTip(`<b>${esc(pit.n)}</b> (${HAND_PIT[pit.hand]} · ${STYLE_KO[pit.style]}) — 구종을 고르고 <b>존 안팎 어디든</b> 클릭해 코스를 잡으세요(모서리도 OK). 같은 자리를 한 번 더 누르면 던집니다. <span style="color:var(--gold)">(키 1~${pit.pitches.length} 구종 · Space 던지기)</span>`);
   return new Promise(res => { selectResolve = res; });
 }
-function buildPitchBar() {
-  $('#pitchBar').innerHTML = PITCH_KEYS.map((k, i) => {
-    const p = PITCHES[k];
-    return `<button class="pbtn ${k === V.pitchType ? 'on' : ''}" data-k="${k}"><span class="ic">${p.icon}</span><span class="nm">${i + 1}. ${p.name}</span><span class="sp">${p.spd[0]}~${p.spd[1]}km/h</span></button>`;
+function buildPitchBar(pit) {
+  pit = pit || G.roster[1 - G.half].sp;
+  $('#pitchBar').innerHTML = pit.pitches.map((k, i) => {
+    const p = PITCHES[k], sp = `${Math.round(p.spd[0] + pit.velo)}~${Math.round(p.spd[1] + pit.velo)}km/h`;
+    return `<button class="pbtn ${k === V.pitchType ? 'on' : ''}" data-k="${k}"><span class="ic">${p.icon}</span><span class="nm">${i + 1}. ${p.name}</span><span class="sp">${sp}</span></button>`;
   }).join('');
 }
 function pickPitch(k) { V.pitchType = k; buildPitchBar(); }
 function tryThrow() {
   if (!selectResolve) return;
-  if (!V.sel) { setTip('⚠️ 먼저 <b>코스(격자 칸)</b>를 선택하세요!'); return; }
+  if (!V.sel) { setTip('⚠️ 먼저 <b>코스</b>를 클릭해 정하세요!'); return; }
   const r = selectResolve; selectResolve = null;
   V.mode = 'wait';
   r({ type: V.pitchType, u: V.sel.u, v: V.sel.v });
@@ -917,30 +1037,31 @@ function trySwing() {
 /* ---- 타석 종료 ---- */
 const LABEL = { K: '삼진 아웃!', KL: '스탠딩 삼진!', BB: '볼넷' };
 
-function walkResult() {
+function walkResult(batter) {
   const bs = G.bases, plan = newPlan(2.2);
   plan.ball.push({ t0: 0, t1: 0.6, a: BASEP[3], b: BASEP[3], arc: 0 });
-  const mov = [{ s: 0, f: 1 }];
+  const mov = [{ s: 0, f: 1, p: batter }];
   bs.forEach((on, i) => {
     if (!on) return;
     const s = i + 1; let f = s;
     if (s === 1) f = 2; else if (s === 2 && bs[0]) f = 3; else if (s === 3 && bs[0] && bs[1]) f = 4;
-    mov.push({ s, f });
+    mov.push({ s, f, p: on });
   });
   plan.mov = mov; buildPaths(plan);
   const nb = [false, false, false]; let runs = 0;
-  mov.forEach(m => { if (m.f === 4) runs++; else nb[m.f - 1] = true; });
+  mov.forEach(m => { if (m.f === 4) runs++; else nb[m.f - 1] = m.p; });
   return { kind: 'BB', label: '볼넷', runs, outs: 0, nb, hit: false, ab: false, rbi: runs, plan };
 }
 
 async function finishPA(kind, b) {
   const batTeam = G.half;
+  const p = G.roster[batTeam].bat[G.order[batTeam] % 9];
   let res;
   if (kind === 'BIP') {
-    res = RESULT_SYSTEMS[S.system].play(b, { outs: G.outs, bases: G.bases });
+    res = RESULT_SYSTEMS[S.system].play(b, { outs: G.outs, bases: G.bases, batter: p });
     await playPlan(res.plan);
   } else if (kind === 'BB') {
-    res = walkResult();
+    res = walkResult(p);
     await playPlan(res.plan);
   } else {
     res = { kind, label: LABEL[kind], runs: 0, outs: 1, nb: G.bases.slice(), hit: false, ab: true, rbi: 0 };
@@ -948,7 +1069,6 @@ async function finishPA(kind, b) {
   const runs = G.outs + res.outs >= 3 && !res.hit ? 0 : res.runs;
   G.bases = res.nb; G.outs += res.outs;
   G.score[batTeam][G.inning - 1] = (G.score[batTeam][G.inning - 1] || 0) + runs;
-  const p = G.roster[batTeam].bat[G.order[batTeam] % 9];
   if (res.ab) p.ab++;
   if (res.hit) { p.h++; G.hits[batTeam]++; }
   if (res.kind === 'HR') p.hr++;
@@ -1038,47 +1158,107 @@ function buildBG() {
   BG = c;
 }
 
+/* ---- 투수 모션 ----
+ *  로컬 좌표: 발 중앙이 (0,0), 위쪽이 -y, +x 는 '던지는 팔 쪽'. 우투는 화면 왼쪽(-x), 좌투는 오른쪽에 팔이 보인다.
+ *  w = 경과시간 / WIND_MS  →  w=1 이 릴리스, 1~1.45 는 팔로스루
+ */
+const PBASE = { x: 480, y: 224 }, PS = 1.1;
+const sm = u => u * u * (3 - 2 * u);
+const kf = (arr, w) => {
+  if (w <= arr[0][0]) return { x: arr[0][1], y: arr[0][2] };
+  for (let i = 1; i < arr.length; i++) if (w <= arr[i][0]) {
+    const a = arr[i - 1], b = arr[i], u = sm((w - a[0]) / (b[0] - a[0]));
+    return { x: lerp(a[1], b[1], u), y: lerp(a[2], b[2], u) };
+  }
+  const l = arr[arr.length - 1]; return { x: l[1], y: l[2] };
+};
+const HKF = {   // 던지는 손의 어깨 기준 위치: [w, 바깥쪽 x, 아래쪽 y]
+  over:  [[0, -9, 8], [0.28, 2, 20], [0.5, 22, 22], [0.72, 26, -6], [0.88, 12, -28], [1.0, 3, -33], [1.2, -8, 6], [1.45, -14, 22]],
+  side:  [[0, -9, 8], [0.28, 4, 20], [0.5, 26, 14], [0.72, 32, 4], [0.88, 22, 2], [1.0, 10, 2], [1.2, -8, 12], [1.45, -14, 22]],
+  under: [[0, -9, 8], [0.28, 2, 22], [0.5, 20, 30], [0.72, 30, 34], [0.88, 18, 36], [1.0, 6, 33], [1.2, -2, 6], [1.45, -12, -4]],
+};
+HKF.three = HKF.over.map((k, i) => [k[0], lerp(k[1], HKF.side[i][1], 0.45), lerp(k[2], HKF.side[i][2], 0.45)]);
+const GKF = [[0, -9, 8], [0.28, -3, 14], [0.5, 10, 0], [0.72, 22, -12], [0.88, 20, -4], [1.0, 10, 8], [1.45, -4, 16]];   // 글러브 손
+const LEAD_FOOT = [[0, -6, 0], [0.18, -6, 0], [0.45, -8, -26], [0.7, -10, -20], [1.0, -13, 3], [1.45, -13, 3]];         // 디딤발(앞발)
+const LEAD_KNEE = [[0, -6, -17], [0.18, -6, -17], [0.45, -13, -43], [0.7, -13, -38], [1.0, -12, -18], [1.45, -12, -18]];
+
+function ik2(sx, sy, tx, ty, l, side) {     // 팔 2마디 역운동학: 팔꿈치 위치와 (닿을 수 있는 범위로 제한한) 손 위치
+  let dx = tx - sx, dy = ty - sy, dist = Math.hypot(dx, dy) || 1e-6;
+  const max = 2 * l - 0.5;
+  if (dist > max) { dx *= max / dist; dy *= max / dist; dist = max; }
+  const h = Math.sqrt(Math.max(0, l * l - dist * dist / 4)), mx = sx + dx / 2, my = sy + dy / 2, px = -dy / dist, py = dx / dist;
+  const e1 = { x: mx + px * h, y: my + py * h }, e2 = { x: mx - px * h, y: my - py * h };
+  return { elbow: side * (e1.x - e2.x) >= 0 ? e1 : e2, hand: { x: sx + dx, y: sy + dy } };
+}
+function pitcherPose(pit, w) {
+  const style = pit.style;
+  const crouchMax = style === 'under' ? 11 : style === 'side' ? 4 : style === 'three' ? 1.5 : 0;
+  let crouch = crouchMax * sm(clamp((w - 0.4) / 0.6, 0, 1));
+  if (w > 1.2) crouch *= 1 - clamp((w - 1.2) / 0.25, 0, 1) * 0.6;
+  const lift = style === 'under' ? 0.65 : style === 'side' ? 0.85 : 1;
+  const sway = -Math.sin(clamp(w / 0.3, 0, 1) * Math.PI) * 2;                // 처음에 체중을 살짝 뒤로
+  const tilt = style === 'side' ? sm(clamp((w - 0.4) / 0.5, 0, 1)) * 7 : style === 'under' ? 0 : -Math.sin(clamp((w - 0.5) / 0.5, 0, 1) * Math.PI) * 3;
+  const hipY = -34 + crouch * 0.55, shY = -62 + crouch;
+  const shT = { x: 10 + sway, y: shY + tilt }, shG = { x: -10 + sway, y: shY - tilt };
+  const hk = kf(HKF[style], w), gk = kf(GKF, w);
+  const armT = ik2(shT.x, shT.y, shT.x + hk.x, shT.y + hk.y, 17, +1);
+  const armG = ik2(shG.x, shG.y, shG.x - gk.x, shG.y + gk.y, 17, -1);
+  const ff = kf(LEAD_FOOT, w), fk = kf(LEAD_KNEE, w);
+  const foot = { x: ff.x, y: ff.y < 0 ? ff.y * lift : ff.y }, knee = { x: fk.x, y: -17 + (fk.y + 17) * lift };
+  return { shT, shG, hipT: { x: 6 + sway * 0.5, y: hipY }, hipG: { x: -6 + sway * 0.5, y: hipY }, head: { x: sway * 0.8, y: shY - 13 }, armT, armG, foot, knee };
+}
+const pitcherP = (pit, x, y) => ({ x: PBASE.x + (pit.hand === 'R' ? -1 : 1) * x * PS, y: PBASE.y + y * PS });
+function releasePoint(pit) { const p = pitcherPose(pit, 1.0); return pitcherP(pit, p.armT.hand.x, p.armT.hand.y); }
+
 function drawPitcher(now) {
-  const col = S.colors[1 - V.atBat];
+  const pit = G.roster[1 - V.atBat].sp, col = S.colors[1 - V.atBat];
   let w = 0;
-  if (V.windup) w = clamp((now - V.windup.t0) / WIND_MS, 0, 1);
-  if (V.mode === 'wait' || V.mode === 'select' || V.mode === 'idle') w = 0;
-  const sh = { x: 481, y: 188 };
-  const lean = Math.sin(w * Math.PI) * 4;
-  ctx.save();
-  ctx.translate(lean * (w < 0.5 ? -1 : 1), 0);
-  ctx.fillStyle = '#e8e8ee'; ctx.fillRect(472, 202, 6, 24); ctx.fillRect(484, 202, 6, 24);   // 다리
-  ctx.fillStyle = col; ctx.fillRect(470, 176, 22, 28);                                         // 몸통
-  ctx.fillStyle = '#f1c9a0'; ctx.beginPath(); ctx.arc(481, 168, 7, 0, 7); ctx.fill();          // 얼굴
-  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(481, 166, 7.5, Math.PI, 0); ctx.fill(); ctx.fillRect(480, 165, 12, 3); // 모자
-  const ang = (-170 + w * 230) * Math.PI / 180;
-  ctx.strokeStyle = '#f1c9a0'; ctx.lineWidth = 5; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(sh.x + 8, sh.y); ctx.lineTo(sh.x + 8 + Math.cos(ang) * 24, sh.y + Math.sin(ang) * 24); ctx.stroke();
-  if (w < 1 && !V.ball) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sh.x + 8 + Math.cos(ang) * 26, sh.y + Math.sin(ang) * 26, 3, 0, 7); ctx.fill(); }
-  ctx.restore();
+  if (V.windup && (V.mode === 'pitch' || V.mode === 'field')) w = clamp((now - V.windup.t0) / WIND_MS, 0, 1.45);
+  if (V.freezeW !== undefined) w = V.freezeW;       // (테스트용) 특정 동작 프레임 고정
+  const po = pitcherPose(pit, w), P = (q) => pitcherP(pit, q.x, q.y);
+  const line = (a, b, wd, c) => { const A = P(a), B = P(b); ctx.strokeStyle = c; ctx.lineWidth = wd * PS; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke(); };
+  const pants = '#eceff6', skin = '#f1c9a0';
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(PBASE.x, PBASE.y + 2, 22, 5, 0, 0, 7); ctx.fill();
+  // 다리 (축발 → 디딤발)
+  const pk = { x: 6 + po.hipT.x * 0.1, y: -17 + (po.hipT.y + 34) * 0.4 }, pf = { x: 6, y: 0 };
+  line(po.hipT, pk, 7, pants); line(pk, pf, 6, pants); line({ x: 4, y: -1 }, { x: 11, y: -1 }, 4.5, '#222');
+  line(po.hipG, po.knee, 7, pants); line(po.knee, po.foot, 6, pants); line({ x: po.foot.x - 2, y: po.foot.y }, { x: po.foot.x - 9, y: po.foot.y }, 4.5, '#222');
+  // 몸통
+  const T0 = P(po.shT), G0 = P(po.shG), H0 = P(po.hipG), H1 = P(po.hipT);
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(T0.x, T0.y); ctx.lineTo(G0.x, G0.y); ctx.lineTo(H0.x, H0.y); ctx.lineTo(H1.x, H1.y); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff3'; const bm = P({ x: (po.hipT.x + po.hipG.x) / 2, y: po.hipT.y - 2 }); ctx.fillRect(bm.x - 8 * PS, bm.y - 2, 16 * PS, 3);
+  // 머리 + 모자
+  const hd = P(po.head);
+  ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(hd.x, hd.y, 6.6 * PS, 0, 7); ctx.fill();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(hd.x, hd.y - 1.2 * PS, 7 * PS, Math.PI, 0); ctx.fill(); ctx.fillRect(hd.x - 7 * PS, hd.y - 1.5 * PS, 14 * PS, 2.2 * PS);
+  // 팔 (글러브 팔 → 던지는 팔)
+  const arm = (shoulder, a, sleeve, hand) => {
+    line(shoulder, a.elbow, 5.2, sleeve); line(a.elbow, a.hand, 4.4, skin);
+    if (hand) { const h = P(a.hand); ctx.fillStyle = hand; ctx.beginPath(); ctx.arc(h.x, h.y, 4.6 * PS, 0, 7); ctx.fill(); }
+  };
+  arm(po.shG, po.armG, col, '#7a4a1e');
+  arm(po.shT, po.armT, col, null);
+  if (w < 1 && !V.ball) { const h = P(po.armT.hand); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(h.x, h.y, 2.8, 0, 7); ctx.fill(); }
 }
 
 function drawBatter(now) {
-  const col = S.colors[V.atBat];
-  // 다리
+  const col = S.colors[V.atBat], lefty = V.batHand === 'L';
+  ctx.save();
+  if (lefty) { ctx.translate(W, 0); ctx.scale(-1, 1); }     // 좌타자는 좌우 반전
   ctx.fillStyle = '#ececf2'; ctx.fillRect(238, 480, 26, 84); ctx.fillRect(278, 480, 26, 84);
   ctx.fillStyle = '#222'; ctx.fillRect(232, 560, 36, 10); ctx.fillRect(274, 560, 36, 10);
-  // 몸통
   ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(236, 400); ctx.lineTo(310, 400); ctx.lineTo(316, 486); ctx.lineTo(236, 486); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#fff3'; ctx.fillRect(236, 440, 80, 4);
-  // 머리 + 헬멧
   ctx.fillStyle = '#f1c9a0'; ctx.beginPath(); ctx.arc(276, 372, 22, 0, 7); ctx.fill();
   ctx.fillStyle = col; ctx.beginPath(); ctx.arc(276, 368, 25, Math.PI * 1.05, Math.PI * 2.0); ctx.fill();
   ctx.fillRect(272, 360, 34, 6);
-  // 팔
   ctx.strokeStyle = '#f1c9a0'; ctx.lineWidth = 11; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(300, 412); ctx.lineTo(HAND.x, HAND.y); ctx.stroke();
-  // 배트
   let a = -140 * Math.PI / 180, len = 215;
   if (V.swing) {
     const s = clamp((now - V.swing.t0) / 200, 0, 1);
-    const tgt = z2s(V.swing.u, V.swing.v);
-    const aEnd = Math.atan2(tgt.y - HAND.y, tgt.x - HAND.x);
+    const tgt = z2s(V.swing.u, V.swing.v), tx = lefty ? W - tgt.x : tgt.x;
+    const aEnd = Math.atan2(tgt.y - HAND.y, tx - HAND.x);
     a = lerp(-140 * Math.PI / 180, aEnd, ease(s));
     if (s < 1) { ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 16;
       ctx.beginPath(); ctx.arc(HAND.x, HAND.y, len - 10, lerp(-140 * Math.PI / 180, aEnd, Math.max(0, ease(s) - .4)), a); ctx.stroke(); }
@@ -1087,6 +1267,7 @@ function drawBatter(now) {
   ctx.beginPath(); ctx.moveTo(HAND.x - Math.cos(a) * 18, HAND.y - Math.sin(a) * 18); ctx.lineTo(HAND.x + Math.cos(a) * len, HAND.y + Math.sin(a) * len); ctx.stroke();
   ctx.strokeStyle = '#7a4a1e'; ctx.lineWidth = 6;
   ctx.beginPath(); ctx.moveTo(HAND.x - Math.cos(a) * 18, HAND.y - Math.sin(a) * 18); ctx.lineTo(HAND.x + Math.cos(a) * 30, HAND.y + Math.sin(a) * 30); ctx.stroke();
+  ctx.restore();
 }
 
 function ballPos(b, now) {
@@ -1096,8 +1277,8 @@ function ballPos(b, now) {
   const off = (1 - Math.pow(t, b.pt.p));
   const persp = 0.35 + 0.65 * d;
   return {
-    x: lerp(REL.x, tgt.x, d) + b.pt.A[0] * off * CELL * persp,
-    y: lerp(REL.y, tgt.y, d) + b.pt.A[1] * off * CELL * persp,
+    x: lerp(b.start.x, tgt.x, d) + b.A[0] * off * CELL * persp,
+    y: lerp(b.start.y, tgt.y, d) + b.A[1] * off * CELL * persp,
     r: 2.5 + 11 * Math.pow(t, 1.5), t,
   };
 }
@@ -1123,23 +1304,28 @@ function drawZone(now) {
   const z0 = z2s(-1.5, -1.5);
   const full = V.mode === 'select';
   if (full) {
-    for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) {
-      const c = z2s(i - 0.5, j - 0.5), inner = Math.abs(i) <= 1 && Math.abs(j) <= 1;
-      const hov = V.hover && V.hover.u === i && V.hover.v === j, sel = V.sel && V.sel.u === i && V.sel.v === j;
-      ctx.fillStyle = sel ? 'rgba(255,211,77,.55)' : hov ? 'rgba(255,255,255,.35)' : inner ? 'rgba(74,163,255,.18)' : 'rgba(255,90,90,.12)';
-      ctx.fillRect(c.x + 1, c.y + 1, CELL - 2, CELL - 2);
-    }
-    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1;
-    for (let k = -2.5; k <= 2.5; k++) {
+    ctx.fillStyle = 'rgba(255,90,90,.10)'; const g0 = z2s(-2.5, -2.5); ctx.fillRect(g0.x, g0.y, CELL * 5, CELL * 5);
+    ctx.fillStyle = 'rgba(74,163,255,.18)'; ctx.fillRect(z0.x, z0.y, CELL * 3, CELL * 3);
+    ctx.lineWidth = 1;
+    for (let k = -2.5; k <= 2.5; k += 0.5) {
+      const major = Number.isInteger(k + 0.5);
+      ctx.strokeStyle = major ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.12)';
       const a = z2s(k, -2.5), b = z2s(k, 2.5), c = z2s(-2.5, k), d = z2s(2.5, k);
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.moveTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.stroke();
     }
-    if (V.sel) {
-      const c = z2s(V.sel.u, V.sel.v);
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(c.x, c.y, 11, 0, 7); ctx.moveTo(c.x - 18, c.y); ctx.lineTo(c.x + 18, c.y); ctx.moveTo(c.x, c.y - 18); ctx.lineTo(c.x, c.y + 18); ctx.stroke();
-      ctx.font = '700 22px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(PITCHES[V.pitchType].icon, c.x, c.y - 22);
-    }
+    // 모서리 표시
+    ctx.fillStyle = 'rgba(255,211,77,.9)';
+    [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]].forEach(([u, v]) => { const c = z2s(u, v); ctx.beginPath(); ctx.arc(c.x, c.y, 3.5, 0, 7); ctx.fill(); });
+    const pit = G.roster[1 - G.half].sp, sig = scatterSigma(pit, V.pitchType, true) * CELL;
+    const ret = (p, solid) => {
+      const c = z2s(p.u, p.v);
+      ctx.strokeStyle = solid ? '#fff' : 'rgba(255,255,255,.55)'; ctx.lineWidth = solid ? 2 : 1.5;
+      ctx.beginPath(); ctx.moveTo(c.x - 16, c.y); ctx.lineTo(c.x + 16, c.y); ctx.moveTo(c.x, c.y - 16); ctx.lineTo(c.x, c.y + 16); ctx.stroke();
+      ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(6, sig * 1.2), 0, 7); ctx.stroke(); ctx.setLineDash([]);   // 제구 오차 범위
+      if (solid) { ctx.font = '700 22px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(PITCHES[V.pitchType].icon, c.x, c.y - Math.max(20, sig * 1.2 + 8)); }
+    };
+    if (V.hover) ret(V.hover, false);
+    if (V.sel) ret(V.sel, true);
   }
   ctx.strokeStyle = full ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.55)'; ctx.lineWidth = full ? 3 : 2;
   ctx.strokeRect(z0.x, z0.y, CELL * 3, CELL * 3);
@@ -1284,27 +1470,30 @@ function setAim(p, touch) {
   const y = touch ? p.y - 110 : p.y;     // 터치는 손가락에 안 가리도록 위쪽에 표시
   V.aim.u = clamp((p.x - ZC.x) / CELL, -3, 3); V.aim.v = clamp((y - ZC.y) / CELL, -3, 3);
 }
-function cellAt(p) {
-  const u = Math.round((p.x - ZC.x) / CELL), v = Math.round((p.y - ZC.y) / CELL);
-  return Math.abs(u) <= 2 && Math.abs(v) <= 2 ? { u, v } : null;
+function zonePt(p) {
+  const u = (p.x - ZC.x) / CELL, v = (p.y - ZC.y) / CELL;
+  return Math.abs(u) <= 2.8 && Math.abs(v) <= 2.8 ? { u: clamp(u, -2.6, 2.6), v: clamp(v, -2.6, 2.6) } : null;
 }
+let dragSel = false;
 cv.addEventListener('pointermove', e => {
   const p = canvasPt(e);
-  if (V.mode === 'select') { V.hover = cellAt(p); return; }
+  if (V.mode === 'select') { V.hover = zonePt(p); if (dragSel && V.hover) V.sel = V.hover; return; }
   if (batHumanNow() && (e.pointerType === 'mouse' || V.touchAim)) setAim(p, e.pointerType !== 'mouse');
 });
 cv.addEventListener('pointerdown', e => {
   const p = canvasPt(e);
   if (V.mode === 'select' && selectResolve) {
-    const c = cellAt(p); if (!c) return;
-    if (V.sel && V.sel.u === c.u && V.sel.v === c.v) tryThrow(); else V.sel = c;
+    const c = zonePt(p); if (!c) return;
+    if (V.sel && Math.hypot(V.sel.u - c.u, V.sel.v - c.v) < 0.3) { tryThrow(); return; }   // 같은 자리를 다시 누르면 투구
+    V.sel = c; V.hover = c;
+    if (e.pointerType !== 'mouse') { dragSel = true; try { cv.setPointerCapture(e.pointerId); } catch (_) {} }
     return;
   }
   if (!batHumanNow()) return;
   if (e.pointerType === 'mouse') { setAim(p, false); trySwing(); }
   else { V.touchAim = true; setAim(p, true); try { cv.setPointerCapture(e.pointerId); } catch (_) {} }
 });
-function touchRelease(e) { if (V.touchAim) { V.touchAim = false; if (e.type === 'pointerup') trySwing(); } }
+function touchRelease(e) { dragSel = false; if (V.touchAim) { V.touchAim = false; if (e.type === 'pointerup') trySwing(); } }
 cv.addEventListener('pointerup', touchRelease);
 cv.addEventListener('pointercancel', touchRelease);
 cv.addEventListener('contextmenu', e => e.preventDefault());
@@ -1316,13 +1505,105 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space' || e.key === 'Enter') {
     e.preventDefault();
     if (V.mode === 'select') tryThrow(); else if (V.canSwing) trySwing();
-  } else if (V.mode === 'select' && /^[1-6]$/.test(e.key)) pickPitch(PITCH_KEYS[+e.key - 1]);
+  } else if (V.mode === 'select' && /^[1-6]$/.test(e.key)) {
+    const k = G.roster[1 - G.half].sp.pitches[+e.key - 1]; if (k) pickPitch(k);
+  }
 });
+
+/* =====================================================================
+ *  드래프트 (번갈아 선수 지명)
+ * ===================================================================== */
+const D = { picks: [[], []], taken: new Set(), n: 0, order: [], filter: '전체', sel: null, busy: false };
+const lv = v => v >= 88 ? 'hi' : v >= 75 ? 'mid' : v >= 60 ? 'ok' : 'lo';
+const statSpan = (k, v) => `<span class="st ${lv(v)}">${k}<b>${v}</b></span>`;
+function statLine(p) {
+  return p.isP
+    ? `${statSpan('구위', p.stuff)}${statSpan('제구', p.ctrl)}${statSpan('체력', p.sta)}`
+    : `${statSpan('컨', p.c)}${statSpan('파', p.p)}${statSpan('선', p.e)}${statSpan('주', p.s)}`;
+}
+const pitchIcons = p => p.pitches.map(k => PITCHES[k].icon).join('');
+const filled = (t, pos) => D.picks[t].some(x => x.pos === pos);
+
+function startDraft() {
+  D.picks = [[], []]; D.taken = new Set(); D.n = 0; D.filter = '전체'; D.sel = null; D.busy = false;
+  D.order = Array.from({ length: 20 }, (_, i) => i % 2);            // 원정 → 홈 → 원정 …
+  $('#dStart').classList.add('hidden');
+  show('#draft'); renderDraft(); nextTurn();
+}
+function curTeam() { return D.order[D.n]; }
+function renderDraft() {
+  const done = D.n >= 20, t = done ? -1 : curTeam();
+  $('#dTitle').textContent = done ? '드래프트 완료!' : `${D.n + 1}/20 번째 지명 — ${tn(t)}`;
+  $('#dSub').textContent = done ? '라인업이 확정됐어요. 타순은 능력치 순으로 자동 배치됩니다.'
+    : (isHuman(t) ? '원하는 선수를 골라 [지명하기]를 누르세요. (각 포지션 1명씩, 선발투수 1명 + 타자 9명)' : 'CPU가 고르는 중…');
+  const chips = ['전체', ...SLOTS];
+  $('#dFilter').innerHTML = chips.map(c => `<button class="chip ${D.filter === c ? 'on' : ''}" data-f="${c}">${c === '선발투수' ? '투수' : c}</button>`).join('');
+  const pool = [...PITCHERS, ...HITTERS].filter(p => D.filter === '전체' || p.pos === D.filter).sort((a, b) => ovr(b) - ovr(a));
+  $('#dList').innerHTML = pool.map(p => {
+    const taken = D.taken.has(p.id), blocked = !done && !taken && filled(t, p.pos);
+    const meta = p.isP ? `${HAND_PIT[p.hand]} · ${STYLE_KO[p.style]} ${pitchIcons(p)}` : `${HAND_BAT[p.hand]}`;
+    return `<button class="prow ${taken ? 'taken' : ''} ${blocked ? 'blocked' : ''} ${D.sel === p.id ? 'sel' : ''}" data-id="${p.id}" ${taken ? 'disabled' : ''}>
+      <span class="pn">${esc(p.n)}<small>${esc(p.team)}</small></span><span class="pp">${p.pos}</span><span class="pm">${meta}</span><span class="ps">${statLine(p)}</span><span class="po">${Math.round(ovr(p))}</span></button>`;
+  }).join('');
+  [0, 1].forEach(tm => {
+    $('#dTeam' + tm).innerHTML = `<h4><i style="background:${S.colors[tm]}"></i>${esc(S.names[tm])}</h4>` + SLOTS.map(pos => {
+      const p = D.picks[tm].find(x => x.pos === pos);
+      return `<div class="slot ${p ? 'on' : ''}"><span>${pos === '선발투수' ? '투수' : pos}</span><b>${p ? esc(p.n) : '—'}</b>${p ? `<small>${p.isP ? `${HAND_PIT[p.hand]}` : HAND_BAT[p.hand]}</small>` : ''}</div>`;
+    }).join('');
+  });
+  const myTurn = !done && isHuman(t);
+  $('#dPick').disabled = !(myTurn && D.sel && !D.busy);
+  $('#dPick').classList.toggle('hidden', done);
+}
+function canPick(t, p) { return !D.taken.has(p.id) && !filled(t, p.pos); }
+function doPick(t, p) {
+  D.picks[t].push(p); D.taken.add(p.id); D.n++; D.sel = null; D.busy = false;
+  renderDraft(); nextTurn();
+}
+function cpuChoose(t) {
+  const noise = { easy: 14, normal: 6, hard: 2 }[S.diff] || 6;
+  let best = null, bs = -1e9;
+  [...PITCHERS, ...HITTERS].forEach(p => {
+    if (!canPick(t, p)) return;
+    const s = ovr(p) + (p.isP ? 7 : 0) + (rand() * 2 - 1) * noise;
+    if (s > bs) { bs = s; best = p; }
+  });
+  return best;
+}
+function nextTurn() {
+  if (D.n >= 20) { finishDraft(); return; }
+  const t = curTeam();
+  if (!isHuman(t)) { D.busy = true; renderDraft(); setTimeout(() => doPick(t, cpuChoose(t)), 800); }
+}
+function finishDraft() {
+  SQUAD = D.picks.map(list => ({ bat: autoOrder(list.filter(p => !p.isP)), sp: list.find(p => p.isP) }));
+  renderDraft();
+  $('#dStart').classList.remove('hidden');
+}
+$('#dFilter').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) { D.filter = b.dataset.f; renderDraft(); } });
+$('#dList').addEventListener('click', e => {
+  const r = e.target.closest('.prow'); if (!r || D.n >= 20) return;
+  const t = curTeam(); if (!isHuman(t) || D.busy) return;
+  const p = [...PITCHERS, ...HITTERS].find(x => x.id === r.dataset.id);
+  if (!canPick(t, p)) { setDraftNote(`${tn(t)}은(는) 이미 ${p.pos} 자리를 채웠어요.`); return; }
+  D.sel = p.id; renderDraft();
+});
+$('#dList').addEventListener('dblclick', e => { if (!$('#dPick').disabled) $('#dPick').click(); });
+$('#dPick').addEventListener('click', () => {
+  const t = curTeam(), p = [...PITCHERS, ...HITTERS].find(x => x.id === D.sel);
+  if (p && isHuman(t) && canPick(t, p)) doPick(t, p);
+});
+function setDraftNote(s) { $('#dSub').textContent = s; }
+$('#dStart').onclick = () => startGame();
+$('#dBack').onclick = () => show('#setup');
+
+function presetSquad() { return [0, 1].map(t => { const r = ROSTERS[S.lineups[t]]; return { bat: r.bat.slice(), sp: r.sp }; }); }
+
 
 /* =====================================================================
  *  시작 / 종료
  * ===================================================================== */
-function show(id) { ['#setup', '#game', '#end'].forEach(s => $(s).classList.toggle('hidden', s !== id)); }
+function show(id) { ['#setup', '#draft', '#game', '#end'].forEach(s => $(s).classList.toggle('hidden', s !== id)); }
 
 function startGame() {
   newGame();
@@ -1349,7 +1630,7 @@ function endGame() {
   show('#end');
 }
 
-$('#startBtn').onclick = () => { readSetup(); startGame(); };
+$('#startBtn').onclick = () => { readSetup(); if (S.squad === 'draft') startDraft(); else { SQUAD = presetSquad(); startGame(); } };
 $('#againBtn').onclick = () => startGame();
 $('#toSetupBtn').onclick = () => { show('#setup'); };
 $('#quitBtn').onclick = () => { if (confirm('경기를 중단하고 설정 화면으로 나갈까요?')) location.reload(); };
@@ -1357,7 +1638,7 @@ $('#quitBtn').onclick = () => { if (confirm('경기를 중단하고 설정 화�
 initSetup();
 requestAnimationFrame(loop);
 
-if (location.hash === '#test') window.BB_TEST = { contactBall, RESULT_SYSTEMS, PITCHES, DIFF, S, playBall, playPlan, V, newGame, setG: g => { G = g; } };
+if (location.hash === '#test') window.BB_TEST = { SQUAD_set: q => { SQUAD = q; }, ROSTERS, PITCHERS, HITTERS, contactBall, RESULT_SYSTEMS, PITCHES, DIFF, S, playBall, playPlan, V, newGame, buildBG: () => { if (!BG) buildBG(); }, getG: () => G, setG: g => { G = g; } };
 })();
 </script>
 </body>
