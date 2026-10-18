@@ -29,6 +29,15 @@
     .gamegrid #stage { grid-column: 1 / -1; grid-row: 1; }
     #lineL { grid-column: 1; grid-row: 2; } #lineR { grid-column: 2; grid-row: 2; }
   }
+  #muBar { display: none; background: rgba(8,14,30,.85); border: 1px solid var(--line); border-left: 5px solid var(--tc, #ffd34d); border-radius: 10px; padding: 6px 10px; margin-bottom: 8px; line-height: 1.45; font-size: 12px; }
+  #muBar .bt { font-size: 15px; font-weight: 900; } #muBar .bt b { color: var(--gold); margin-right: 4px; }
+  #muBar .bt small, #muBar .pt small { color: var(--dim); font-weight: 600; font-size: .8em; margin-left: 4px; }
+  #muBar .pt { font-weight: 700; margin-top: 2px; } #muBar .st { display: inline-block; margin-right: 6px; font-size: 11px; color: var(--dim); } #muBar .st b { margin-left: 2px; font-size: 12px; }
+  #muBar .row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+  @media (max-width: 720px) {          /* 모바일: 경기 화면을 가리지 않도록 오버레이 대신 위쪽 한 줄 바로 표시 */
+    #mu { display: none; }
+    #muBar { display: block; }
+  }
   .lineup { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px; font-size: 12px; border-top: 4px solid var(--tc, #888); }
   .lineup h4 { margin: 0 0 6px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
   .lineup h4 em { font-style: normal; font-size: 10px; padding: 1px 7px; border-radius: 999px; background: #243056; color: #c9d4f2; }
@@ -290,6 +299,7 @@
       </div>
     </div>
 
+    <div id="muBar"></div>
     <div class="gamegrid">
       <aside id="lineL" class="lineup"></aside>
       <div id="stage">
@@ -807,10 +817,12 @@ function renderMatchup() {
   const p = G.roster[t].bat[i], sp = G.roster[d].sp;
   const st = p.ab || p.bb ? `오늘 ${p.ab}타수 ${p.h}안타${p.hr ? ` ${p.hr}홈런` : ''}${p.rbi ? ` ${p.rbi}타점` : ''}${p.bb ? ` ${p.bb}볼넷` : ''}` : '오늘 첫 타석';
   const hand = p.hand === 'S' ? (sp.hand === 'R' ? '양타(좌)' : '양타(우)') : HAND_BAT[p.hand];
+  const bt = `<div class="bt"><b>${i + 1}번</b>${esc(p.n)}<small>${esc(p.pos)} · ${hand}</small></div>`;
+  const ptm = `<small>${sp.role === 'RP' ? '구원 · ' : ''}${HAND_PIT[sp.hand]} · ${STYLE_KO[sp.style]} · 투구수 ${sp.pc}</small>`;
   $('#mu').style.setProperty('--tc', S.colors[t]);
-  $('#mu').innerHTML = `<div class="bt"><b>${i + 1}번</b>${esc(p.n)}<small>${esc(p.pos)} · ${hand}</small></div>`
-    + `<div class="rt">${statLine(p)}</div><div class="st">${st}</div>`
-    + `<div class="pt">⚾ ${esc(sp.n)}<small>${sp.role === 'RP' ? '구원 · ' : ''}${HAND_PIT[sp.hand]} · ${STYLE_KO[sp.style]} · 투구수 ${sp.pc}</small></div><div class="rt">${statLine(sp)}</div>`;
+  $('#mu').innerHTML = `${bt}<div class="rt">${statLine(p)}</div><div class="st">${st}</div><div class="pt">⚾ ${esc(sp.n)}${ptm}</div><div class="rt">${statLine(sp)}</div>`;
+  $('#muBar').style.setProperty('--tc', S.colors[t]);
+  $('#muBar').innerHTML = `<div class="row">${bt}${statLine(p)}<span class="st">${st}</span></div><div class="row"><span class="pt">⚾ ${esc(sp.n)}${ptm}</span>${statLine(sp)}</div>`;
 }
 
 /* ---- 배너 ---- */
