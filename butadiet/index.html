@@ -174,7 +174,11 @@ function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } 
 // ---------- 부타 그리기 (스쿨 서퍼 부타 도트 디자인, 살 빠질수록 날씬) ----------
 const C = { base:'#ee9ab3', shade:'#c96f8a', light:'#ffb4c9', belly:'#ffcbd6', snout:'#df849f', nostril:'#713347',
   blue:'#466dcc', blueD:'#304b99', blueL:'#7b98e8', hoof:'#734630', hoofL:'#9c6547', ink:'#2a2027', white:'#fff8e6', earIn:'#f6b5c8' };
+let pigKey = '';
 function drawPig() {
+  const key = S.weightG + ':' + exhausted;
+  if (key === pigKey) return;
+  pigKey = key;
   const t = Math.max(0, Math.min(1, (S.weightG - GOAL_G) / (START_G - GOAL_G))); // 1=뚱뚱, 0=날씬
   const f = 1 + t * 0.85;          // 몸통 가로 배율
   const hf = 1 + t * 0.2;          // 얼굴 가로 배율
@@ -313,20 +317,20 @@ function clearGame() {
   S.cleared = true; S.runMs = Math.round(S.runMs);
   if (S.bestClearMs == null || S.runMs < S.bestClearMs) S.bestClearMs = S.runMs;
   $('clearTime').textContent = fmt(S.runMs);
-  render(); save(true);
+  render(); dirty = true; save();
   $('clearModal').classList.add('show');
 }
 $('restartBtn').onclick = () => {
   S.runs++; S.weightG = START_G; S.runMs = 0; S.cleared = false;
   stamina = STAMINA_MAX; exhausted = false;
-  $('clearModal').classList.remove('show'); render(); save(true);
+  $('clearModal').classList.remove('show'); render(); dirty = true; save();
 };
 $('clearRank').onclick = () => openRank();
 
 // ---------- 저장 ----------
-async function save(force) {
+async function save() {
   saveLocal();
-  if (!online || !(dirty || force)) return;
+  if (!online || !dirty) return;
   dirty = false;
   try {
     await fb.setDoc(fb.doc(db, 'buta', uid), {
@@ -336,9 +340,9 @@ async function save(force) {
     });
   } catch (e) { console.warn('저장 실패', e); dirty = true; }
 }
-setInterval(() => save(false), 5000);
-addEventListener('pagehide', () => save(true));
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
+setInterval(save, 5000);
+addEventListener('pagehide', save);
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 
 // ---------- 스코어보드 ----------
 let tab = 'lost';
@@ -409,7 +413,7 @@ function askNick() {
     S = { ...S, nickname: loaded.nickname || '', weightG: loaded.weightG ?? START_G, totalLostG: loaded.totalLostG ?? 0,
           runs: loaded.runs ?? 1, runMs: loaded.runMs ?? 0, bestClearMs: loaded.bestClearMs ?? null, cleared: !!loaded.cleared };
   }
-  if (!S.nickname) { S.nickname = await askNick(); save(true); dirty = true; }
+  if (!S.nickname) { S.nickname = await askNick(); dirty = true; save(); }
   if (S.cleared) { $('clearTime').textContent = fmt(S.runMs); $('clearModal').classList.add('show'); }
   render();
 })();
