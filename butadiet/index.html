@@ -35,11 +35,7 @@
 
   #stage { position:relative; height:270px; margin-top:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
   #stage.exhausted { filter:grayscale(.6); cursor:not-allowed; }
-  #pig { width:260px; height:250px; transform-origin: 50% 90%; }
-  #pig.hit { animation: hit .13s; }
-  @keyframes hit { 40% { transform: scale(.94,1.05) translateY(-8px); } }
-  #pig.rest { animation: breathe 2s ease-in-out infinite; }
-  @keyframes breathe { 50% { transform: scaleY(1.03); } }
+  #pig { width:100%; max-width:340px; height:260px; }
   .float { position:absolute; font-weight:900; font-size:22px; color:var(--pink-d); text-shadow:0 2px 0 #fff; pointer-events:none; animation: up .8s ease-out forwards; }
   @keyframes up { to { transform: translateY(-70px); opacity:0; } }
   #msg { position:absolute; top:6px; width:100%; text-align:center; font-weight:900; color:#d33; min-height:22px; pointer-events:none; }
@@ -90,7 +86,7 @@
 
   <div id="stage">
     <div id="msg"></div>
-    <svg id="pig" viewBox="0 0 260 250"></svg>
+    <svg id="pig" viewBox="0 0 300 260"></svg>
     <div id="exlabel"></div>
   </div>
 
@@ -171,70 +167,223 @@ const LS_KEY = 'butadiet-local';
 function loadLocal() { try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch { return null; } }
 function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch {} }
 
-// ---------- 부타 그리기 (스쿨 서퍼 부타 도트 디자인, 살 빠질수록 날씬) ----------
-const C = { base:'#ee9ab3', shade:'#c96f8a', light:'#ffb4c9', belly:'#ffcbd6', snout:'#df849f', nostril:'#713347',
-  blue:'#466dcc', blueD:'#304b99', blueL:'#7b98e8', hoof:'#734630', hoofL:'#9c6547', ink:'#2a2027', white:'#fff8e6', earIn:'#f6b5c8' };
-function drawPig() {
-  const t = Math.max(0, Math.min(1, (S.weightG - GOAL_G) / (START_G - GOAL_G))); // 1=뚱뚱, 0=날씬
-  const f = 1 + t * 0.85;          // 몸통 가로 배율
-  const hf = 1 + t * 0.2;          // 얼굴 가로 배율
-  const K = 86, CX = 130, GY = 242;
-  let o = '';
-  // x=중심 월드좌표, y=밑면 월드높이
-  const R = (x, y, w, h, c) => { o += `<rect x="${(CX + (x - w / 2) * K).toFixed(1)}" y="${(GY - (y + h) * K).toFixed(1)}" width="${(w * K).toFixed(1)}" height="${(h * K).toFixed(1)}" fill="${c}"/>`; };
-  const steps = (cx, rows, scale) => rows.forEach(([bt, w, h]) => {
-    const W = w * scale;
-    R(cx, bt, W, h, C.base);
-    R(cx - W / 2 + .015, bt, .03, h, C.shade); R(cx + W / 2 - .015, bt, .03, h, C.shade);
-  });
-  const lx = .19 * (1 + (f - 1) * .55);
+// ---------- 부타 그리기 (스쿨 서퍼 부타 도트 디자인, 옆모습 뼈대 애니메이션) ----------
+const C = { base:'#ee9ab3', shade:'#c96f8a', shadeD:'#a8566f', light:'#ffb4c9', belly:'#ffcbd6', snout:'#df849f', nostril:'#713347',
+  blue:'#466dcc', blueD:'#304b99', blueL:'#7b98e8', hoof:'#734630', hoofD:'#4a2c1d', ink:'#2a2027', white:'#fff8e6', earIn:'#f6b5c8' };
+const GY = 244, CX = 150;                       // 바닥 높이, 가운데
+const LT = 36, LS = 34, UA = 30, FA = 28, TL = 62; // 허벅지, 정강이, 위팔, 아래팔, 몸통 길이
+const PI = Math.PI, sin = Math.sin, cos = Math.cos;
+const sh = (hip, th) => [hip[0] + TL * sin(th), hip[1] - TL * cos(th)];
 
-  o += `<ellipse cx="${CX}" cy="${GY + 2}" rx="${(.5 * f + .25) * K * .9}" ry="7" fill="#0002"/>`;
-  // 다리 + 발굽
-  for (const s of [-1, 1]) {
-    R(s * lx, .14, .17, .60, C.base); R(s * lx + s * .06, .14, .05, .60, C.shade);
-    R(s * lx, .03, .29, .065, C.ink); R(s * lx, .07, .29, .105, C.hoof); R(s * lx, .15, .24, .02, C.hoofL);
+// 두 마디 관절(IK): A에서 B로 닿는 팔/다리의 관절 위치. bend=+1 이면 진행방향 오른쪽으로 꺾임
+function ik(A, B, l1, l2, bend) {
+  let dx = B[0] - A[0], dy = B[1] - A[1];
+  let d = Math.hypot(dx, dy) || 1e-3;
+  const reach = l1 + l2 - 0.01;
+  if (d > reach) { B = [A[0] + dx / d * reach, A[1] + dy / d * reach]; d = reach; }
+  const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+  const ux = dx / d, uy = dy / d;
+  return [A[0] + ux * a + uy * h * bend, A[1] + uy * a - ux * h * bend, B[0], B[1]];
+}
+// 포즈 하나 = 관절 좌표 모음 (숫자만 들어 있어서 그대로 보간 가능)
+function build(o) {
+  const hip = o.hip, th = o.th, s = sh(hip, th);
+  const lb = o.legBend ?? 1, ab = o.armBend ?? -1;
+  const nl = o.nl || ik(hip, o.nf, LT, LS, lb), fl = o.fl || ik(hip, o.ff, LT, LS, lb);
+  const na = o.na || ik(s, o.nh || [s[0] + o.nhr[0], s[1] + o.nhr[1]], UA, FA, ab);
+  const fa = o.fa || ik(s, o.fh || [s[0] + o.fhr[0], s[1] + o.fhr[1]], UA, FA, ab);
+  return { hx:hip[0], hy:hip[1], sx:s[0], sy:s[1], th, ha:o.ha || 0,
+    nkx:nl[0], nky:nl[1], nax:nl[2], nay:nl[3], fkx:fl[0], fky:fl[1], fax:fl[2], fay:fl[3],
+    nex:na[0], ney:na[1], nhx:na[2], nhy:na[3], fex:fa[0], fey:fa[1], fhx:fa[2], fhy:fa[3], db:o.db || 0, rope:o.rope || 0 };
+}
+const wave = ph => (1 - cos(2 * PI * ph)) / 2;     // 0→1→0 (정수 위상에서 0)
+const FOOT_Y = GY - 7, STAND_Y = GY - 7 - 66;
+
+const POSES = {
+  stand() {
+    return build({ hip:[CX, STAND_Y], th:.04, nf:[CX+8, FOOT_Y], ff:[CX-6, FOOT_Y], nhr:[8,56], fhr:[-4,56] });
+  },
+  tired() {
+    return build({ hip:[CX-8, STAND_Y+8], th:.38, ha:.55, nf:[CX+14, FOOT_Y], ff:[CX+2, FOOT_Y], nhr:[16,52], fhr:[6,54] });
+  },
+  // 스쿼트: 엉덩이를 뒤로 빼며 앉고, 팔은 앞으로 뻗기
+  squat(ph) {
+    const d = wave(ph), hip = [CX - 24*d, STAND_Y + 38*d];
+    return build({ hip, th:.04 + .75*d, ha:-.1*d, nf:[CX+14, FOOT_Y], ff:[CX+2, FOOT_Y],
+      nhr:[8 + 50*d, 56 - 54*d], fhr:[-2 + 50*d, 56 - 54*d] });
+  },
+  // 팔굽혀펴기: 발끝을 고정하고 몸 전체가 판자처럼 내려갔다 올라옴
+  pushup(ph, T) {
+    const d = wave(ph), toe = [46, GY - 14], hUp = 54, hDn = Math.max(22, T * .45 + 4);
+    const H = hUp + (hDn - hUp) * d, dy = (GY - 8 - H) - toe[1];
+    const ux = Math.sqrt((LT+LS+TL) ** 2 - dy * dy) / (LT+LS+TL), uy = dy / (LT+LS+TL);
+    const s = [toe[0] + ux*(LT+LS+TL), toe[1] + uy*(LT+LS+TL)], hip = [toe[0] + ux*(LT+LS), toe[1] + uy*(LT+LS)];
+    return build({ hip, th:Math.atan2(ux, -uy), ha:.3 - .15*d, nf:toe, ff:[toe[0]-4, toe[1]], nh:[s[0]+2, GY-8], fh:[s[0]-9, GY-8] });
+  },
+  // 윗몸일으키기: 누워서 팔짱 끼고 상체를 일으킴
+  situp(ph, T) {
+    const d = wave(ph), th = -1.5 + 1.78*d, hip = [184, GY - 6 - T/2];
+    const s = sh(hip, th), dir = [sin(th), -cos(th)], pr = [cos(th), sin(th)];
+    return build({ hip, th, ha:th, nf:[240, FOOT_Y], ff:[252, FOOT_Y],
+      nh:[s[0] - dir[0]*14 + pr[0]*(T*.35), s[1] - dir[1]*14 + pr[1]*(T*.35)],
+      fh:[s[0] - dir[0]*22 + pr[0]*(T*.3), s[1] - dir[1]*22 + pr[1]*(T*.3)] });
+  },
+  // 달리기: 다리와 팔을 번갈아 크게 휘두르는 제자리 달리기
+  run(ph) {
+    const w = 2*PI*ph, hipX = CX, th = .18;
+    const leg = off => {
+      const f = .75*sin(w + off), k = .2 + .85*Math.max(0, cos(w + off)), g = f - k;
+      return { kn:[LT*sin(f), LT*cos(f)], an:[LT*sin(f) + LS*sin(g), LT*cos(f) + LS*cos(g)] };
+    };
+    const a = leg(0), b = leg(PI), hy = FOOT_Y - Math.max(a.an[1], b.an[1]), hip = [hipX, hy], s = sh(hip, th);
+    const arm = off => {
+      const al = -.95*sin(w + off), be = al + 1.35;
+      const e = [s[0] + UA*sin(al), s[1] + UA*cos(al)];
+      return [e[0], e[1], e[0] + FA*sin(be), e[1] + FA*cos(be)];
+    };
+    return build({ hip, th, ha:-.05,
+      nl:[hipX + a.kn[0], hy + a.kn[1], hipX + a.an[0], hy + a.an[1]], fl:[hipX + b.kn[0], hy + b.kn[1], hipX + b.an[0], hy + b.an[1]],
+      na:arm(PI), fa:arm(0) });
+  },
+  // 줄넘기: 제자리 점프 + 손목으로 줄 돌리기
+  rope(ph) {
+    const j = 26*sin(PI*(ph % 1)), hip = [CX, STAND_Y - j], s = sh(hip, .02), r = 2*PI*ph;
+    return build({ hip, th:.02, nf:[CX+8, FOOT_Y - j*1.35], ff:[CX-6, FOOT_Y - j*1.35],
+      nh:[s[0] + 22 + 7*cos(r), s[1] + 46 + 7*sin(r)], fh:[s[0] + 14 + 7*cos(r), s[1] + 46 + 7*sin(r)], rope:1 });
+  },
+  // 덤벨 컬: 팔꿈치를 고정하고 아령을 들어올림
+  dumbbell(ph) {
+    const c = wave(ph), th = -.08*c, hip = [CX, STAND_Y + 2*c], s = sh(hip, th), fa = 2.45*c;
+    const arm = (dx, k) => { const e = [s[0] + dx, s[1] + 29], p = fa*k; return [e[0], e[1], e[0] + FA*sin(p), e[1] + FA*cos(p)]; };
+    return build({ hip, th, ha:.08*c, nf:[CX+8, FOOT_Y], ff:[CX-6, FOOT_Y], na:arm(-1, 1), fa:arm(-9, .97), db:1 });
+  },
+};
+
+// 운동 한 번 = 위상 per 만큼 진행, 초당 spd 위상만큼 움직임 (터치가 빠르면 동작이 조금 밀려서 이어짐)
+const EX_ANIM = { pushup:{per:1, spd:2.6}, squat:{per:1, spd:2.6}, situp:{per:1, spd:2.4},
+                  run:{per:.5, spd:2.4}, rope:{per:1, spd:3}, dumbbell:{per:1, spd:2.6} };
+const anim = { ph:0, tg:0, mv:0, cur:null, ex:'', last:performance.now(), drawn:0 };
+
+function pigPose() {
+  const T = 40 + 52 * fatness();
+  if (exhausted) return POSES.tired();
+  const p = POSES[curEx.id](anim.ph, T);
+  return p;
+}
+const fatness = () => Math.max(0, Math.min(1, (S.weightG - GOAL_G) / (START_G - GOAL_G)));
+
+function drawPig(p, time) {
+  const t = fatness(), br = 1 + .025 * sin(time * (exhausted ? 9 : 3));
+  const T = (40 + 52*t) * br, lw = 14 + 6*t, hf = 1 + .15*t;
+  const n = v => v.toFixed(1), pt = (x, y) => n(x) + ',' + n(y);
+  const th = p.th, dir = [sin(th), -cos(th)], pr = [cos(th), sin(th)];
+  const hip = [p.hx, p.hy], s = [p.sx, p.sy];
+  let o = '';
+  const poly = (pts, w, col, ol) => {
+    const P = pts.map(q => pt(q[0], q[1])).join(' ');
+    o += `<polyline points="${P}" fill="none" stroke="${ol}" stroke-width="${n(w + 4)}" stroke-linecap="round" stroke-linejoin="round"/>`
+       + `<polyline points="${P}" fill="none" stroke="${col}" stroke-width="${n(w)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  };
+  const seg = (a, b, w, col, ol, cap = 'butt') => {
+    if (ol) o += `<line x1="${n(a[0])}" y1="${n(a[1])}" x2="${n(b[0])}" y2="${n(b[1])}" stroke="${ol}" stroke-width="${n(w + 4)}" stroke-linecap="${cap}"/>`;
+    o += `<line x1="${n(a[0])}" y1="${n(a[1])}" x2="${n(b[0])}" y2="${n(b[1])}" stroke="${col}" stroke-width="${n(w)}" stroke-linecap="${cap}"/>`;
+  };
+  const hoof = (k, a) => {
+    let dx = a[0] - k[0], dy = a[1] - k[1]; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
+    const f = [dy, -dx];
+    seg([a[0] - f[0]*2, a[1] - f[1]*2], [a[0] + f[0]*16, a[1] + f[1]*16], lw*.95, C.hoof, C.hoofD);
+  };
+  const leg = (kx, ky, ax, ay, col, ol) => { poly([hip, [kx, ky], [ax, ay]], lw, col, ol); hoof([kx, ky], [ax, ay]); };
+  const hand = (x, y, col) => { o += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(lw*.62)}" fill="${col}" stroke="${C.shadeD}" stroke-width="2"/>`; };
+  const arm = (ex, ey, hx, hy, col, ol, hc) => { poly([s, [ex, ey], [hx, hy]], lw*.9, col, ol); hand(hx, hy, hc); };
+
+  // 바닥 + 그림자
+  const mid = (p.hx + p.nax) / 2;
+  o += `<line x1="8" y1="${GY+3}" x2="292" y2="${GY+3}" stroke="#c9b18a" stroke-width="4" stroke-linecap="round"/>`;
+  o += `<ellipse cx="${n(mid)}" cy="${GY+2}" rx="${n(56 + Math.abs(p.nax - p.hx)/2 + T*.5)}" ry="5" fill="#0002"/>`;
+
+  // 뒤쪽 팔/다리
+  arm(p.fex, p.fey, p.fhx, p.fhy, C.shade, C.shadeD, C.light);
+  leg(p.fkx, p.fky, p.fax, p.fay, C.shade, C.shadeD);
+
+  // 꼬리 (엉덩이 뒤쪽)
+  const tb = [hip[0] - pr[0]*T*.42 + dir[0]*6, hip[1] - pr[1]*T*.42 + dir[1]*6];
+  const tp = [[0,0],[-12,0],[-12,-10],[-2,-10],[-2,-5],[-7,-5]].map(([x, y]) => [tb[0] + x*pr[0] + y*dir[0], tb[1] + x*pr[1] + y*dir[1]]);
+  poly(tp, 4, C.base, C.shadeD);
+
+  // 몸통 + 배 + 반바지
+  const a = [hip[0] + dir[0]*T*.28, hip[1] + dir[1]*T*.28], b = [s[0] - dir[0]*T*.05, s[1] - dir[1]*T*.05];
+  seg(a, b, T, C.base, C.shadeD, 'round');
+  const bm = [(a[0] + b[0])/2 + pr[0]*T*.14, (a[1] + b[1])/2 + pr[1]*T*.14], bl = Math.hypot(b[0]-a[0], b[1]-a[1]);
+  o += `<ellipse transform="translate(${n(bm[0])} ${n(bm[1])}) rotate(${n(th*180/PI)})" rx="${n(T*.32)}" ry="${n(bl*.42 + T*.08)}" fill="${C.belly}"/>`;
+  const sa = [hip[0] + dir[0]*T*.36, hip[1] + dir[1]*T*.36], sb = [hip[0] - dir[0]*T*.12, hip[1] - dir[1]*T*.12];
+  seg(sb, sa, T + 2, C.blue, C.blueD, 'butt');
+  seg([sa[0] - dir[0]*3, sa[1] - dir[1]*3], sa, T + 2, C.blueL, null, 'butt');
+
+  // 앞쪽 다리 (반바지 밑단 포함)
+  leg(p.nkx, p.nky, p.nax, p.nay, C.base, C.shadeD);
+  const kd = Math.hypot(p.nkx - hip[0], p.nky - hip[1]) || 1;
+  seg(hip, [hip[0] + (p.nkx - hip[0])/kd*17, hip[1] + (p.nky - hip[1])/kd*17], lw + 4, C.blue, C.blueD, 'butt');
+
+  // 머리: 각진 주둥이, 계단 귀, 네모 눈
+  const hc = [s[0] + dir[0]*26 + pr[0]*8, s[1] + dir[1]*26 + pr[1]*8];
+  let hd = `<g transform="translate(${n(hc[0])} ${n(hc[1])}) rotate(${n(p.ha*180/PI)}) scale(${n(hf)})">`;
+  const rc = (x, y, w, h, f, st) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}"${st ? ` stroke="${st}" stroke-width="2"` : ''}/>`;
+  hd += rc(-18, -42, 14, 8, C.base, C.shadeD) + rc(-22, -36, 20, 12, C.shade, C.shadeD) + rc(-19, -33, 8, 6, C.earIn) + rc(-18, -43, 14, 3, C.ink);
+  hd += rc(-26, -24, 50, 46, C.base, C.shadeD);
+  hd += rc(18, -6, 30, 22, C.shade, C.shadeD) + rc(22, -8, 26, 20, C.snout, C.shadeD) + rc(26, -6, 18, 3, C.light);
+  hd += rc(38, 0, 5, 6, C.nostril) + rc(24, 14, 14, 3, C.nostril);
+  if (exhausted) hd += `<path d="M2 -14L14 -2M14 -14L2 -2" stroke="${C.ink}" stroke-width="3.5"/>`;
+  else hd += rc(3, -16, 12, 15, C.white, C.shadeD) + rc(8, -14, 6, 11, C.ink);
+  hd += '</g>';
+  o += hd;
+
+  // 앞쪽 팔 + 덤벨
+  arm(p.nex, p.ney, p.nhx, p.nhy, C.base, C.shadeD, C.belly);
+  if (p.db > .5) {
+    const dbs = (x, y) => `<circle cx="${n(x)}" cy="${n(y)}" r="12" fill="#3a3a46" stroke="${C.ink}" stroke-width="2"/><circle cx="${n(x)}" cy="${n(y)}" r="5" fill="#9aa0b4"/>`;
+    o += dbs(p.nhx, p.nhy);
+    hand(p.nhx + 5, p.nhy - 1, C.belly);
   }
-  // 몸통
-  steps(0, [[.79,.69,.15],[.94,.82,.22],[1.16,.78,.23],[1.39,.61,.22],[1.61,.43,.12]], f);
-  // 연분홍 배
-  const bp = ['...LLL...','..LLLLL..','.LLLLLLL.','LLLLLLLLL','LLLLLLLLL','.LLLLLLL.','..LLLLL..'];
-  bp.forEach((row, iy) => { for (let ix = 0; ix < 9; ix++) if (row[ix] === 'L') R((ix - 4) * .066 * f, 1.43 - iy * .066 - .033, .066 * f + .002, .068, C.belly); });
-  // 파란 반바지
-  R(0, .79, .80 * f, .14, C.blueD); R(0, .86, .87 * f, .105, C.blue); R(0, .92, .82 * f, .026, C.blueL); R(0, .73, .034, .08, C.blueD);
-  for (const s of [-1, 1]) R(s * lx, .70, .23, .11, C.blueD);
-  // 팔 (어깨는 몸통 폭만큼 바깥으로)
-  const ax = .43 + .305 * (f - 1) * .9;
-  for (const s of [-1, 1]) {
-    R(s * ax, .93, .155, .66, C.base); R(s * (ax + .055), .93, .045, .66, C.shade);
-    R(s * ax, .83, .19, .13, C.belly); R(s * ax, .85, .012, .035, C.shade);
+
+  // 줄넘기 줄
+  if (p.rope) {
+    const hnd = [p.nhx, p.nhy], C0 = [CX + 4, GY - 98], r = anim.ra;
+    const tip = [C0[0] + 96*sin(r), C0[1] - 96*cos(r)];
+    const m = [(hnd[0] + tip[0])/2, (hnd[1] + tip[1])/2], d = Math.hypot(tip[0]-hnd[0], tip[1]-hnd[1]) || 1;
+    const nx = -(tip[1]-hnd[1])/d*26, ny = (tip[0]-hnd[0])/d*26;
+    o += `<path d="M${pt(hnd[0], hnd[1])} Q${pt(m[0]+nx, m[1]+ny)} ${pt(tip[0], tip[1])} Q${pt(m[0]-nx, m[1]-ny)} ${pt(hnd[0], hnd[1])}" fill="none" stroke="#f2c14e" stroke-width="3.5" stroke-linecap="round"/>`;
   }
-  // 머리
-  const hy = 2.05;
-  steps(0, [[hy-.40,.56,.12],[hy-.28,.84,.18],[hy-.10,1.00,.22],[hy+.12,.94,.22],[hy+.34,.73,.12]].map(r => [r[0], r[1], r[2]]), hf);
-  // 귀
-  for (const s of [-1, 1]) {
-    const ex = s * .34 * hf, ey = hy + .39;
-    R(ex, ey - .03, .235, .25, C.shade); R(ex + s * .035, ey + .175, .14, .10, C.base);
-    R(ex, ey + .01, .12, .16, C.earIn); R(ex + s * .055, ey + .269, .11, .023, C.ink);
-  }
-  // 얼굴 (각진 주둥이)
-  R(0, hy - .24, .53 * hf, .35, C.base); R(0, hy - .25, .57 * hf, .26, C.shade);
-  R(0, hy - .23, .48 * hf, .25, C.snout); R(0, hy - .108, .40 * hf, .031, C.light);
-  for (const s of [-1, 1]) R(s * .112 * hf, hy - .132, .062, .06, C.nostril);
-  R(0, hy - .28, .22 * hf, .026, C.nostril);
-  // 눈
-  for (const s of [-1, 1]) {
-    const ex = s * .28 * hf;
-    if (exhausted) {
-      o += `<path d="M${CX+(ex-.06)*K} ${GY-(hy+.21)*K}L${CX+(ex+.06)*K} ${GY-(hy+.09)*K}M${CX+(ex+.06)*K} ${GY-(hy+.21)*K}L${CX+(ex-.06)*K} ${GY-(hy+.09)*K}" stroke="${C.ink}" stroke-width="4"/>`;
-    } else {
-      R(ex, hy + .06, .145, .18, C.white); R(ex - .013, hy + .07, .052, .124, C.ink);
+  // 땀
+  if (exhausted || stamina < 35) {
+    for (let i = 0; i < 2; i++) {
+      const q = ((time*40 + i*18) % 36), x = hc[0] - 24 + i*12 + dir[0]*(-10), y = hc[1] - 36 + q;
+      o += `<path d="M${n(x)} ${n(y-6)}Q${n(x+5)} ${n(y+1)} ${n(x)} ${n(y+3)}Q${n(x-5)} ${n(y+1)} ${n(x)} ${n(y-6)}" fill="#6ec6ff" opacity="${n(1 - q/36)}"/>`;
     }
   }
-  o += '<g/>';
-  $('pig').setAttribute('shape-rendering', 'crispEdges');
   $('pig').innerHTML = o;
+}
+
+function pigLoop(now) {
+  const dt = Math.min(.05, (now - anim.last) / 1000); anim.last = now;
+  requestAnimationFrame(pigLoop);
+  if (document.hidden) return;
+  if (anim.ex !== curEx.id) { anim.ex = curEx.id; anim.ph = anim.tg = 0; }
+  const cfg = EX_ANIM[curEx.id];
+  if (exhausted) anim.tg = anim.ph;
+  const gap = anim.tg - anim.ph;
+  if (gap > 1e-4) anim.ph += Math.min(gap, cfg.spd * dt * (gap > 2*cfg.per ? 1.6 : 1));
+  const moving = gap > 1e-3;
+  anim.mv += ((moving ? 1 : 0) - anim.mv) * (1 - Math.exp(-dt * (moving ? 18 : 6)));
+  anim.ra = 2*PI*anim.ph + PI*(1 - anim.mv);
+
+  const tgt = pigPose();
+  if (!anim.cur) anim.cur = { ...tgt };
+  let diff = 0;
+  const k = 1 - Math.exp(-dt * 26);
+  for (const key in tgt) { const d = tgt[key] - anim.cur[key]; diff += Math.abs(d); anim.cur[key] += d * k; }
+  // 움직일 때는 매 프레임, 가만히 있을 땐 숨쉬기만 가볍게
+  if (moving || diff > .3 || now - anim.drawn > 90) { anim.drawn = now; drawPig(anim.cur, now / 1000); }
 }
 
 // ---------- 화면 갱신 ----------
@@ -249,9 +398,7 @@ function render() {
   $('sbar').firstElementChild.style.width = (stamina / STAMINA_MAX * 100) + '%';
   $('sbar').classList.toggle('low', exhausted || stamina < 20);
   $('stage').classList.toggle('exhausted', exhausted);
-  $('pig').classList.toggle('rest', exhausted || Date.now() - lastTap > 1000);
   $('exlabel').textContent = curEx.ic + ' ' + curEx.nm + ' · 터치 1회 -' + (curEx.g / 1000).toFixed(2) + 'kg / 체력 -' + curEx.cost;
-  drawPig();
 }
 
 function buildExercises() {
@@ -281,7 +428,8 @@ $('stage').addEventListener('pointerdown', ev => {
   const g = Math.min(curEx.g, S.weightG - GOAL_G);
   S.weightG -= g; S.totalLostG += g; dirty = true;
 
-  const pig = $('pig'); pig.classList.remove('hit', 'rest'); void pig.getBoundingClientRect(); pig.classList.add('hit');
+  const ea = EX_ANIM[curEx.id];
+  anim.tg = Math.min(anim.tg + ea.per, anim.ph + ea.per * 2.5);
   const r = $('stage').getBoundingClientRect();
   const f = document.createElement('div'); f.className = 'float';
   f.textContent = '-' + (g / 1000).toFixed(2);
@@ -313,20 +461,20 @@ function clearGame() {
   S.cleared = true; S.runMs = Math.round(S.runMs);
   if (S.bestClearMs == null || S.runMs < S.bestClearMs) S.bestClearMs = S.runMs;
   $('clearTime').textContent = fmt(S.runMs);
-  render(); save(true);
+  render(); dirty = true; save();
   $('clearModal').classList.add('show');
 }
 $('restartBtn').onclick = () => {
   S.runs++; S.weightG = START_G; S.runMs = 0; S.cleared = false;
   stamina = STAMINA_MAX; exhausted = false;
-  $('clearModal').classList.remove('show'); render(); save(true);
+  $('clearModal').classList.remove('show'); render(); dirty = true; save();
 };
 $('clearRank').onclick = () => openRank();
 
 // ---------- 저장 ----------
-async function save(force) {
+async function save() {
   saveLocal();
-  if (!online || !(dirty || force)) return;
+  if (!online || !dirty) return;
   dirty = false;
   try {
     await fb.setDoc(fb.doc(db, 'buta', uid), {
@@ -336,9 +484,9 @@ async function save(force) {
     });
   } catch (e) { console.warn('저장 실패', e); dirty = true; }
 }
-setInterval(() => save(false), 5000);
-addEventListener('pagehide', () => save(true));
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
+setInterval(save, 5000);
+addEventListener('pagehide', save);
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 
 // ---------- 스코어보드 ----------
 let tab = 'lost';
@@ -399,7 +547,7 @@ function askNick() {
 }
 
 (async () => {
-  buildExercises(); render();
+  buildExercises(); render(); requestAnimationFrame(pigLoop);
   await initFirebase();
   let loaded = null;
   if (online) {
@@ -409,7 +557,7 @@ function askNick() {
     S = { ...S, nickname: loaded.nickname || '', weightG: loaded.weightG ?? START_G, totalLostG: loaded.totalLostG ?? 0,
           runs: loaded.runs ?? 1, runMs: loaded.runMs ?? 0, bestClearMs: loaded.bestClearMs ?? null, cleared: !!loaded.cleared };
   }
-  if (!S.nickname) { S.nickname = await askNick(); save(true); dirty = true; }
+  if (!S.nickname) { S.nickname = await askNick(); dirty = true; save(); }
   if (S.cleared) { $('clearTime').textContent = fmt(S.runMs); $('clearModal').classList.add('show'); }
   render();
 })();
