@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>부타 다이어트 시키기</title>
+<style>
+  :root { --bg:#fff4e0; --ink:#3b2a1a; --pink:#ff9eb5; --pink-d:#e0577d; --green:#3fbf6f; --blue:#3a9bdc; --yellow:#ffc933; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; min-height:100%; }
+  body { background: linear-gradient(#ffe9c2, #fff4e0 40%, #d9f2d0); color: var(--ink);
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+  .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
+    background: #000a; color: #fff; font: 700 14px/1 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    text-decoration: none; border: 1px solid #fff6; }
+  .home-btn:active { transform: translateY(2px); }
+
+  #app { max-width: 520px; margin: 0 auto; padding: 12px 14px 70px; }
+  header { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  header h1 { margin:0; font-size:20px; }
+  .btn { border:0; border-radius:12px; padding:9px 14px; font:700 14px inherit; font-family:inherit; background:var(--ink); color:#fff; cursor:pointer; }
+  .btn.sub { background:#fff; color:var(--ink); border:2px solid var(--ink); }
+  .btn:disabled { opacity:.5; }
+
+  .weight { text-align:center; margin:6px 0 2px; }
+  .weight b { font-size:52px; line-height:1; }
+  .weight span { font-size:20px; margin-left:4px; }
+  .sub-info { text-align:center; font-size:13px; opacity:.75; margin-bottom:6px; }
+  .bar { height:18px; background:#fff; border:2px solid var(--ink); border-radius:999px; overflow:hidden; position:relative; }
+  .bar > i { display:block; height:100%; width:0; transition:width .15s; }
+  #wbar > i { background:linear-gradient(90deg,var(--pink),var(--pink-d)); }
+  #sbar > i { background:linear-gradient(90deg,#ffd23f,var(--green)); }
+  #sbar.low > i { background:#e8504a; }
+  .barlabel { display:flex; justify-content:space-between; font-size:12px; margin:8px 2px 3px; font-weight:700; }
+
+  #stage { position:relative; height:270px; margin-top:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  #stage.exhausted { filter:grayscale(.6); cursor:not-allowed; }
+  #pig { width:260px; height:250px; transform-origin: 50% 90%; }
+  #pig.hit { animation: hit .13s; }
+  @keyframes hit { 40% { transform: scale(.94,1.05) translateY(-8px); } }
+  #pig.rest { animation: breathe 2s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: scaleY(1.03); } }
+  .float { position:absolute; font-weight:900; font-size:22px; color:var(--pink-d); text-shadow:0 2px 0 #fff; pointer-events:none; animation: up .8s ease-out forwards; }
+  @keyframes up { to { transform: translateY(-70px); opacity:0; } }
+  #msg { position:absolute; top:6px; width:100%; text-align:center; font-weight:900; color:#d33; min-height:22px; pointer-events:none; }
+  #exlabel { position:absolute; bottom:0; width:100%; text-align:center; font-weight:700; font-size:14px; pointer-events:none; }
+
+  #exs { display:grid; grid-template-columns: repeat(3,1fr); gap:8px; margin-top:8px; }
+  .ex { background:#fff; border:2px solid #d9c9a8; border-radius:12px; padding:8px 4px; text-align:center; cursor:pointer; font-family:inherit; color:var(--ink); }
+  .ex.on { border-color:var(--pink-d); background:#ffe3ea; box-shadow:0 3px 0 var(--pink-d); }
+  .ex .ic { font-size:24px; display:block; }
+  .ex .nm { font-weight:700; font-size:13px; display:block; }
+  .ex .tp { font-size:10px; opacity:.7; display:block; }
+  .ex .st { font-size:10px; display:block; margin-top:2px; }
+  .tag-a { color:var(--blue); } .tag-b { color:var(--green); } .tag-c { color:#c0612b; }
+
+  .modal { position:fixed; inset:0; background:#000a; z-index:9000; display:none; align-items:center; justify-content:center; padding:16px; }
+  .modal.show { display:flex; }
+  .card { background:#fff; border-radius:18px; padding:18px; width:min(420px,100%); max-height:85vh; overflow:auto; }
+  .card h2 { margin:0 0 10px; }
+  .card input { width:100%; padding:10px; font-size:18px; border:2px solid var(--ink); border-radius:10px; font-family:inherit; }
+  .card p { font-size:14px; line-height:1.5; }
+  .tabs { display:flex; gap:6px; margin-bottom:8px; }
+  .tabs .btn { flex:1; }
+  .tabs .btn.on { background:var(--pink-d); border-color:var(--pink-d); color:#fff; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  td, th { padding:6px 4px; border-bottom:1px solid #eee; text-align:left; }
+  td:last-child, th:last-child { text-align:right; }
+  tr.me { background:#ffe3ea; font-weight:900; }
+  .note { font-size:12px; color:#b36; margin-top:8px; }
+</style>
+</head>
+<body>
+<a class="home-btn" href="../">🏠 메인 메뉴</a>
+
+<div id="app">
+  <header>
+    <h1>🐷 부타 다이어트</h1>
+    <div>
+      <button class="btn sub" id="rankBtn">🏆 순위</button>
+    </div>
+  </header>
+
+  <div class="weight"><b id="wt">200.00</b><span>kg</span></div>
+  <div class="sub-info"><span id="nick">-</span> · 목표 70kg · 지금까지 <span id="lost">0.00</span>kg 감량 · <span id="runinfo">1회차</span></div>
+  <div class="bar" id="wbar"><i></i></div>
+
+  <div class="barlabel"><span>💪 체력</span><span id="sval">100 / 100</span></div>
+  <div class="bar" id="sbar"><i></i></div>
+
+  <div id="stage">
+    <div id="msg"></div>
+    <svg id="pig" viewBox="0 0 260 250"></svg>
+    <div id="exlabel"></div>
+  </div>
+
+  <div id="exs"></div>
+  <div class="sub-info" style="margin-top:10px">부타를 터치할 때마다 운동! 체력이 바닥나면 쉬어야 해요 😮‍💨</div>
+</div>
+
+<!-- 닉네임 -->
+<div class="modal" id="nickModal">
+  <div class="card">
+    <h2>닉네임을 정해주세요</h2>
+    <p>내 부타의 이름이자 스코어보드에 표시될 이름이에요. (최대 10자)</p>
+    <input id="nickInput" maxlength="10" placeholder="예: 윤재" autocomplete="off">
+    <p style="margin-bottom:0"><button class="btn" id="nickOk" style="width:100%">시작하기</button></p>
+  </div>
+</div>
+
+<!-- 클리어 -->
+<div class="modal" id="clearModal">
+  <div class="card" style="text-align:center">
+    <h2>🎉 70kg 달성!</h2>
+    <p>부타 다이어트 성공!<br>클리어 시간 <b id="clearTime"></b></p>
+    <button class="btn" id="restartBtn" style="width:100%">다시 200kg부터 도전</button>
+    <p><button class="btn sub" id="clearRank" style="width:100%">🏆 순위 보기</button></p>
+  </div>
+</div>
+
+<!-- 스코어보드 -->
+<div class="modal" id="rankModal">
+  <div class="card">
+    <h2>🏆 스코어보드</h2>
+    <div class="tabs">
+      <button class="btn on" id="tabLost">총 감량</button>
+      <button class="btn" id="tabClear">클리어 시간</button>
+    </div>
+    <table id="rankTable"></table>
+    <div class="note" id="rankNote"></div>
+    <p style="margin-bottom:0"><button class="btn sub" id="rankClose" style="width:100%">닫기</button></p>
+  </div>
+</div>
+
+<script type="module">
+// ===== Firebase 설정: Firebase 콘솔 > 프로젝트 설정 > 내 앱(웹)의 firebaseConfig 값을 여기에 붙여넣으세요 =====
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "000000000000",
+  appId: "YOUR_APP_ID"
+};
+// ====================================================================================================
+
+const START_G = 200000, GOAL_G = 70000;       // 그램 단위 정수로 계산
+const STAMINA_MAX = 100, RECOVER_AT = 30;      // 탈진하면 체력이 30까지 차야 다시 운동 가능
+const REGEN_IDLE = 7, REGEN_ACTIVE = 1.5;      // 초당 체력 회복 (1초 이상 쉬면 IDLE)
+
+// g = 1회 감량(그램), cost = 체력 소모
+const EXERCISES = [
+  { id:'pushup',  ic:'💪', nm:'팔굽혀펴기', tp:'맨몸',   cls:'a', g:50, cost:2 },
+  { id:'squat',   ic:'🦵', nm:'스쿼트',     tp:'맨몸',   cls:'a', g:60, cost:3 },
+  { id:'situp',   ic:'🧘', nm:'윗몸일으키기', tp:'맨몸', cls:'a', g:50, cost:2 },
+  { id:'run',     ic:'🏃', nm:'달리기',     tp:'유산소', cls:'b', g:80, cost:3 },
+  { id:'rope',    ic:'🪢', nm:'줄넘기',     tp:'유산소', cls:'b', g:95, cost:3.5 },
+  { id:'dumbbell',ic:'🏋️', nm:'덤벨 들기', tp:'무산소', cls:'c', g:130, cost:6 },
+];
+
+const $ = id => document.getElementById(id);
+const kg = g => (g / 1000).toFixed(2);
+
+// ---------- 상태 ----------
+let uid = 'local', db = null, fb = null, online = false;
+let S = { nickname:'', weightG:START_G, totalLostG:0, runs:1, runMs:0, bestClearMs:null, cleared:false };
+let stamina = STAMINA_MAX, exhausted = false, lastTap = 0, curEx = EXERCISES[0];
+let dirty = false;
+
+const LS_KEY = 'butadiet-local';
+function loadLocal() { try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch { return null; } }
+function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch {} }
+
+// ---------- 부타 그리기 (살 빠질수록 날씬) ----------
+function drawPig() {
+  const t = Math.max(0, Math.min(1, (S.weightG - GOAL_G) / (START_G - GOAL_G))); // 1=뚱뚱, 0=날씬
+  const bw = 52 + t * 70;      // 몸통 가로 반지름
+  const bh = 62 + t * 22;
+  const cx = 130, cy = 150;
+  const hr = 40 + t * 8;
+  const limb = 12 + t * 8;
+  const mood = exhausted ? '😵' : null;
+  $('pig').innerHTML = `
+    <ellipse cx="${cx}" cy="238" rx="${bw*0.9}" ry="8" fill="#0002"/>
+    <rect x="${cx-bw*0.6-limb/2}" y="${cy+bh-18}" width="${limb+6}" height="${236-(cy+bh-18)}" rx="8" fill="#ff8fab"/>
+    <rect x="${cx+bw*0.6-limb/2-6}" y="${cy+bh-18}" width="${limb+6}" height="${236-(cy+bh-18)}" rx="8" fill="#ff8fab"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="${bw}" ry="${bh}" fill="#ffb3c6" stroke="#e0577d" stroke-width="3"/>
+    <ellipse cx="${cx}" cy="${cy+bh*0.2}" rx="${bw*0.62}" ry="${bh*0.55}" fill="#ffd6e0"/>
+    <ellipse cx="${cx-bw-2}" cy="${cy-4}" rx="${limb*0.9}" ry="${limb*1.6}" transform="rotate(25 ${cx-bw} ${cy})" fill="#ff8fab"/>
+    <ellipse cx="${cx+bw+2}" cy="${cy-4}" rx="${limb*0.9}" ry="${limb*1.6}" transform="rotate(-25 ${cx+bw} ${cy})" fill="#ff8fab"/>
+    <polygon points="${cx-hr*0.8},${cy-bh-hr*0.5} ${cx-hr*0.3},${cy-bh-hr*1.15} ${cx-hr*0.1},${cy-bh-hr*0.4}" fill="#ff8fab" stroke="#e0577d" stroke-width="2"/>
+    <polygon points="${cx+hr*0.8},${cy-bh-hr*0.5} ${cx+hr*0.3},${cy-bh-hr*1.15} ${cx+hr*0.1},${cy-bh-hr*0.4}" fill="#ff8fab" stroke="#e0577d" stroke-width="2"/>
+    <circle cx="${cx}" cy="${cy-bh-hr*0.15}" r="${hr}" fill="#ffb3c6" stroke="#e0577d" stroke-width="3"/>
+    <ellipse cx="${cx}" cy="${cy-bh-hr*0.05}" rx="${hr*0.42}" ry="${hr*0.3}" fill="#ff8fab" stroke="#e0577d" stroke-width="2"/>
+    <circle cx="${cx-hr*0.13}" cy="${cy-bh-hr*0.05}" r="3" fill="#a02a50"/>
+    <circle cx="${cx+hr*0.13}" cy="${cy-bh-hr*0.05}" r="3" fill="#a02a50"/>
+    ${mood
+      ? `<text x="${cx-hr*0.62-10}" y="${cy-bh-hr*0.3}" font-size="20">😵</text><text x="${cx+hr*0.62-10}" y="${cy-bh-hr*0.3}" font-size="20">😵</text>`
+      : `<circle cx="${cx-hr*0.5}" cy="${cy-bh-hr*0.4}" r="5" fill="#222"/><circle cx="${cx+hr*0.5}" cy="${cy-bh-hr*0.4}" r="5" fill="#222"/>`}
+    <rect x="${cx-hr*0.9}" y="${cy-bh-hr*0.95}" width="${hr*1.8}" height="9" rx="4" fill="#e0577d"/>
+  `;
+}
+
+// ---------- 화면 갱신 ----------
+function render() {
+  $('wt').textContent = kg(S.weightG);
+  $('lost').textContent = kg(S.totalLostG);
+  $('nick').textContent = S.nickname;
+  $('runinfo').textContent = S.runs + '회차';
+  const prog = (START_G - S.weightG) / (START_G - GOAL_G);
+  $('wbar').firstElementChild.style.width = Math.min(100, prog * 100) + '%';
+  $('sval').textContent = Math.floor(stamina) + ' / ' + STAMINA_MAX + (exhausted ? ' · 탈진! ' + RECOVER_AT + ' 이상 회복 필요' : '');
+  $('sbar').firstElementChild.style.width = (stamina / STAMINA_MAX * 100) + '%';
+  $('sbar').classList.toggle('low', exhausted || stamina < 20);
+  $('stage').classList.toggle('exhausted', exhausted);
+  $('pig').classList.toggle('rest', exhausted || Date.now() - lastTap > 1000);
+  $('exlabel').textContent = curEx.ic + ' ' + curEx.nm + ' · 터치 1회 -' + (curEx.g / 1000).toFixed(2) + 'kg / 체력 -' + curEx.cost;
+  drawPig();
+}
+
+function buildExercises() {
+  $('exs').innerHTML = EXERCISES.map(e => `
+    <button class="ex ${e.id === curEx.id ? 'on' : ''}" data-id="${e.id}">
+      <span class="ic">${e.ic}</span><span class="nm">${e.nm}</span>
+      <span class="tp tag-${e.cls}">${e.tp}</span>
+      <span class="st">-${(e.g/1000).toFixed(2)}kg · ⚡${e.cost}</span>
+    </button>`).join('');
+  $('exs').querySelectorAll('.ex').forEach(b => b.onclick = () => {
+    curEx = EXERCISES.find(e => e.id === b.dataset.id);
+    buildExercises(); render();
+  });
+}
+
+// ---------- 운동 ----------
+function showMsg(t) { $('msg').textContent = t; clearTimeout(showMsg.t); showMsg.t = setTimeout(() => $('msg').textContent = '', 900); }
+
+$('stage').addEventListener('pointerdown', ev => {
+  if (S.cleared || !S.nickname) return;
+  if (exhausted) { showMsg('💤 너무 지쳤어요! 쉬어야 해요'); return; }
+  if (stamina < curEx.cost) {
+    exhausted = true; stamina = Math.max(0, stamina); showMsg('😵 체력 바닥! 휴식 필요'); render(); return;
+  }
+  stamina -= curEx.cost;
+  lastTap = Date.now();
+  const g = Math.min(curEx.g, S.weightG - GOAL_G);
+  S.weightG -= g; S.totalLostG += g; dirty = true;
+
+  const pig = $('pig'); pig.classList.remove('hit', 'rest'); void pig.getBoundingClientRect(); pig.classList.add('hit');
+  const r = $('stage').getBoundingClientRect();
+  const f = document.createElement('div'); f.className = 'float';
+  f.textContent = '-' + (g / 1000).toFixed(2);
+  f.style.left = (ev.clientX - r.left - 20) + 'px'; f.style.top = (ev.clientY - r.top - 20) + 'px';
+  $('stage').appendChild(f); setTimeout(() => f.remove(), 800);
+
+  if (S.weightG <= GOAL_G) return clearGame();
+  render();
+});
+
+// 체력 회복 + 플레이 시간
+let lastFrame = performance.now();
+setInterval(() => {
+  const now = performance.now(), dt = (now - lastFrame) / 1000; lastFrame = now;
+  if (!S.nickname || S.cleared) return;
+  const idle = Date.now() - lastTap > 1000;
+  stamina = Math.min(STAMINA_MAX, stamina + (idle ? REGEN_IDLE : REGEN_ACTIVE) * dt);
+  if (exhausted && stamina >= RECOVER_AT) exhausted = false;
+  if (!document.hidden) S.runMs += dt * 1000;
+  render();
+}, 100);
+
+// ---------- 클리어 ----------
+function fmt(ms) {
+  const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+  return (h ? h + '시간 ' : '') + m + '분 ' + ss + '초';
+}
+function clearGame() {
+  S.cleared = true; S.runMs = Math.round(S.runMs);
+  if (S.bestClearMs == null || S.runMs < S.bestClearMs) S.bestClearMs = S.runMs;
+  $('clearTime').textContent = fmt(S.runMs);
+  render(); save(true);
+  $('clearModal').classList.add('show');
+}
+$('restartBtn').onclick = () => {
+  S.runs++; S.weightG = START_G; S.runMs = 0; S.cleared = false;
+  stamina = STAMINA_MAX; exhausted = false;
+  $('clearModal').classList.remove('show'); render(); save(true);
+};
+$('clearRank').onclick = () => openRank();
+
+// ---------- 저장 ----------
+async function save(force) {
+  saveLocal();
+  if (!online || !(dirty || force)) return;
+  dirty = false;
+  try {
+    await fb.setDoc(fb.doc(db, 'buta', uid), {
+      nickname: S.nickname, weightG: S.weightG, totalLostG: S.totalLostG, runs: S.runs,
+      runMs: Math.round(S.runMs), bestClearMs: S.bestClearMs, cleared: S.cleared,
+      updatedAt: fb.serverTimestamp()
+    });
+  } catch (e) { console.warn('저장 실패', e); dirty = true; }
+}
+setInterval(() => save(false), 5000);
+addEventListener('pagehide', () => save(true));
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
+
+// ---------- 스코어보드 ----------
+let tab = 'lost';
+function setTab(t) { tab = t; $('tabLost').classList.toggle('on', t === 'lost'); $('tabClear').classList.toggle('on', t === 'clear'); openRank(); }
+$('tabLost').onclick = () => setTab('lost');
+$('tabClear').onclick = () => setTab('clear');
+$('rankBtn').onclick = () => openRank();
+$('rankClose').onclick = () => $('rankModal').classList.remove('show');
+
+async function openRank() {
+  $('rankModal').classList.add('show');
+  const tbl = $('rankTable'), note = $('rankNote');
+  note.textContent = '';
+  tbl.innerHTML = '<tr><td>불러오는 중...</td></tr>';
+  let rows = [];
+  if (online) {
+    try {
+      const q = tab === 'lost'
+        ? fb.query(fb.collection(db, 'buta'), fb.orderBy('totalLostG', 'desc'), fb.limit(30))
+        : fb.query(fb.collection(db, 'buta'), fb.where('bestClearMs', '>', 0), fb.orderBy('bestClearMs', 'asc'), fb.limit(30));
+      const snap = await fb.getDocs(q);
+      rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) { tbl.innerHTML = '<tr><td>스코어보드를 불러오지 못했어요.</td></tr>'; console.warn(e); return; }
+  } else {
+    if (tab === 'lost' || S.bestClearMs) rows = [{ id: uid, ...S }];
+    note.textContent = 'Firebase가 연결되지 않아 내 기록만 보여요. (firebaseConfig를 설정하세요)';
+  }
+  if (!rows.length) { tbl.innerHTML = '<tr><td>아직 기록이 없어요.</td></tr>'; return; }
+  const head = tab === 'lost' ? '<th>#</th><th>닉네임</th><th>총 감량</th>' : '<th>#</th><th>닉네임</th><th>최단 클리어</th>';
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  tbl.innerHTML = '<tr>' + head + '</tr>' + rows.map((r, i) =>
+    `<tr class="${r.id === uid ? 'me' : ''}"><td>${i + 1}</td><td>${esc(r.nickname)}${r.cleared ? ' ✅' : ''}</td><td>${
+      tab === 'lost' ? kg(r.totalLostG) + 'kg' : fmt(r.bestClearMs)}</td></tr>`).join('');
+}
+
+// ---------- 시작 ----------
+async function initFirebase() {
+  if (firebaseConfig.apiKey.startsWith('YOUR_')) return;
+  try {
+    const V = '10.12.2', base = `https://www.gstatic.com/firebasejs/${V}/`;
+    const [app, auth, fs] = await Promise.all([
+      import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+    const a = app.initializeApp(firebaseConfig);
+    const au = auth.getAuth(a);
+    await new Promise(res => { const un = auth.onAuthStateChanged(au, u => { if (u) { un(); res(); } }); auth.signInAnonymously(au).catch(res); });
+    if (!au.currentUser) throw new Error('익명 로그인 실패');
+    uid = au.currentUser.uid; db = fs.getFirestore(a); fb = fs; online = true;
+  } catch (e) { console.warn('Firebase 사용 불가, 로컬 모드로 실행', e); online = false; }
+}
+
+function askNick() {
+  return new Promise(res => {
+    $('nickModal').classList.add('show');
+    const ok = () => { const v = $('nickInput').value.trim().slice(0, 10); if (!v) return; $('nickModal').classList.remove('show'); res(v); };
+    $('nickOk').onclick = ok;
+    $('nickInput').onkeydown = e => { if (e.key === 'Enter') ok(); };
+  });
+}
+
+(async () => {
+  buildExercises(); render();
+  await initFirebase();
+  let loaded = null;
+  if (online) {
+    try { const d = await fb.getDoc(fb.doc(db, 'buta', uid)); if (d.exists()) loaded = d.data(); } catch (e) { console.warn(e); }
+  } else loaded = loadLocal();
+  if (loaded) {
+    S = { ...S, nickname: loaded.nickname || '', weightG: loaded.weightG ?? START_G, totalLostG: loaded.totalLostG ?? 0,
+          runs: loaded.runs ?? 1, runMs: loaded.runMs ?? 0, bestClearMs: loaded.bestClearMs ?? null, cleared: !!loaded.cleared };
+  }
+  if (!S.nickname) { S.nickname = await askNick(); save(true); dirty = true; }
+  if (S.cleared) { $('clearTime').textContent = fmt(S.runMs); $('clearModal').classList.add('show'); }
+  render();
+})();
+</script>
+</body>
+</html>
