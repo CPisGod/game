@@ -171,34 +171,70 @@ const LS_KEY = 'butadiet-local';
 function loadLocal() { try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch { return null; } }
 function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch {} }
 
-// ---------- 부타 그리기 (살 빠질수록 날씬) ----------
+// ---------- 부타 그리기 (스쿨 서퍼 부타 도트 디자인, 살 빠질수록 날씬) ----------
+const C = { base:'#ee9ab3', shade:'#c96f8a', light:'#ffb4c9', belly:'#ffcbd6', snout:'#df849f', nostril:'#713347',
+  blue:'#466dcc', blueD:'#304b99', blueL:'#7b98e8', hoof:'#734630', hoofL:'#9c6547', ink:'#2a2027', white:'#fff8e6', earIn:'#f6b5c8' };
 function drawPig() {
   const t = Math.max(0, Math.min(1, (S.weightG - GOAL_G) / (START_G - GOAL_G))); // 1=뚱뚱, 0=날씬
-  const bw = 52 + t * 70;      // 몸통 가로 반지름
-  const bh = 62 + t * 22;
-  const cx = 130, cy = 150;
-  const hr = 40 + t * 8;
-  const limb = 12 + t * 8;
-  const mood = exhausted ? '😵' : null;
-  $('pig').innerHTML = `
-    <ellipse cx="${cx}" cy="238" rx="${bw*0.9}" ry="8" fill="#0002"/>
-    <rect x="${cx-bw*0.6-limb/2}" y="${cy+bh-18}" width="${limb+6}" height="${236-(cy+bh-18)}" rx="8" fill="#ff8fab"/>
-    <rect x="${cx+bw*0.6-limb/2-6}" y="${cy+bh-18}" width="${limb+6}" height="${236-(cy+bh-18)}" rx="8" fill="#ff8fab"/>
-    <ellipse cx="${cx}" cy="${cy}" rx="${bw}" ry="${bh}" fill="#ffb3c6" stroke="#e0577d" stroke-width="3"/>
-    <ellipse cx="${cx}" cy="${cy+bh*0.2}" rx="${bw*0.62}" ry="${bh*0.55}" fill="#ffd6e0"/>
-    <ellipse cx="${cx-bw-2}" cy="${cy-4}" rx="${limb*0.9}" ry="${limb*1.6}" transform="rotate(25 ${cx-bw} ${cy})" fill="#ff8fab"/>
-    <ellipse cx="${cx+bw+2}" cy="${cy-4}" rx="${limb*0.9}" ry="${limb*1.6}" transform="rotate(-25 ${cx+bw} ${cy})" fill="#ff8fab"/>
-    <polygon points="${cx-hr*0.8},${cy-bh-hr*0.5} ${cx-hr*0.3},${cy-bh-hr*1.15} ${cx-hr*0.1},${cy-bh-hr*0.4}" fill="#ff8fab" stroke="#e0577d" stroke-width="2"/>
-    <polygon points="${cx+hr*0.8},${cy-bh-hr*0.5} ${cx+hr*0.3},${cy-bh-hr*1.15} ${cx+hr*0.1},${cy-bh-hr*0.4}" fill="#ff8fab" stroke="#e0577d" stroke-width="2"/>
-    <circle cx="${cx}" cy="${cy-bh-hr*0.15}" r="${hr}" fill="#ffb3c6" stroke="#e0577d" stroke-width="3"/>
-    <ellipse cx="${cx}" cy="${cy-bh-hr*0.05}" rx="${hr*0.42}" ry="${hr*0.3}" fill="#ff8fab" stroke="#e0577d" stroke-width="2"/>
-    <circle cx="${cx-hr*0.13}" cy="${cy-bh-hr*0.05}" r="3" fill="#a02a50"/>
-    <circle cx="${cx+hr*0.13}" cy="${cy-bh-hr*0.05}" r="3" fill="#a02a50"/>
-    ${mood
-      ? `<text x="${cx-hr*0.62-10}" y="${cy-bh-hr*0.3}" font-size="20">😵</text><text x="${cx+hr*0.62-10}" y="${cy-bh-hr*0.3}" font-size="20">😵</text>`
-      : `<circle cx="${cx-hr*0.5}" cy="${cy-bh-hr*0.4}" r="5" fill="#222"/><circle cx="${cx+hr*0.5}" cy="${cy-bh-hr*0.4}" r="5" fill="#222"/>`}
-    <rect x="${cx-hr*0.9}" y="${cy-bh-hr*0.95}" width="${hr*1.8}" height="9" rx="4" fill="#e0577d"/>
-  `;
+  const f = 1 + t * 0.85;          // 몸통 가로 배율
+  const hf = 1 + t * 0.2;          // 얼굴 가로 배율
+  const K = 86, CX = 130, GY = 242;
+  let o = '';
+  // x=중심 월드좌표, y=밑면 월드높이
+  const R = (x, y, w, h, c) => { o += `<rect x="${(CX + (x - w / 2) * K).toFixed(1)}" y="${(GY - (y + h) * K).toFixed(1)}" width="${(w * K).toFixed(1)}" height="${(h * K).toFixed(1)}" fill="${c}"/>`; };
+  const steps = (cx, rows, scale) => rows.forEach(([bt, w, h]) => {
+    const W = w * scale;
+    R(cx, bt, W, h, C.base);
+    R(cx - W / 2 + .015, bt, .03, h, C.shade); R(cx + W / 2 - .015, bt, .03, h, C.shade);
+  });
+  const lx = .19 * (1 + (f - 1) * .55);
+
+  o += `<ellipse cx="${CX}" cy="${GY + 2}" rx="${(.5 * f + .25) * K * .9}" ry="7" fill="#0002"/>`;
+  // 다리 + 발굽
+  for (const s of [-1, 1]) {
+    R(s * lx, .14, .17, .60, C.base); R(s * lx + s * .06, .14, .05, .60, C.shade);
+    R(s * lx, .03, .29, .065, C.ink); R(s * lx, .07, .29, .105, C.hoof); R(s * lx, .15, .24, .02, C.hoofL);
+  }
+  // 몸통
+  steps(0, [[.79,.69,.15],[.94,.82,.22],[1.16,.78,.23],[1.39,.61,.22],[1.61,.43,.12]], f);
+  // 연분홍 배
+  const bp = ['...LLL...','..LLLLL..','.LLLLLLL.','LLLLLLLLL','LLLLLLLLL','.LLLLLLL.','..LLLLL..'];
+  bp.forEach((row, iy) => { for (let ix = 0; ix < 9; ix++) if (row[ix] === 'L') R((ix - 4) * .066 * f, 1.43 - iy * .066 - .033, .066 * f + .002, .068, C.belly); });
+  // 파란 반바지
+  R(0, .79, .80 * f, .14, C.blueD); R(0, .86, .87 * f, .105, C.blue); R(0, .92, .82 * f, .026, C.blueL); R(0, .73, .034, .08, C.blueD);
+  for (const s of [-1, 1]) R(s * lx, .70, .23, .11, C.blueD);
+  // 팔 (어깨는 몸통 폭만큼 바깥으로)
+  const ax = .43 + .305 * (f - 1) * .9;
+  for (const s of [-1, 1]) {
+    R(s * ax, .93, .155, .66, C.base); R(s * (ax + .055), .93, .045, .66, C.shade);
+    R(s * ax, .83, .19, .13, C.belly); R(s * ax, .85, .012, .035, C.shade);
+  }
+  // 머리
+  const hy = 2.05;
+  steps(0, [[hy-.40,.56,.12],[hy-.28,.84,.18],[hy-.10,1.00,.22],[hy+.12,.94,.22],[hy+.34,.73,.12]].map(r => [r[0], r[1], r[2]]), hf);
+  // 귀
+  for (const s of [-1, 1]) {
+    const ex = s * .34 * hf, ey = hy + .39;
+    R(ex, ey - .03, .235, .25, C.shade); R(ex + s * .035, ey + .175, .14, .10, C.base);
+    R(ex, ey + .01, .12, .16, C.earIn); R(ex + s * .055, ey + .269, .11, .023, C.ink);
+  }
+  // 얼굴 (각진 주둥이)
+  R(0, hy - .24, .53 * hf, .35, C.base); R(0, hy - .25, .57 * hf, .26, C.shade);
+  R(0, hy - .23, .48 * hf, .25, C.snout); R(0, hy - .108, .40 * hf, .031, C.light);
+  for (const s of [-1, 1]) R(s * .112 * hf, hy - .132, .062, .06, C.nostril);
+  R(0, hy - .28, .22 * hf, .026, C.nostril);
+  // 눈
+  for (const s of [-1, 1]) {
+    const ex = s * .28 * hf;
+    if (exhausted) {
+      o += `<path d="M${CX+(ex-.06)*K} ${GY-(hy+.21)*K}L${CX+(ex+.06)*K} ${GY-(hy+.09)*K}M${CX+(ex+.06)*K} ${GY-(hy+.21)*K}L${CX+(ex-.06)*K} ${GY-(hy+.09)*K}" stroke="${C.ink}" stroke-width="4"/>`;
+    } else {
+      R(ex, hy + .06, .145, .18, C.white); R(ex - .013, hy + .07, .052, .124, C.ink);
+    }
+  }
+  o += '<g/>';
+  $('pig').setAttribute('shape-rendering', 'crispEdges');
+  $('pig').innerHTML = o;
 }
 
 // ---------- 화면 갱신 ----------
