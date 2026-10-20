@@ -139,6 +139,12 @@
   <div class="card">
     <h2>🎯 미션</h2>
     <p style="margin-top:0">달성하면 프로틴·닭가슴살·샐러드를 받아요. 위에서 눌러서 먹으면 체력 회복과 보너스 효과가 있어요!</p>
+    <div class="tabs">
+      <button class="btn on" id="tabDaily">일일 미션</button>
+      <button class="btn" id="tabAch">업적 미션</button>
+    </div>
+    <button class="btn" id="claimAll" style="width:100%;margin-bottom:8px">🎁 모두 받기</button>
+    <div class="note" id="dailyNote" style="margin:0 0 8px;color:#777">일일 미션은 매일 0시에 초기화돼요.</div>
     <div id="questList"></div>
     <p style="margin-bottom:0"><button class="btn sub" id="questClose" style="width:100%">닫기</button></p>
   </div>
@@ -205,6 +211,12 @@ const QUESTS = [
   { id:'q8',  nm:'꾸준함',     desc:'운동 500회',          goal:500,   val:() => S.stats.total,  reward:{ chicken:2 } },
   { id:'q9',  nm:'절반의 성공', desc:'누적 50kg 감량',      goal:50000, val:() => S.totalLostG, kg:1, reward:{ protein:3 } },
   { id:'q10', nm:'운동 중독',  desc:'운동 1500회',         goal:1500,  val:() => S.stats.total,  reward:{ protein:2, chicken:2, salad:2 } },
+  // 일일 미션: 매일 0시에 진행도와 수령 기록이 초기화됨
+  { id:'d1', daily:1, nm:'오늘의 운동',  desc:'오늘 운동 100회',      goal:100, val:() => S.daily.total,  reward:{ protein:1 } },
+  { id:'d2', daily:1, nm:'맨몸 데이',    desc:'오늘 맨몸 운동 40회',   goal:40,  val:() => S.daily.cat.a,  reward:{ chicken:1 } },
+  { id:'d3', daily:1, nm:'유산소 데이',  desc:'오늘 유산소 운동 40회', goal:40,  val:() => S.daily.cat.b,  reward:{ salad:1 } },
+  { id:'d4', daily:1, nm:'무산소 데이',  desc:'오늘 무산소 운동 40회', goal:40,  val:() => S.daily.cat.c,  reward:{ protein:1 } },
+  { id:'d5', daily:1, nm:'오늘의 대장',  desc:'오늘 운동 300회',      goal:300, val:() => S.daily.total,  reward:{ protein:1, chicken:1, salad:1 } },
 ];
 
 const $ = id => document.getElementById(id);
@@ -213,10 +225,12 @@ const kg = g => (g / 1000).toFixed(2);
 // ---------- 상태 ----------
 let uid = 'local', db = null, fb = null, online = false;
 const newStats = () => ({ total:0, cat:{ a:0, b:0, c:0 }, ex:{} });
+const newDaily = date => ({ date, total:0, cat:{ a:0, b:0, c:0 }, claimed:[] });
 let S = { nickname:'', weightG:START_G, totalLostG:0, runs:1, runMs:0, bestClearMs:null, cleared:false,
-          stats:newStats(), inv:{ protein:0, chicken:0, salad:0 }, claimed:[], buff:{ chicken:0, saladUntil:0 } };
+          stats:newStats(), inv:{ protein:0, chicken:0, salad:0 }, claimed:[], buff:{ chicken:0, saladUntil:0 }, daily:newDaily('') };
 let stamina = STAMINA_MAX, exhausted = false, lastTap = 0, curEx = EXERCISES[0];
 let dirty = false;
+let ready = false;   // 저장된 기록을 불러오기 전에는 기록을 덮어쓰지 않는다
 
 const LS_KEY = 'butadiet-local';
 function loadLocal() { try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch { return null; } }
@@ -478,7 +492,7 @@ function render() {
   $('sbar').classList.toggle('low', exhausted || stamina < 20);
   $('stage').classList.toggle('exhausted', exhausted);
   renderItems();
-  $('exlabel').textContent = curEx.ic + ' ' + curEx.nm + ' · 터치 1회 -' + (curEx.g / 1000).toFixed(2) + 'kg / 체력 -' + curEx.cost;
+  $('exlabel').textContent = curEx.ic + ' ' + curEx.nm;
 }
 
 function buildExercises() {
@@ -486,7 +500,6 @@ function buildExercises() {
     <button class="ex ${e.id === curEx.id ? 'on' : ''}" data-id="${e.id}">
       <span class="ic">${e.ic}</span><span class="nm">${e.nm}</span>
       <span class="tp tag-${e.cls}">${e.tp}</span>
-      <span class="st">-${(e.g/1000).toFixed(2)}kg · ⚡${e.cost}</span>
     </button>`).join('');
   $('exs').querySelectorAll('.ex').forEach(b => b.onclick = () => {
     curEx = EXERCISES.find(e => e.id === b.dataset.id);
@@ -495,10 +508,13 @@ function buildExercises() {
 }
 
 // ---------- 아이템 / 미션 ----------
-let lastReady = 0;
+let questTab = 'daily';
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+function ensureDaily() { if (S.daily.date !== today()) { S.daily = newDaily(today()); dirty = true; } }
+const isClaimed = q => (q.daily ? S.daily.claimed : S.claimed).includes(q.id);
 function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2200); }
 const done = q => q.val() >= q.goal;
-const claimable = () => QUESTS.filter(q => done(q) && !S.claimed.includes(q.id)).length;
+const claimable = () => { ensureDaily(); return QUESTS.filter(q => done(q) && !isClaimed(q)).length; };
 
 function renderItems() {
   $('items').innerHTML = Object.entries(ITEMS).map(([k, it]) =>
@@ -523,10 +539,18 @@ function useItem(k) {
   toast(ITEMS[k].ic + ' ' + ITEMS[k].nm + ' 섭취! ' + ITEMS[k].fx);
   dirty = true; save(); render();
 }
+const rw = r => Object.entries(r).map(([k, n]) => ITEMS[k].ic + '×' + n).join(' ');
+function claimQuest(q) {
+  (q.daily ? S.daily.claimed : S.claimed).push(q.id);
+  for (const [k, n] of Object.entries(q.reward)) S.inv[k] += n;
+}
 function openQuests() {
-  const rw = r => Object.entries(r).map(([k, n]) => ITEMS[k].ic + '×' + n).join(' ');
-  $('questList').innerHTML = QUESTS.map(q => {
-    const v = Math.min(q.val(), q.goal), ok = done(q), got = S.claimed.includes(q.id);
+  ensureDaily();
+  $('tabDaily').classList.toggle('on', questTab === 'daily'); $('tabAch').classList.toggle('on', questTab === 'ach');
+  $('claimAll').disabled = claimable() === 0;
+  $('dailyNote').style.display = questTab === 'daily' ? 'block' : 'none';
+  $('questList').innerHTML = QUESTS.filter(q => !!q.daily === (questTab === 'daily')).map(q => {
+    const v = Math.min(q.val(), q.goal), ok = done(q), got = isClaimed(q);
     const txt = q.kg ? kg(v) + ' / ' + kg(q.goal) + 'kg' : v + ' / ' + q.goal;
     return `<div class="quest ${got ? 'got' : ''}"><div class="qh"><b>${q.nm}</b><span>${rw(q.reward)}</span></div>
       <div class="qd">${q.desc}</div><div class="bar sm"><i style="width:${v / q.goal * 100}%"></i></div>
@@ -534,14 +558,26 @@ function openQuests() {
   }).join('');
   $('questList').querySelectorAll('button[data-id]').forEach(b => b.onclick = () => {
     const q = QUESTS.find(x => x.id === b.dataset.id);
-    if (!done(q) || S.claimed.includes(q.id)) return;
-    S.claimed.push(q.id);
-    for (const [k, n] of Object.entries(q.reward)) S.inv[k] += n;
-    lastReady = claimable(); dirty = true; save(); render(); openQuests();
+    if (!done(q) || isClaimed(q)) return;
+    claimQuest(q);
+    dirty = true; save(); render(); openQuests();
     toast('🎁 ' + q.nm + ' 보상: ' + rw(q.reward));
   });
   $('questModal').classList.add('show');
 }
+$('claimAll').onclick = () => {
+  ensureDaily();
+  const got = {};
+  for (const q of QUESTS.filter(q => done(q) && !isClaimed(q))) {
+    claimQuest(q);
+    for (const [k, n] of Object.entries(q.reward)) got[k] = (got[k] || 0) + n;
+  }
+  if (!Object.keys(got).length) return;
+  dirty = true; save(); render(); openQuests();
+  toast('🎁 모두 받기: ' + rw(got));
+};
+$('tabDaily').onclick = () => { questTab = 'daily'; openQuests(); };
+$('tabAch').onclick = () => { questTab = 'ach'; openQuests(); };
 $('questBtn').onclick = openQuests;
 $('questClose').onclick = () => $('questModal').classList.remove('show');
 
@@ -561,9 +597,7 @@ $('stage').addEventListener('pointerdown', ev => {
   const g = Math.min(curEx.g * boost, S.weightG - GOAL_G);
   S.weightG -= g; S.totalLostG += g; dirty = true;
   S.stats.total++; S.stats.cat[curEx.cls]++; S.stats.ex[curEx.id] = (S.stats.ex[curEx.id] || 0) + 1;
-  const ready = claimable();
-  if (ready > lastReady) toast('🎯 미션 달성! 🎯 버튼에서 보상을 받으세요');
-  lastReady = ready;
+  ensureDaily(); S.daily.total++; S.daily.cat[curEx.cls]++;
 
   const ea = EX_ANIM[curEx.id];
   anim.tg = Math.min(anim.tg + ea.per, anim.ph + ea.per * 2.5);
@@ -584,6 +618,7 @@ setInterval(() => {
   const now = performance.now(), dt = (now - lastFrame) / 1000; lastFrame = now;
   if (!S.nickname || S.cleared) return;
   const idle = Date.now() - lastTap > 1000;
+  ensureDaily();
   const regenX = Date.now() < S.buff.saladUntil ? 2 : 1;
   stamina = Math.min(STAMINA_MAX, stamina + (idle ? REGEN_IDLE : REGEN_ACTIVE) * regenX * dt);
   if (exhausted && stamina >= RECOVER_AT) exhausted = false;
@@ -612,6 +647,7 @@ $('clearRank').onclick = () => openRank();
 
 // ---------- 저장 ----------
 async function save() {
+  if (!ready) return;
   saveLocal();
   if (!online || !dirty) return;
   dirty = false;
@@ -619,7 +655,7 @@ async function save() {
     await fb.setDoc(fb.doc(db, 'buta', uid), {
       nickname: S.nickname, weightG: S.weightG, totalLostG: S.totalLostG, runs: S.runs,
       runMs: Math.round(S.runMs), bestClearMs: S.bestClearMs, cleared: S.cleared,
-      stats: S.stats, inv: S.inv, claimed: S.claimed, buff: S.buff,
+      stats: S.stats, inv: S.inv, claimed: S.claimed, buff: S.buff, daily: S.daily,
       updatedAt: fb.serverTimestamp()
     });
   } catch (e) { console.warn('저장 실패', e); dirty = true; }
@@ -691,16 +727,21 @@ function askNick() {
   await initFirebase();
   let loaded = null;
   if (online) {
-    try { const d = await fb.getDoc(fb.doc(db, 'buta', uid)); if (d.exists()) loaded = d.data(); } catch (e) { console.warn(e); }
+    try {
+      const d = await fb.getDoc(fb.doc(db, 'buta', uid));
+      if (d.exists()) loaded = d.data();
+      else { const l = loadLocal(); if (l?.nickname) { loaded = l; dirty = true; } }   // 서버에 기록이 없으면 이 기기에 저장된 기록을 올린다
+    } catch (e) { console.warn(e); online = false; loaded = loadLocal(); }          // 읽기 실패 시 서버 기록을 덮어쓰지 않도록 이번엔 로컬로만
   } else loaded = loadLocal();
   if (loaded) {
     S = { ...S, nickname: loaded.nickname || '', weightG: loaded.weightG ?? START_G, totalLostG: loaded.totalLostG ?? 0,
           runs: loaded.runs ?? 1, runMs: loaded.runMs ?? 0, bestClearMs: loaded.bestClearMs ?? null, cleared: !!loaded.cleared,
           stats: { ...newStats(), ...(loaded.stats || {}), cat: { a:0, b:0, c:0, ...(loaded.stats?.cat || {}) }, ex: { ...(loaded.stats?.ex || {}) } },
-          inv: { ...S.inv, ...(loaded.inv || {}) }, claimed: loaded.claimed || [], buff: { ...S.buff, ...(loaded.buff || {}) } };
+          inv: { ...S.inv, ...(loaded.inv || {}) }, claimed: loaded.claimed || [], buff: { ...S.buff, ...(loaded.buff || {}) },
+          daily: { ...newDaily(''), ...(loaded.daily || {}), cat: { a:0, b:0, c:0, ...(loaded.daily?.cat || {}) }, claimed: loaded.daily?.claimed || [] } };
   }
-  if (!S.nickname) { S.nickname = await askNick(); dirty = true; save(); }
-  lastReady = claimable();
+  if (!S.nickname) { S.nickname = await askNick(); dirty = true; }
+  ready = true; save();
   if (S.cleared) { $('clearTime').textContent = fmt(S.runMs); $('clearModal').classList.add('show'); }
   render();
 })();
