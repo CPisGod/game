@@ -63,6 +63,22 @@
   td, th { padding:6px 4px; border-bottom:1px solid #eee; text-align:left; }
   td:last-child, th:last-child { text-align:right; }
   tr.me { background:#ffe3ea; font-weight:900; }
+  header > div { display:flex; gap:6px; }
+  header h1 { font-size:18px; white-space:nowrap; }
+  header .btn { padding:7px 9px; font-size:13px; white-space:nowrap; }
+  .badge { display:none; min-width:18px; padding:0 5px; border-radius:9px; background:#e8504a; color:#fff; font-size:12px; line-height:18px; }
+  #items { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:8px; }
+  .item { background:#fff; border:2px solid #d9c9a8; border-radius:12px; padding:6px 2px; font-family:inherit; color:var(--ink); cursor:pointer; display:flex; flex-direction:column; align-items:center; }
+  .item:disabled { opacity:.45; cursor:default; }
+  .item .ic { font-size:22px; } .item b { font-size:12px; } .item small { font-size:9px; opacity:.7; text-align:center; }
+  #toast { position:fixed; left:50%; bottom:64px; transform:translateX(-50%); background:#000c; color:#fff; padding:9px 14px; border-radius:12px; font-size:14px; z-index:9500; opacity:0; pointer-events:none; transition:opacity .2s; max-width:90%; text-align:center; }
+  #toast.show { opacity:1; }
+  .quest { border:2px solid #eadcc0; border-radius:12px; padding:8px 10px; margin-bottom:8px; }
+  .quest.got { opacity:.55; }
+  .qh { display:flex; justify-content:space-between; } .qd { font-size:13px; opacity:.8; margin:2px 0 6px; }
+  .qf { display:flex; justify-content:space-between; align-items:center; font-size:12px; margin-top:4px; }
+  .qf .btn { padding:5px 14px; } .qf em { font-style:normal; color:var(--green); font-weight:700; }
+  .bar.sm { height:10px; border-width:1px; } .bar.sm > i { background:var(--green); }
   .note { font-size:12px; color:#b36; margin-top:8px; }
 </style>
 </head>
@@ -73,6 +89,7 @@
   <header>
     <h1>🐷 부타 다이어트</h1>
     <div>
+      <button class="btn sub" id="questBtn">🎯 미션 <span id="questBadge" class="badge">0</span></button>
       <button class="btn sub" id="rankBtn">🏆 순위</button>
     </div>
   </header>
@@ -83,6 +100,9 @@
 
   <div class="barlabel"><span>💪 체력</span><span id="sval">100 / 100</span></div>
   <div class="bar" id="sbar"><i></i></div>
+
+  <div id="items"></div>
+  <div class="sub-info" id="buffs" style="min-height:16px"></div>
 
   <div id="stage">
     <div id="msg"></div>
@@ -114,6 +134,17 @@
   </div>
 </div>
 
+<!-- 미션 -->
+<div class="modal" id="questModal">
+  <div class="card">
+    <h2>🎯 미션</h2>
+    <p style="margin-top:0">달성하면 프로틴·닭가슴살·샐러드를 받아요. 위에서 눌러서 먹으면 체력 회복과 보너스 효과가 있어요!</p>
+    <div id="questList"></div>
+    <p style="margin-bottom:0"><button class="btn sub" id="questClose" style="width:100%">닫기</button></p>
+  </div>
+</div>
+<div id="toast"></div>
+
 <!-- 스코어보드 -->
 <div class="modal" id="rankModal">
   <div class="card">
@@ -144,14 +175,36 @@ const START_G = 200000, GOAL_G = 70000;       // 그램 단위 정수로 계산
 const STAMINA_MAX = 100, RECOVER_AT = 30;      // 탈진하면 체력이 30까지 차야 다시 운동 가능
 const REGEN_IDLE = 7, REGEN_ACTIVE = 1.5;      // 초당 체력 회복 (1초 이상 쉬면 IDLE)
 
-// g = 1회 감량(그램), cost = 체력 소모
+// g = 1회 감량(그램), cost = 체력 소모 (모든 운동 동일)
 const EXERCISES = [
-  { id:'pushup',  ic:'💪', nm:'팔굽혀펴기', tp:'맨몸',   cls:'a', g:50, cost:2 },
-  { id:'squat',   ic:'🦵', nm:'스쿼트',     tp:'맨몸',   cls:'a', g:60, cost:3 },
-  { id:'situp',   ic:'🧘', nm:'윗몸일으키기', tp:'맨몸', cls:'a', g:50, cost:2 },
-  { id:'run',     ic:'🏃', nm:'달리기',     tp:'유산소', cls:'b', g:80, cost:3 },
-  { id:'rope',    ic:'🪢', nm:'줄넘기',     tp:'유산소', cls:'b', g:95, cost:3.5 },
-  { id:'dumbbell',ic:'🏋️', nm:'덤벨 들기', tp:'무산소', cls:'c', g:130, cost:6 },
+  { id:'pushup',   ic:'💪', nm:'팔굽혀펴기',     tp:'맨몸',   cls:'a', g:50, cost:3 },
+  { id:'squat',    ic:'🦵', nm:'스쿼트',         tp:'맨몸',   cls:'a', g:50, cost:3 },
+  { id:'situp',    ic:'🧘', nm:'윗몸일으키기',   tp:'맨몸',   cls:'a', g:50, cost:3 },
+  { id:'run',      ic:'🏃', nm:'달리기',         tp:'유산소', cls:'b', g:50, cost:3 },
+  { id:'rope',     ic:'🪢', nm:'줄넘기',         tp:'유산소', cls:'b', g:50, cost:3 },
+  { id:'climber',  ic:'🧗', nm:'마운틴 클라이머', tp:'유산소', cls:'b', g:50, cost:3 },
+  { id:'curl',     ic:'🏋️', nm:'덤벨 컬',        tp:'무산소', cls:'c', g:50, cost:3 },
+  { id:'deadlift', ic:'🪨', nm:'데드리프트',     tp:'무산소', cls:'c', g:50, cost:3 },
+  { id:'press',    ic:'🙌', nm:'숄더 프레스',    tp:'무산소', cls:'c', g:50, cost:3 },
+];
+
+// ---------- 미션 / 아이템 ----------
+const ITEMS = {
+  protein: { ic:'🥤', nm:'프로틴',   fx:'체력 +40' },
+  chicken: { ic:'🍗', nm:'닭가슴살', fx:'체력 +25 · 30회 감량 2배' },
+  salad:   { ic:'🥗', nm:'샐러드',   fx:'체력 +15 · 60초 회복 2배' },
+};
+const QUESTS = [
+  { id:'q1',  nm:'워밍업',     desc:'운동 50회',          goal:50,    val:() => S.stats.total,  reward:{ protein:1 } },
+  { id:'q2',  nm:'맨몸 입문',  desc:'맨몸 운동 100회',     goal:100,   val:() => S.stats.cat.a,  reward:{ chicken:1 } },
+  { id:'q3',  nm:'러너',       desc:'유산소 운동 100회',   goal:100,   val:() => S.stats.cat.b,  reward:{ salad:1 } },
+  { id:'q4',  nm:'근육 키우기', desc:'무산소 운동 100회',   goal:100,   val:() => S.stats.cat.c,  reward:{ protein:2 } },
+  { id:'q5',  nm:'첫 5kg',     desc:'누적 5kg 감량',       goal:5000,  val:() => S.totalLostG, kg:1, reward:{ chicken:1 } },
+  { id:'q6',  nm:'올라운더',   desc:'9가지 운동을 각 10회', goal:9,     val:() => EXERCISES.filter(e => (S.stats.ex[e.id] || 0) >= 10).length, reward:{ protein:1, chicken:1, salad:1 } },
+  { id:'q7',  nm:'10kg 돌파',  desc:'누적 10kg 감량',      goal:10000, val:() => S.totalLostG, kg:1, reward:{ salad:2 } },
+  { id:'q8',  nm:'꾸준함',     desc:'운동 500회',          goal:500,   val:() => S.stats.total,  reward:{ chicken:2 } },
+  { id:'q9',  nm:'절반의 성공', desc:'누적 50kg 감량',      goal:50000, val:() => S.totalLostG, kg:1, reward:{ protein:3 } },
+  { id:'q10', nm:'운동 중독',  desc:'운동 1500회',         goal:1500,  val:() => S.stats.total,  reward:{ protein:2, chicken:2, salad:2 } },
 ];
 
 const $ = id => document.getElementById(id);
@@ -159,7 +212,9 @@ const kg = g => (g / 1000).toFixed(2);
 
 // ---------- 상태 ----------
 let uid = 'local', db = null, fb = null, online = false;
-let S = { nickname:'', weightG:START_G, totalLostG:0, runs:1, runMs:0, bestClearMs:null, cleared:false };
+const newStats = () => ({ total:0, cat:{ a:0, b:0, c:0 }, ex:{} });
+let S = { nickname:'', weightG:START_G, totalLostG:0, runs:1, runMs:0, bestClearMs:null, cleared:false,
+          stats:newStats(), inv:{ protein:0, chicken:0, salad:0 }, claimed:[], buff:{ chicken:0, saladUntil:0 } };
 let stamina = STAMINA_MAX, exhausted = false, lastTap = 0, curEx = EXERCISES[0];
 let dirty = false;
 
@@ -199,6 +254,12 @@ function build(o) {
 const wave = ph => (1 - cos(2 * PI * ph)) / 2;     // 0→1→0 (정수 위상에서 0)
 const FOOT_Y = GY - 7, STAND_Y = GY - 7 - 66;
 
+// 플랭크 자세: 발끝(toe)을 고정하고 어깨 높이 H 에 맞춰 몸이 일직선으로 기울어짐
+function plank(H) {
+  const toe = [46, GY - 14], L = LT + LS + TL, dy = (GY - 8 - H) - toe[1];
+  const ux = Math.sqrt(L*L - dy*dy) / L, uy = dy / L;
+  return { toe, s:[toe[0] + ux*L, toe[1] + uy*L], hip:[toe[0] + ux*(LT+LS), toe[1] + uy*(LT+LS)], th:Math.atan2(ux, -uy) };
+}
 const POSES = {
   stand() {
     return build({ hip:[CX, STAND_Y], th:.04, nf:[CX+8, FOOT_Y], ff:[CX-6, FOOT_Y], nhr:[8,56], fhr:[-4,56] });
@@ -214,11 +275,15 @@ const POSES = {
   },
   // 팔굽혀펴기: 발끝을 고정하고 몸 전체가 판자처럼 내려갔다 올라옴
   pushup(ph, T) {
-    const d = wave(ph), toe = [46, GY - 14], hUp = 54, hDn = Math.max(22, T * .45 + 4);
-    const H = hUp + (hDn - hUp) * d, dy = (GY - 8 - H) - toe[1];
-    const ux = Math.sqrt((LT+LS+TL) ** 2 - dy * dy) / (LT+LS+TL), uy = dy / (LT+LS+TL);
-    const s = [toe[0] + ux*(LT+LS+TL), toe[1] + uy*(LT+LS+TL)], hip = [toe[0] + ux*(LT+LS), toe[1] + uy*(LT+LS)];
-    return build({ hip, th:Math.atan2(ux, -uy), ha:.3 - .15*d, nf:toe, ff:[toe[0]-4, toe[1]], nh:[s[0]+2, GY-8], fh:[s[0]-9, GY-8] });
+    const d = wave(ph), hUp = 54, hDn = Math.max(22, T * .45 + 4), pl = plank(hUp + (hDn - hUp) * d);
+    return build({ hip:pl.hip, th:pl.th, ha:.3 - .15*d, nf:pl.toe, ff:[pl.toe[0]-4, pl.toe[1]], nh:[pl.s[0]+2, GY-8], fh:[pl.s[0]-9, GY-8] });
+  },
+  // 마운틴 클라이머: 플랭크 자세에서 무릎을 번갈아 가슴쪽으로 끌어당김
+  climber(ph) {
+    const w = 2*PI*ph, q1 = Math.max(0, sin(w)), q2 = Math.max(0, -sin(w)), pl = plank(54);
+    const drive = (q, off) => [pl.toe[0] + off + (pl.hip[0] - 22 - pl.toe[0] - off) * q, pl.toe[1] - 10*q];
+    const hip = [pl.hip[0], pl.hip[1] - 2*(q1 + q2)];
+    return build({ hip, th:pl.th, ha:.3, nf:drive(q1, 0), ff:drive(q2, -4), nh:[pl.s[0]+2, GY-8], fh:[pl.s[0]-9, GY-8] });
   },
   // 윗몸일으키기: 누워서 팔짱 끼고 상체를 일으킴
   situp(ph, T) {
@@ -252,16 +317,29 @@ const POSES = {
       nh:[s[0] + 22 + 7*cos(r), s[1] + 46 + 7*sin(r)], fh:[s[0] + 14 + 7*cos(r), s[1] + 46 + 7*sin(r)], rope:1 });
   },
   // 덤벨 컬: 팔꿈치를 고정하고 아령을 들어올림
-  dumbbell(ph) {
+  curl(ph) {
     const c = wave(ph), th = -.08*c, hip = [CX, STAND_Y + 2*c], s = sh(hip, th), fa = 2.45*c;
     const arm = (dx, k) => { const e = [s[0] + dx, s[1] + 29], p = fa*k; return [e[0], e[1], e[0] + FA*sin(p), e[1] + FA*cos(p)]; };
     return build({ hip, th, ha:.08*c, nf:[CX+8, FOOT_Y], ff:[CX-6, FOOT_Y], na:arm(-1, 1), fa:arm(-9, .97), db:1 });
+  },
+  // 데드리프트: 엉덩이를 뒤로 빼고 상체를 숙여 바벨을 정강이 높이까지 내렸다 일어남
+  deadlift(ph) {
+    const d = wave(ph), hip = [CX - 26*d, STAND_Y + 14*d];
+    return build({ hip, th:.04 + 1.05*d, ha:-.35*d, nf:[CX+14, FOOT_Y], ff:[CX+2, FOOT_Y], nhr:[4, 58], fhr:[-2, 58], db:2 });
+  },
+  // 숄더 프레스: 어깨 높이의 덤벨을 머리 위로 밀어 올림
+  press(ph) {
+    const d = wave(ph), th = -.05*d, hip = [CX, STAND_Y];
+    const lerp = (a, b) => a + (b - a) * d;
+    return build({ hip, th, ha:-.1*d, nf:[CX+8, FOOT_Y], ff:[CX-6, FOOT_Y],
+      nhr:[lerp(16, 6), lerp(6, -58)], fhr:[lerp(8, -2), lerp(6, -58)], db:1 });
   },
 };
 
 // 운동 한 번 = 위상 per 만큼 진행, 초당 spd 위상만큼 움직임 (터치가 빠르면 동작이 조금 밀려서 이어짐)
 const EX_ANIM = { pushup:{per:1, spd:2.6}, squat:{per:1, spd:2.6}, situp:{per:1, spd:2.4},
-                  run:{per:.5, spd:2.4}, rope:{per:1, spd:3}, dumbbell:{per:1, spd:2.6} };
+                  run:{per:.5, spd:2.4}, rope:{per:1, spd:3}, climber:{per:.5, spd:2.4},
+                  curl:{per:1, spd:2.6}, deadlift:{per:1, spd:2.2}, press:{per:1, spd:2.4} };
 const anim = { ph:0, tg:0, mv:0, cur:null, ex:'', last:performance.now(), drawn:0 };
 
 function pigPose() {
@@ -341,7 +419,8 @@ function drawPig(p, time) {
   // 앞쪽 팔 + 덤벨
   arm(p.nex, p.ney, p.nhx, p.nhy, C.base, C.shadeD, C.belly);
   if (p.db > .5) {
-    const dbs = (x, y) => `<circle cx="${n(x)}" cy="${n(y)}" r="12" fill="#3a3a46" stroke="${C.ink}" stroke-width="2"/><circle cx="${n(x)}" cy="${n(y)}" r="5" fill="#9aa0b4"/>`;
+    const dr = p.db > 1.5 ? 19 : 12;
+    const dbs = (x, y) => `<circle cx="${n(x)}" cy="${n(y)}" r="${dr}" fill="#3a3a46" stroke="${C.ink}" stroke-width="2"/><circle cx="${n(x)}" cy="${n(y)}" r="${n(dr*.42)}" fill="#9aa0b4"/>`;
     o += dbs(p.nhx, p.nhy);
     hand(p.nhx + 5, p.nhy - 1, C.belly);
   }
@@ -398,6 +477,7 @@ function render() {
   $('sbar').firstElementChild.style.width = (stamina / STAMINA_MAX * 100) + '%';
   $('sbar').classList.toggle('low', exhausted || stamina < 20);
   $('stage').classList.toggle('exhausted', exhausted);
+  renderItems();
   $('exlabel').textContent = curEx.ic + ' ' + curEx.nm + ' · 터치 1회 -' + (curEx.g / 1000).toFixed(2) + 'kg / 체력 -' + curEx.cost;
 }
 
@@ -414,6 +494,57 @@ function buildExercises() {
   });
 }
 
+// ---------- 아이템 / 미션 ----------
+let lastReady = 0;
+function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2200); }
+const done = q => q.val() >= q.goal;
+const claimable = () => QUESTS.filter(q => done(q) && !S.claimed.includes(q.id)).length;
+
+function renderItems() {
+  $('items').innerHTML = Object.entries(ITEMS).map(([k, it]) =>
+    `<button class="item" data-k="${k}" ${S.inv[k] > 0 ? '' : 'disabled'}><span class="ic">${it.ic}</span><b>${it.nm} ×${S.inv[k]}</b><small>${it.fx}</small></button>`).join('');
+  $('items').querySelectorAll('.item').forEach(b => b.onclick = () => useItem(b.dataset.k));
+  const buffs = [];
+  if (S.buff.chicken > 0) buffs.push(`🍗 감량 2배 ${S.buff.chicken}회`);
+  const left = Math.ceil((S.buff.saladUntil - Date.now()) / 1000);
+  if (left > 0) buffs.push(`🥗 회복 2배 ${left}초`);
+  $('buffs').textContent = buffs.join(' · ');
+  const n = claimable();
+  $('questBadge').textContent = n; $('questBadge').style.display = n ? 'inline-block' : 'none';
+}
+function useItem(k) {
+  if (S.inv[k] <= 0 || S.cleared) return;
+  if (stamina >= STAMINA_MAX - 1 && k === 'protein') { toast('체력이 이미 가득 차 있어요'); return; }
+  S.inv[k]--;
+  if (k === 'protein') stamina = Math.min(STAMINA_MAX, stamina + 40);
+  if (k === 'chicken') { stamina = Math.min(STAMINA_MAX, stamina + 25); S.buff.chicken += 30; }
+  if (k === 'salad') { stamina = Math.min(STAMINA_MAX, stamina + 15); S.buff.saladUntil = Math.max(Date.now(), S.buff.saladUntil) + 60000; }
+  if (exhausted && stamina >= RECOVER_AT) exhausted = false;
+  toast(ITEMS[k].ic + ' ' + ITEMS[k].nm + ' 섭취! ' + ITEMS[k].fx);
+  dirty = true; save(); render();
+}
+function openQuests() {
+  const rw = r => Object.entries(r).map(([k, n]) => ITEMS[k].ic + '×' + n).join(' ');
+  $('questList').innerHTML = QUESTS.map(q => {
+    const v = Math.min(q.val(), q.goal), ok = done(q), got = S.claimed.includes(q.id);
+    const txt = q.kg ? kg(v) + ' / ' + kg(q.goal) + 'kg' : v + ' / ' + q.goal;
+    return `<div class="quest ${got ? 'got' : ''}"><div class="qh"><b>${q.nm}</b><span>${rw(q.reward)}</span></div>
+      <div class="qd">${q.desc}</div><div class="bar sm"><i style="width:${v / q.goal * 100}%"></i></div>
+      <div class="qf"><span>${txt}</span>${got ? '<em>받음 ✓</em>' : `<button class="btn" data-id="${q.id}" ${ok ? '' : 'disabled'}>받기</button>`}</div></div>`;
+  }).join('');
+  $('questList').querySelectorAll('button[data-id]').forEach(b => b.onclick = () => {
+    const q = QUESTS.find(x => x.id === b.dataset.id);
+    if (!done(q) || S.claimed.includes(q.id)) return;
+    S.claimed.push(q.id);
+    for (const [k, n] of Object.entries(q.reward)) S.inv[k] += n;
+    lastReady = claimable(); dirty = true; save(); render(); openQuests();
+    toast('🎁 ' + q.nm + ' 보상: ' + rw(q.reward));
+  });
+  $('questModal').classList.add('show');
+}
+$('questBtn').onclick = openQuests;
+$('questClose').onclick = () => $('questModal').classList.remove('show');
+
 // ---------- 운동 ----------
 function showMsg(t) { $('msg').textContent = t; clearTimeout(showMsg.t); showMsg.t = setTimeout(() => $('msg').textContent = '', 900); }
 
@@ -425,8 +556,14 @@ $('stage').addEventListener('pointerdown', ev => {
   }
   stamina -= curEx.cost;
   lastTap = Date.now();
-  const g = Math.min(curEx.g, S.weightG - GOAL_G);
+  const boost = S.buff.chicken > 0 ? 2 : 1;
+  if (boost > 1) S.buff.chicken--;
+  const g = Math.min(curEx.g * boost, S.weightG - GOAL_G);
   S.weightG -= g; S.totalLostG += g; dirty = true;
+  S.stats.total++; S.stats.cat[curEx.cls]++; S.stats.ex[curEx.id] = (S.stats.ex[curEx.id] || 0) + 1;
+  const ready = claimable();
+  if (ready > lastReady) toast('🎯 미션 달성! 🎯 버튼에서 보상을 받으세요');
+  lastReady = ready;
 
   const ea = EX_ANIM[curEx.id];
   anim.tg = Math.min(anim.tg + ea.per, anim.ph + ea.per * 2.5);
@@ -440,13 +577,15 @@ $('stage').addEventListener('pointerdown', ev => {
   render();
 });
 
+
 // 체력 회복 + 플레이 시간
 let lastFrame = performance.now();
 setInterval(() => {
   const now = performance.now(), dt = (now - lastFrame) / 1000; lastFrame = now;
   if (!S.nickname || S.cleared) return;
   const idle = Date.now() - lastTap > 1000;
-  stamina = Math.min(STAMINA_MAX, stamina + (idle ? REGEN_IDLE : REGEN_ACTIVE) * dt);
+  const regenX = Date.now() < S.buff.saladUntil ? 2 : 1;
+  stamina = Math.min(STAMINA_MAX, stamina + (idle ? REGEN_IDLE : REGEN_ACTIVE) * regenX * dt);
   if (exhausted && stamina >= RECOVER_AT) exhausted = false;
   if (!document.hidden) S.runMs += dt * 1000;
   render();
@@ -480,6 +619,7 @@ async function save() {
     await fb.setDoc(fb.doc(db, 'buta', uid), {
       nickname: S.nickname, weightG: S.weightG, totalLostG: S.totalLostG, runs: S.runs,
       runMs: Math.round(S.runMs), bestClearMs: S.bestClearMs, cleared: S.cleared,
+      stats: S.stats, inv: S.inv, claimed: S.claimed, buff: S.buff,
       updatedAt: fb.serverTimestamp()
     });
   } catch (e) { console.warn('저장 실패', e); dirty = true; }
@@ -555,9 +695,12 @@ function askNick() {
   } else loaded = loadLocal();
   if (loaded) {
     S = { ...S, nickname: loaded.nickname || '', weightG: loaded.weightG ?? START_G, totalLostG: loaded.totalLostG ?? 0,
-          runs: loaded.runs ?? 1, runMs: loaded.runMs ?? 0, bestClearMs: loaded.bestClearMs ?? null, cleared: !!loaded.cleared };
+          runs: loaded.runs ?? 1, runMs: loaded.runMs ?? 0, bestClearMs: loaded.bestClearMs ?? null, cleared: !!loaded.cleared,
+          stats: { ...newStats(), ...(loaded.stats || {}), cat: { a:0, b:0, c:0, ...(loaded.stats?.cat || {}) }, ex: { ...(loaded.stats?.ex || {}) } },
+          inv: { ...S.inv, ...(loaded.inv || {}) }, claimed: loaded.claimed || [], buff: { ...S.buff, ...(loaded.buff || {}) } };
   }
   if (!S.nickname) { S.nickname = await askNick(); dirty = true; save(); }
+  lastReady = claimable();
   if (S.cleared) { $('clearTime').textContent = fmt(S.runMs); $('clearModal').classList.add('show'); }
   render();
 })();
