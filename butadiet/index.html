@@ -230,6 +230,7 @@ let S = { nickname:'', weightG:START_G, totalLostG:0, runs:1, runMs:0, bestClear
           stats:newStats(), inv:{ protein:0, chicken:0, salad:0 }, claimed:[], buff:{ chicken:0, saladUntil:0 }, daily:newDaily('') };
 let stamina = STAMINA_MAX, exhausted = false, lastTap = 0, curEx = EXERCISES[0];
 let dirty = false;
+let ready = false;   // 저장된 기록을 불러오기 전에는 기록을 덮어쓰지 않는다
 
 const LS_KEY = 'butadiet-local';
 function loadLocal() { try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch { return null; } }
@@ -646,6 +647,7 @@ $('clearRank').onclick = () => openRank();
 
 // ---------- 저장 ----------
 async function save() {
+  if (!ready) return;
   saveLocal();
   if (!online || !dirty) return;
   dirty = false;
@@ -725,7 +727,11 @@ function askNick() {
   await initFirebase();
   let loaded = null;
   if (online) {
-    try { const d = await fb.getDoc(fb.doc(db, 'buta', uid)); if (d.exists()) loaded = d.data(); } catch (e) { console.warn(e); }
+    try {
+      const d = await fb.getDoc(fb.doc(db, 'buta', uid));
+      if (d.exists()) loaded = d.data();
+      else { const l = loadLocal(); if (l?.nickname) { loaded = l; dirty = true; } }   // 서버에 기록이 없으면 이 기기에 저장된 기록을 올린다
+    } catch (e) { console.warn(e); online = false; loaded = loadLocal(); }          // 읽기 실패 시 서버 기록을 덮어쓰지 않도록 이번엔 로컬로만
   } else loaded = loadLocal();
   if (loaded) {
     S = { ...S, nickname: loaded.nickname || '', weightG: loaded.weightG ?? START_G, totalLostG: loaded.totalLostG ?? 0,
@@ -734,7 +740,8 @@ function askNick() {
           inv: { ...S.inv, ...(loaded.inv || {}) }, claimed: loaded.claimed || [], buff: { ...S.buff, ...(loaded.buff || {}) },
           daily: { ...newDaily(''), ...(loaded.daily || {}), cat: { a:0, b:0, c:0, ...(loaded.daily?.cat || {}) }, claimed: loaded.daily?.claimed || [] } };
   }
-  if (!S.nickname) { S.nickname = await askNick(); dirty = true; save(); }
+  if (!S.nickname) { S.nickname = await askNick(); dirty = true; }
+  ready = true; save();
   if (S.cleared) { $('clearTime').textContent = fmt(S.runMs); $('clearModal').classList.add('show'); }
   render();
 })();
