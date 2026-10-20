@@ -95,7 +95,7 @@
   </header>
 
   <div class="weight"><b id="wt">200.00</b><span>kg</span></div>
-  <div class="sub-info"><span id="nick">-</span> · 목표 70kg · 지금까지 <span id="lost">0.00</span>kg 감량 · <span id="runinfo">1회차</span></div>
+  <div class="sub-info"><span id="nick">-</span> · 목표 70kg · 지금까지 <span id="lost">0.00</span>kg 감량 · <span id="runinfo">1회차</span> · <a href="#" id="logoutBtn" style="display:none;color:inherit">로그아웃</a></div>
   <div class="bar" id="wbar"><i></i></div>
 
   <div class="barlabel"><span>💪 체력</span><span id="sval">100 / 100</span></div>
@@ -114,7 +114,22 @@
   <div class="sub-info" style="margin-top:10px">부타를 터치할 때마다 운동! 체력이 바닥나면 쉬어야 해요 😮‍💨</div>
 </div>
 
-<!-- 닉네임 -->
+<!-- 로그인 -->
+<div class="modal" id="loginModal">
+  <div class="card">
+    <h2>🐷 부타 접속</h2>
+    <p id="loginNote" style="margin-top:0">아이디와 비밀번호로 내 부타에 접속해요. 아이디가 곧 닉네임이에요.</p>
+    <input id="loginId" maxlength="10" placeholder="아이디 (10자 이하)" autocomplete="username">
+    <input id="loginPw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password" style="margin-top:8px">
+    <div class="note" id="loginErr" style="min-height:18px"></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn" id="loginBtn" style="flex:1">로그인</button>
+      <button class="btn sub" id="signupBtn" style="flex:1">가입</button>
+    </div>
+  </div>
+</div>
+
+<!-- 닉네임 (오프라인 모드용) -->
 <div class="modal" id="nickModal">
   <div class="card">
     <h2>닉네임을 정해주세요</h2>
@@ -232,9 +247,11 @@ let stamina = STAMINA_MAX, exhausted = false, lastTap = 0, curEx = EXERCISES[0];
 let dirty = false;
 let ready = false;   // 저장된 기록을 불러오기 전에는 기록을 덮어쓰지 않는다
 
-const LS_KEY = 'butadiet-local';
-function loadLocal() { try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch { return null; } }
-function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch {} }
+const LEGACY_KEY = 'butadiet-local';   // 계정 도입 전(또는 오프라인)에 쓰던 기기 저장소
+const lsKey = () => uid === 'local' ? LEGACY_KEY : LEGACY_KEY + '-' + uid;
+const readKey = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+function loadLocal() { return readKey(lsKey()); }
+function saveLocal() { try { localStorage.setItem(lsKey(), JSON.stringify(S)); } catch {} }
 
 // ---------- 부타 그리기 (스쿨 서퍼 부타 도트 디자인, 옆모습 뼈대 애니메이션) ----------
 const C = { base:'#ee9ab3', shade:'#c96f8a', shadeD:'#a8566f', light:'#ffb4c9', belly:'#ffcbd6', snout:'#df849f', nostril:'#713347',
@@ -699,6 +716,7 @@ async function openRank() {
 }
 
 // ---------- 시작 ----------
+let au = null, fba = null, newId = '';
 async function initFirebase() {
   if (firebaseConfig.apiKey.startsWith('YOUR_')) return;
   try {
@@ -706,12 +724,65 @@ async function initFirebase() {
     const [app, auth, fs] = await Promise.all([
       import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
     const a = app.initializeApp(firebaseConfig);
-    const au = auth.getAuth(a);
-    await new Promise(res => { const un = auth.onAuthStateChanged(au, u => { if (u) { un(); res(); } }); auth.signInAnonymously(au).catch(res); });
-    if (!au.currentUser) throw new Error('익명 로그인 실패');
-    uid = au.currentUser.uid; db = fs.getFirestore(a); fb = fs; online = true;
+    au = auth.getAuth(a); fba = auth; db = fs.getFirestore(a); fb = fs;
+    await au.authStateReady();
+    online = true;
   } catch (e) { console.warn('Firebase 사용 불가, 로컬 모드로 실행', e); online = false; }
 }
+
+// 아이디 → 이메일 형태로 변환 (한글 등도 쓸 수 있게 UTF-8 16진수로 인코딩, 대소문자 구분 없음)
+const idEmail = id => 'u' + [...new TextEncoder().encode(id.toLowerCase())].map(b => b.toString(16).padStart(2, '0')).join('') + '@butadiet.game';
+const AUTH_ERR = {
+  'auth/email-already-in-use': '이미 사용 중인 아이디예요',
+  'auth/invalid-credential': '아이디 또는 비밀번호가 맞지 않아요',
+  'auth/wrong-password': '아이디 또는 비밀번호가 맞지 않아요',
+  'auth/user-not-found': '아이디 또는 비밀번호가 맞지 않아요',
+  'auth/weak-password': '비밀번호는 6자 이상이어야 해요',
+  'auth/too-many-requests': '시도가 너무 많아요. 잠시 후 다시 해주세요',
+  'auth/network-request-failed': '네트워크 오류예요. 다시 시도해주세요',
+  'auth/operation-not-allowed': 'Firebase 콘솔에서 이메일/비밀번호 로그인을 켜야 해요',
+  'auth/credential-already-in-use': '이미 사용 중인 아이디예요',
+};
+// 로그인 창: 성공할 때까지 기다린다. 예전 익명 계정이면 '가입'이 기존 기록을 그대로 이어받는다.
+async function loginPrompt() {
+  const legacy = au.currentUser?.isAnonymous;
+  if (legacy) {
+    $('loginNote').textContent = '이제 아이디와 비밀번호로 접속해요. 기존 기록이 있다면 새 아이디와 비밀번호를 정하고 [가입]을 눌러 그대로 이어가세요. 이미 만든 계정이 있으면 [로그인]을 누르세요.';
+    try { const d = await fb.getDoc(fb.doc(db, 'buta', au.currentUser.uid)); if (d.exists()) $('loginId').value = d.data().nickname || ''; } catch {}
+  }
+  $('loginModal').classList.add('show');
+  return new Promise(res => {
+    const busy = on => { $('loginBtn').disabled = $('signupBtn').disabled = on; };
+    const read = () => {
+      const id = $('loginId').value.trim(), pw = $('loginPw').value;
+      if (!id) { $('loginErr').textContent = '아이디를 입력해주세요'; return null; }
+      if (new TextEncoder().encode(id).length > 30) { $('loginErr').textContent = '아이디가 너무 길어요'; return null; }
+      if (pw.length < 6) { $('loginErr').textContent = '비밀번호는 6자 이상이어야 해요'; return null; }
+      $('loginErr').textContent = ''; return { id, pw };
+    };
+    const run = fn => async () => {
+      const c = read(); if (!c) return;
+      busy(true);
+      try { await fn(c); $('loginModal').classList.remove('show'); res(); }
+      catch (e) { $('loginErr').textContent = AUTH_ERR[e.code] || ('오류: ' + (e.code || e.message)); busy(false); }
+    };
+    $('loginBtn').onclick = run(c => fba.signInWithEmailAndPassword(au, idEmail(c.id), c.pw));
+    $('signupBtn').onclick = run(async c => {
+      const cur = au.currentUser;
+      if (cur?.isAnonymous) await fba.linkWithCredential(cur, fba.EmailAuthProvider.credential(idEmail(c.id), c.pw));
+      else await fba.createUserWithEmailAndPassword(au, idEmail(c.id), c.pw);
+      await fba.updateProfile(au.currentUser, { displayName: c.id }).catch(() => {});
+      newId = c.id;
+    });
+    $('loginPw').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
+  });
+}
+$('logoutBtn').onclick = async e => {
+  e.preventDefault();
+  await save();
+  await fba.signOut(au);
+  location.reload();
+};
 
 function askNick() {
   return new Promise(res => {
@@ -725,12 +796,15 @@ function askNick() {
 (async () => {
   buildExercises(); render(); requestAnimationFrame(pigLoop);
   await initFirebase();
-  let loaded = null;
+  let loaded = null, migrated = false;
   if (online) {
+    if (!au.currentUser || au.currentUser.isAnonymous) await loginPrompt();
+    uid = au.currentUser.uid;
+    $('logoutBtn').style.display = 'inline';
     try {
       const d = await fb.getDoc(fb.doc(db, 'buta', uid));
       if (d.exists()) loaded = d.data();
-      else { const l = loadLocal(); if (l?.nickname) { loaded = l; dirty = true; } }   // 서버에 기록이 없으면 이 기기에 저장된 기록을 올린다
+      else { const l = loadLocal() || (newId ? readKey(LEGACY_KEY) : null); if (l?.nickname) { loaded = l; dirty = true; migrated = !loadLocal(); } }   // 서버에 기록이 없으면 이 기기에 저장된 기록을 올린다
     } catch (e) { console.warn(e); online = false; loaded = loadLocal(); }          // 읽기 실패 시 서버 기록을 덮어쓰지 않도록 이번엔 로컬로만
   } else loaded = loadLocal();
   if (loaded) {
@@ -740,8 +814,11 @@ function askNick() {
           inv: { ...S.inv, ...(loaded.inv || {}) }, claimed: loaded.claimed || [], buff: { ...S.buff, ...(loaded.buff || {}) },
           daily: { ...newDaily(''), ...(loaded.daily || {}), cat: { a:0, b:0, c:0, ...(loaded.daily?.cat || {}) }, claimed: loaded.daily?.claimed || [] } };
   }
+  if (newId) { S.nickname = newId; dirty = true; }
+  else if (!S.nickname && au?.currentUser?.displayName) { S.nickname = au.currentUser.displayName; dirty = true; }
   if (!S.nickname) { S.nickname = await askNick(); dirty = true; }
-  ready = true; save();
+  ready = true; await save();
+  if (migrated && !dirty) { try { localStorage.removeItem(LEGACY_KEY); } catch {} }
   if (S.cleared) { $('clearTime').textContent = fmt(S.runMs); $('clearModal').classList.add('show'); }
   render();
 })();
