@@ -33,13 +33,13 @@
   #sbar.low > i { background:#e8504a; }
   .barlabel { display:flex; justify-content:space-between; font-size:12px; margin:8px 2px 3px; font-weight:700; }
 
-  #stage { position:relative; height:270px; margin-top:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  #stage { position:relative; margin-top:6px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; }
   #stage.exhausted { filter:grayscale(.6); cursor:not-allowed; }
   #pig { width:100%; max-width:340px; height:260px; }
   .float { position:absolute; font-weight:900; font-size:22px; color:var(--pink-d); text-shadow:0 2px 0 #fff; pointer-events:none; animation: up .8s ease-out forwards; }
   @keyframes up { to { transform: translateY(-70px); opacity:0; } }
   #msg { position:absolute; top:6px; width:100%; text-align:center; font-weight:900; color:#d33; min-height:22px; pointer-events:none; }
-  #exlabel { position:absolute; bottom:0; width:100%; text-align:center; font-weight:700; font-size:14px; pointer-events:none; }
+  #exlabel { width:100%; text-align:center; font-weight:700; font-size:14px; margin-top:8px; pointer-events:none; }
 
   #exs { display:grid; grid-template-columns: repeat(3,1fr); gap:8px; margin-top:8px; }
   .ex { background:#fff; border:2px solid #d9c9a8; border-radius:12px; padding:8px 4px; text-align:center; cursor:pointer; font-family:inherit; color:var(--ink); }
@@ -347,7 +347,7 @@ function drawPig(p, time) {
   }
 
   // 줄넘기 줄
-  if (p.rope) {
+  if (p.rope > .5) {
     const hnd = [p.nhx, p.nhy], C0 = [CX + 4, GY - 98], r = anim.ra;
     const tip = [C0[0] + 96*sin(r), C0[1] - 96*cos(r)];
     const m = [(hnd[0] + tip[0])/2, (hnd[1] + tip[1])/2], d = Math.hypot(tip[0]-hnd[0], tip[1]-hnd[1]) || 1;
