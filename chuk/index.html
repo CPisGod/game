@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>척추의 뼈해장국 가게</title>
+<style>
+  :root { --bg:#241713; --wood:#5a3a26; --wood2:#7a5236; --paper:#f6ecd6; --red:#cc4029; --gold:#ffd23f; --ink:#25211e; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:12px;
+    font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif; color:var(--paper);
+    background: radial-gradient(ellipse at 50% 0%, #4a2e20, var(--bg) 70%); user-select:none; }
+  #game { width:min(560px,100%); background:var(--wood); border:4px solid #2e1b10; border-radius:16px; overflow:hidden;
+    box-shadow:0 10px 40px #000a; position:relative; }
+  #hud { display:flex; justify-content:space-between; padding:10px 14px; background:#2e1b10; font-weight:700; font-size:16px; }
+  #hud b { color:var(--gold); }
+  #shop { position:relative; height:240px; background:linear-gradient(#8a5a3a 0 55%, #3b2418 55%); display:flex; align-items:flex-end; justify-content:flex-start; padding-left:28px; }
+  #shop::before { content:"뼈 해 장 국"; position:absolute; top:10px; left:50%; transform:translateX(-50%); padding:4px 22px;
+    background:var(--red); color:#fff; font-weight:900; letter-spacing:8px; border:3px solid #fff3; border-radius:6px; font-size:18px; }
+  #chuk { width:150px; height:170px; margin-bottom:-6px; }
+  #chuk.bounce { animation: bounce .4s; }
+  @keyframes bounce { 40% { transform:translateY(-14px); } }
+  #bubble { position:absolute; right:12px; bottom:auto; top:62px; width:52%; background:#fff; color:var(--ink); padding:8px 12px; border-radius:12px;
+    font-size:14px; font-weight:700; min-height:38px; display:flex; align-items:center; z-index:2; border:2px solid var(--ink); }
+    #panel { padding:14px; min-height:290px; }
+  h2 { margin:0 0 10px; font-size:18px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .ing { background:var(--wood2); border:3px solid #2e1b10; border-radius:12px; color:var(--paper); padding:8px 4px; cursor:pointer;
+    font:700 14px inherit; font-family:inherit; }
+  .ing span { display:block; font-size:30px; }
+  .ing.on { background:var(--red); border-color:var(--gold); transform:translateY(-2px); }
+  .btn { display:block; width:100%; margin-top:12px; padding:12px; border:0; border-radius:12px; background:var(--gold); color:var(--ink);
+    font:900 18px inherit; font-family:inherit; cursor:pointer; }
+  .btn:disabled { opacity:.45; cursor:default; }
+  .btn:active:not(:disabled) { transform:translateY(2px); }
+  #pot { font-size:64px; text-align:center; }
+  #gauge { position:relative; height:34px; margin:10px 0; background:#2e1b10; border-radius:17px; overflow:hidden; border:3px solid #1a0f08; }
+  #zone { position:absolute; top:0; bottom:0; left:60%; width:20%; background:#3fa045aa; border-left:2px solid #7fd36a; border-right:2px solid #7fd36a; }
+  #needle { position:absolute; top:0; bottom:0; width:6px; background:#fff; box-shadow:0 0 8px #fff; left:0; }
+  .hint { font-size:13px; opacity:.8; text-align:center; }
+  #result { text-align:center; }
+  #stars { font-size:34px; letter-spacing:4px; }
+  #money { font-size:28px; font-weight:900; color:var(--gold); margin:4px 0; }
+  .overlay { position:absolute; inset:0; background:#000d; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:24px; text-align:center; z-index:50; }
+  .overlay.hidden { display:none; }
+  .overlay h1 { margin:0 0 8px; font-size:30px; color:var(--gold); }
+  .overlay p { line-height:1.6; margin:6px 0 14px; }
+  .overlay .btn { width:auto; padding:12px 40px; }
+  .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
+    background: #000a; color: #fff; font: 700 14px/1 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    text-decoration: none; border: 1px solid #fff6; }
+  .home-btn:active { transform: translateY(2px); }
+</style>
+</head>
+<body>
+<a class="home-btn" href="../">🏠 메인 메뉴</a>
+
+<div id="game">
+  <div id="hud"><span>⏱ <b id="time">90</b>초</span><span>🍲 <b id="count">0</b>그릇</span><span>💰 <b id="money-total">0</b>원</span></div>
+  <div id="shop">
+    <svg id="chuk" viewBox="0 0 150 170" shape-rendering="crispEdges" aria-label="척추">
+      <!-- 뼈 다리 -->
+      <g fill="#f2efd0" stroke="#b7b28b" stroke-width="2">
+        <rect x="52" y="124" width="14" height="36"/><rect x="84" y="124" width="14" height="36"/>
+        <rect x="44" y="156" width="26" height="10" fill="#25211e" stroke="none"/><rect x="80" y="156" width="26" height="10" fill="#25211e" stroke="none"/>
+        <!-- 골반 -->
+        <rect x="46" y="108" width="58" height="18" rx="2"/>
+      </g>
+      <!-- 척추뼈 -->
+      <g fill="#b7b28b"><rect x="66" y="62" width="18" height="48"/></g>
+      <g fill="#f2efd0" stroke="#b7b28b" stroke-width="1">
+        <rect x="68" y="64" width="14" height="7"/><rect x="68" y="74" width="14" height="7"/><rect x="68" y="84" width="14" height="7"/><rect x="68" y="94" width="14" height="7"/>
+      </g>
+      <!-- 갈비뼈 -->
+      <g fill="none" stroke="#fffbe3" stroke-width="5">
+        <path d="M66 70 Q40 72 40 80"/><path d="M84 70 Q110 72 110 80"/>
+        <path d="M66 82 Q38 84 40 94"/><path d="M84 82 Q112 84 110 94"/>
+        <path d="M66 94 Q44 96 46 106"/><path d="M84 94 Q106 96 104 106"/>
+      </g>
+      <!-- 팔 (국자) -->
+      <g fill="none" stroke="#f2efd0" stroke-width="7"><path d="M40 68 L22 92"/><path d="M110 68 L130 90"/></g>
+      <rect x="126" y="62" width="4" height="40" fill="#8a5a3a"/><ellipse cx="128" cy="104" rx="10" ry="7" fill="#aaa"/>
+      <!-- 해골 -->
+      <g>
+        <rect x="42" y="14" width="66" height="44" rx="12" fill="#f2efd0" stroke="#b7b28b" stroke-width="2"/>
+        <rect x="52" y="52" width="46" height="16" fill="#f2efd0" stroke="#b7b28b" stroke-width="2"/>
+        <rect x="50" y="26" width="20" height="18" fill="#25211e"/><rect x="80" y="26" width="20" height="18" fill="#25211e"/>
+        <rect x="58" y="32" width="6" height="6" fill="#d9402e"/><rect x="86" y="32" width="6" height="6" fill="#d9402e"/>
+        <rect x="72" y="44" width="6" height="7" fill="#25211e"/>
+        <rect x="56" y="56" width="38" height="6" fill="#25211e"/>
+        <g fill="#fffbe3"><rect x="58" y="54" width="5" height="9"/><rect x="66" y="54" width="5" height="9"/><rect x="74" y="54" width="5" height="9"/><rect x="82" y="54" width="5" height="9"/><rect x="90" y="54" width="4" height="9"/></g>
+      </g>
+      <!-- 세 갈래 붉은 목도리 -->
+      <rect x="48" y="62" width="54" height="9" fill="#cc4029"/><rect x="90" y="60" width="16" height="14" fill="#e65a37"/>
+      <g fill="#cc4029"><path d="M104 66 L146 52 L146 60 L106 72Z"/><path d="M104 68 L148 68 L148 76 L106 74Z"/><path d="M104 70 L144 84 L142 92 L104 76Z" fill="#842a20"/></g>
+    </svg>
+    <div id="bubble">어서 와라… 뼈해장국 한 그릇 말아주마.</div>
+  </div>
+  <div id="panel"></div>
+
+  <div id="start" class="overlay">
+    <h1>🦴 척추의 뼈해장국 가게</h1>
+    <p>90초 동안 최대한 많은 뼈해장국을 끓여라!<br>
+    기본: 등뼈 + 육수<br>
+    재료는 <b>최대 2개</b>까지 고를 수 있어.<br>
+    국물이 <b>초록 구간</b>에서 불을 끄면 맛이 최고!<br>
+    <span style="opacity:.75">퀄리티가 높을수록 받는 돈이 커진다. 정석 조합을 찾아봐.</span></p>
+    <button class="btn" id="startBtn">영업 시작</button>
+    <div class="hint" id="best" style="margin-top:12px"></div>
+  </div>
+  <div id="end" class="overlay hidden">
+    <h1>영업 종료!</h1>
+    <p id="endText"></p>
+    <button class="btn" id="againBtn">다시 영업하기</button>
+  </div>
+</div>
+
+<script>
+const INGS = [
+  { id:'ugeoji', icon:'🥬', name:'우거지', score:35 },
+  { id:'potato', icon:'🥔', name:'감자',   score:25 },
+  { id:'perilla',icon:'🌿', name:'들깨가루', score:15 },
+  { id:'scallion',icon:'🧅', name:'대파',  score:10 },
+  { id:'pepper', icon:'🌶️', name:'고추',  score:6 },
+  { id:'sprout', icon:'🌱', name:'콩나물', score:6 },
+  { id:'choco',  icon:'🍫', name:'초콜릿', score:-25 },
+  { id:'straw',  icon:'🍓', name:'딸기',  score:-20 },
+  { id:'ice',    icon:'🍦', name:'아이스크림', score:-30 },
+];
+const GAME_TIME = 90;
+const $ = id => document.getElementById(id);
+let time, bowls, total, selected, stage, timer, raf, needleX, dir, running;
+
+function say(t, side) { const b = $('bubble'); b.textContent = t; b.classList.toggle('side', !!side); }
+function bounce() { const c = $('chuk'); c.classList.remove('bounce'); void c.getBBox; c.classList.add('bounce'); }
+function bestGet() { try { return +localStorage.getItem('chukBest') || 0; } catch (e) { return 0; } }
+function bestSet(v) { try { localStorage.setItem('chukBest', v); } catch (e) {} }
+
+function showBest() { $('best').textContent = bestGet() ? `최고 기록: ${bestGet().toLocaleString()}원` : ''; }
+
+function start() {
+  time = GAME_TIME; bowls = 0; total = 0; running = true;
+  $('start').classList.add('hidden'); $('end').classList.add('hidden');
+  updateHud();
+  clearInterval(timer);
+  timer = setInterval(() => { time--; updateHud(); if (time <= 0) finish(); }, 1000);
+  pickStage();
+}
+function updateHud() { $('time').textContent = time; $('count').textContent = bowls; $('money-total').textContent = total.toLocaleString(); }
+
+function pickStage() {
+  stage = 'pick'; selected = [];
+  say('등뼈랑 육수는 넣어놨다. 재료는 최대 두 개만 골라라.');
+  $('panel').innerHTML = `<h2>🦴 등뼈 + 육수 ✚ 재료 (최대 2개)</h2><div class="grid">${
+    INGS.map(i => `<button class="ing" data-id="${i.id}"><span>${i.icon}</span>${i.name}</button>`).join('')
+  }</div><button class="btn" id="boilBtn">🔥 끓이기 (재료 0개)</button>`;
+  document.querySelectorAll('.ing').forEach(b => b.onclick = () => toggle(b));
+  $('boilBtn').onclick = boilStage;
+}
+function toggle(btn) {
+  if (!running || stage !== 'pick') return;
+  const id = btn.dataset.id, i = selected.indexOf(id);
+  if (i >= 0) selected.splice(i, 1);
+  else if (selected.length < 2) selected.push(id);
+  else { say('두 개까지라고 했잖아.'); return; }
+  document.querySelectorAll('.ing').forEach(b => b.classList.toggle('on', selected.includes(b.dataset.id)));
+  $('boilBtn').textContent = `🔥 끓이기 (재료 ${selected.length}개)`;
+}
+
+function boilStage() {
+  stage = 'boil'; needleX = 0; dir = 1;
+  say('초록 구간에서 불을 꺼라. 타이밍이 생명이다.');
+  const zs = 50 + Math.random() * 30; // 구간 시작 위치(%)
+  $('panel').innerHTML = `<h2>🔥 끓이는 중...</h2><div id="pot">🍲</div>
+    <div id="gauge"><div id="zone" style="left:${zs}%"></div><div id="needle"></div></div>
+    <div class="hint">버튼 또는 스페이스바로 불 끄기</div>
+    <button class="btn" id="offBtn">🧯 불 끄기</button>`;
+  $('offBtn').onclick = () => stopBoil(zs);
+  window._zs = zs;
+  cancelAnimationFrame(raf);
+  let last = performance.now();
+  const loop = now => {
+    if (stage !== 'boil') return;
+    const dt = (now - last) / 1000; last = now;
+    needleX += dir * dt * 85;
+    if (needleX >= 100) { needleX = 100; dir = -1; } else if (needleX <= 0) { needleX = 0; dir = 1; }
+    const n = $('needle'); if (n) n.style.left = `calc(${needleX}% - ${needleX * .06}px)`;
+    raf = requestAnimationFrame(loop);
+  };
+  raf = requestAnimationFrame(loop);
+}
+
+function stopBoil(zs) {
+  if (stage !== 'boil') return;
+  stage = 'result'; cancelAnimationFrame(raf);
+  const center = zs + 10, dist = Math.abs(needleX - center);
+  const boil = dist <= 10 ? Math.round(40 - dist * 1.5) : Math.max(0, Math.round(25 - (dist - 10) * 0.8));
+  // 재료 점수
+  let ing = selected.reduce((s, id) => s + INGS.find(i => i.id === id).score, 0);
+  if (selected.includes('ugeoji') && selected.includes('potato')) ing += 0; // 정석 조합: 우거지+감자 = 60 (만점)
+  ing = Math.max(0, Math.min(60, ing));
+  const q = Math.max(0, Math.min(100, ing + boil));
+  const stars = q >= 90 ? 3 : q >= 65 ? 2 : q >= 35 ? 1 : 0;
+  const pay = Math.round((1000 + q * 140) / 100) * 100;
+  bowls++; total += pay; updateHud(); bounce();
+  const bad = selected.some(id => INGS.find(i => i.id === id).score < 0);
+  say(bad ? '…이게 해장국이냐. 장난하냐.'
+     : q >= 90 ? '크으… 이게 바로 정석이다.'
+     : q >= 65 ? '나쁘지 않군. 손님이 먹겠어.'
+     : q >= 35 ? '그냥 먹을 만은 하다.' : '…다시 끓여.', true);
+  $('panel').innerHTML = `<div id="result"><div style="font-size:56px">${bad ? '🤢' : '🍲'}</div>
+    <div id="stars">${'⭐'.repeat(stars)}${'▫️'.repeat(3 - stars)}</div>
+    <div>품질 <b>${q}</b>점 (재료 ${ing} + 끓이기 ${boil})</div>
+    <div id="money">+${pay.toLocaleString()}원</div>
+    <button class="btn" id="nextBtn">다음 그릇 ▶</button></div>`;
+  $('nextBtn').onclick = () => { if (running) pickStage(); };
+}
+
+function finish() {
+  running = false; clearInterval(timer); cancelAnimationFrame(raf); stage = 'end';
+  const best = bestGet(); let note = '';
+  if (total > best) { bestSet(total); note = '<br>🏆 신기록!'; }
+  $('endText').innerHTML = `${bowls}그릇 판매<br>총 매출 <b style="color:var(--gold);font-size:26px">${total.toLocaleString()}원</b>${note}`;
+  $('end').classList.remove('hidden');
+  say(total > 40000 ? '장사 좀 하는군.' : '내일은 더 끓여라.');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (stage === 'boil') stopBoil(window._zs);
+    else if (stage === 'result') $('nextBtn')?.click();
+  }
+});
+$('startBtn').onclick = start; $('againBtn').onclick = start;
+showBest();
+</script>
+</body>
+</html>
