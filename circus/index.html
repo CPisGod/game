@@ -115,7 +115,7 @@
   <div id="stage">
     <div id="msg"></div>
     <svg id="mk" viewBox="0 0 300 260"><g id="bg"></g><g id="fg"></g></svg>
-    <div id="exlabel">원숭이를 터치하면 춤을 춰요!</div>
+    <div id="exlabel">원숭이를 터치하면 춤을 춰요! (컴퓨터는 스페이스바)</div>
   </div>
   <div id="crew"></div>
 
@@ -566,7 +566,7 @@ function loop(now) {
 
 // ================= 터치 =================
 function showMsg(t) { $('msg').textContent = t; clearTimeout(showMsg.t); showMsg.t = setTimeout(() => $('msg').textContent = '', 900); }
-$('stage').addEventListener('pointerdown', ev => {
+function tap(cx, cy) {
   if (!ready || !S.nickname) return;
   const pay = TAP_PAY * tipMult();
   earn(pay);
@@ -576,11 +576,22 @@ $('stage').addEventListener('pointerdown', ev => {
   else startDance();
   const r = $('stage').getBoundingClientRect();
   const f = document.createElement('div'); f.className = 'float'; f.textContent = '+' + fmt(pay) + '원';
-  f.style.left = (ev.clientX - r.left - 24) + 'px'; f.style.top = (ev.clientY - r.top - 20) + 'px';
+  f.style.left = (cx - r.left - 24) + 'px'; f.style.top = (cy - r.top - 20) + 'px';
   $('stage').appendChild(f); setTimeout(() => f.remove(), 800);
   checkUnlock();
   render();
+}
+$('stage').addEventListener('pointerdown', ev => tap(ev.clientX, ev.clientY));
+// 컴퓨터: 스페이스바로도 터치 (입력창/로그인 창이 열려 있을 땐 무시)
+const typing = () => /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName) || document.querySelector('.modal.show');
+addEventListener('keydown', e => {
+  if (e.code !== 'Space' || typing()) return;
+  e.preventDefault();                                   // 페이지 스크롤/선택된 버튼 눌림 방지
+  if (e.repeat) return;
+  const r = $('stage').getBoundingClientRect();
+  tap(r.left + r.width / 2 + (Math.random() - .5) * 80, r.top + r.height * .45);
 });
+addEventListener('keyup', e => { if (e.code === 'Space' && !typing()) e.preventDefault(); });
 function checkUnlock() {
   const n = unlocked().length;
   if (n > knownUnlocked) {
