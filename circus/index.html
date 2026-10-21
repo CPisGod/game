@@ -188,7 +188,7 @@ function fmt(n) {
   for (const [v, u] of UNITS) if (n >= v) { const x = n / v; return (x >= 100 ? Math.floor(x) : x >= 10 ? x.toFixed(1) : x.toFixed(2)) + u; }
 }
 const fmtRate = r => r < 10 ? r.toFixed(1) : fmt(r);
-const fmtSh = s => s < 1e4 ? (s >= 100 ? s.toFixed(1) : s.toFixed(3)) : fmt(s);
+const fmtSh = s => s < 1e4 ? (s >= 100 ? s.toFixed(1) : s >= 1 ? s.toFixed(3) : s.toFixed(6)) : fmt(s);
 
 // ---------- 게임 데이터 ----------
 // 묘기는 모두 같은 금액(TAP_PAY)을 줘요. need = 이 묘기를 해금하는 누적 수입 (고른 묘기 하나만 보여줌)
@@ -224,7 +224,7 @@ const VENUES = [
   { nm:'도시 극장',     ic:'🎭', cost:1e9 },
   { nm:'월드 투어',     ic:'🌍', cost:1e11 },
 ];
-const START_PRICE = 1000, TICK_MS = 3000, FEE = 0.005;   // 바나나 1주 가격 = 비트코인 가격(USD 숫자 그대로), 매수·매도 수수료 0.5%
+const START_PRICE = 1000, TICK_MS = 3000, FEE = 0.005;   // 바나나 1주 가격 = 비트코인 원화 가격 그대로, 매수·매도 수수료 0.5%
 const tipMult = () => Math.pow(1.35, S.tipLv), wageMult = () => Math.pow(1.4, S.wageLv);
 const tipCost = L => Math.ceil(25 * Math.pow(2.2, L)), wageCost = L => Math.ceil(400 * Math.pow(3, L));
 const crewCost = (w, n) => Math.ceil(w.cost * Math.pow(1.15, n));
@@ -235,7 +235,7 @@ const netWorth = () => S.money + S.shares * S.price;
 // ---------- 상태 ----------
 let uid = 'local', db = null, fb = null, online = false;
 const newState = () => ({ nickname:'', money:0, totalEarned:0, taps:0, dances:{}, crew:{}, tipLv:0, wageLv:0,
-  shares:0, basis:0, realized:0, price:START_PRICE, venues:[0], venue:0, dance:'sway', savedAt:0 });
+  shares:0, basis:0, realized:0, price:START_PRICE, venues:[0], venue:0, dance:'sway', krw:false, savedAt:0 });
 let S = newState();
 let dirty = false, ready = false;
 let tab = 'dance', bulkMode = '1', knownUnlocked = 1;
@@ -656,7 +656,7 @@ function buildPanel() {
         <button class="btn buy" data-act="buy" data-arg=".1">매수 10%</button><button class="btn buy" data-act="buy" data-arg=".5">매수 50%</button><button class="btn buy" data-act="buy" data-arg="1">매수 전부</button>
         <button class="btn sell" data-act="sell" data-arg=".25">매도 25%</button><button class="btn sell" data-act="sell" data-arg=".5">매도 50%</button><button class="btn sell" data-act="sell" data-arg="1">매도 전부</button>
       </div></div>
-      <div class="note gray">바나나 1주 가격은 실제 비트코인(BTC) 가격과 완전히 똑같아요. (BTC $67,000이면 1주 67,000원) 매수·매도할 때마다 수수료 ${(FEE * 100).toFixed(1)}%가 붙어요.</div>`;
+      <div class="note gray">바나나 1주 가격은 실제 비트코인(BTC) 원화 가격과 완전히 똑같아요. (BTC가 1억원이면 1주 1억원) 매수·매도할 때마다 수수료 ${(FEE * 100).toFixed(1)}%가 붙어요.</div>`;
   } else {
     h = VENUES.map((v, i) => {
       const own = S.venues.includes(i), on = S.venue === i;
@@ -692,11 +692,15 @@ $('panel').addEventListener('click', e => {
 
 // ================= 바나나 주식 (비트코인 연동) =================
 let hist = [], btcNow = 0, live = false;
+// 비트코인 원화 가격: 업비트 → 빗썸 → (실패 시) 코인베이스 USD 가격 × 환율
+const getJson = async u => { const r = await fetch(u, { cache:'no-store', signal:AbortSignal.timeout(4000) }); if (!r.ok) throw 0; return r.json(); };
 async function fetchBtc() {
-  const srcs = [['https://api.coinbase.com/v2/prices/BTC-USD/spot', j => +j.data.amount], ['https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT', j => +j.price]];
-  for (const [u, f] of srcs) {
-    try { const r = await fetch(u, { cache:'no-store', signal:AbortSignal.timeout(4000) }); if (!r.ok) continue; const v = f(await r.json()); if (v > 0) return v; } catch {}
-  }
+  const srcs = [
+    async () => +(await getJson('https://api.upbit.com/v1/ticker?markets=KRW-BTC'))[0].trade_price,
+    async () => +(await getJson('https://api.bithumb.com/public/ticker/BTC_KRW')).data.closing_price,
+    async () => { const [c, fx] = await Promise.all([getJson('https://api.coinbase.com/v2/prices/BTC-USD/spot'), getJson('https://open.er-api.com/v6/latest/USD')]); return +c.data.amount * +fx.rates.KRW; },
+  ];
+  for (const f of srcs) { try { const v = await f(); if (v > 0) return v; } catch {} }
   return null;
 }
 async function stockTick() {
@@ -704,7 +708,9 @@ async function stockTick() {
   const btc = await fetchBtc();
   live = !!btc;
   if (btc) {
-    btcNow = btc; S.price = btc;                       // 바나나 주가 = 비트코인 가격 그대로
+    btcNow = btc;
+    if (!S.krw) { S.shares = S.shares * S.price / btc; S.krw = true; }   // 예전(달러 기준) 기록은 평가액이 그대로 유지되도록 주식 수를 환산
+    S.price = btc;                                     // 바나나 주가 = 비트코인 원화 가격 그대로
     hist.push(btc); if (hist.length > 80) hist.shift();
     dirty = true;
   }
@@ -712,11 +718,11 @@ async function stockTick() {
 }
 function renderStock() {
   const pr = $('stPrice'); if (!pr) return;
-  pr.textContent = Math.round(S.price).toLocaleString() + '원';
+  pr.textContent = S.krw ? Math.round(S.price).toLocaleString() + '원' : '시세 연결 중…';
   const base = hist[0] || S.price, chg = (S.price / base - 1) * 100;
   $('stChg').textContent = (chg >= 0 ? '▲ ' : '▼ ') + Math.abs(chg).toFixed(2) + '%';
   $('stChg').className = chg >= 0 ? 'up' : 'down';
-  $('stLive').textContent = live ? '🟢 BTC $' + btcNow.toLocaleString('en-US', { maximumFractionDigits:2 }) + ' 실시간' : '🔴 BTC 시세 연결 중… (거래 불가)';
+  $('stLive').textContent = live ? '🟢 BTC ' + Math.round(btcNow).toLocaleString() + '원 실시간' : '🔴 BTC 시세 연결 중… (거래 불가)';
   const val = S.shares * S.price, pl = val - S.basis, pct = S.basis > 0 ? pl / S.basis * 100 : 0;
   $('stHold').innerHTML = `보유 <b>${fmtSh(S.shares)}</b>주 · 평가액 <b>${fmt(val)}</b>원<br>`
     + `매수 원금(수수료 포함) ${fmt(S.basis)}원 · 평가손익 <b class="${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '+' : '-'}${fmt(Math.abs(pl))}원 (${pl >= 0 ? '+' : ''}${pct.toFixed(2)}%)</b><br>`
@@ -769,7 +775,7 @@ async function save() {
     await fb.setDoc(fb.doc(db, 'circus', uid), {
       nickname:S.nickname, money:S.money, totalEarned:S.totalEarned, netWorth:netWorth(), taps:S.taps, dances:S.dances, crew:S.crew,
       tipLv:S.tipLv, wageLv:S.wageLv, shares:S.shares, basis:S.basis, realized:S.realized, price:S.price,
-      venues:S.venues, venue:S.venue, dance:S.dance, savedAt:S.savedAt, updatedAt:fb.serverTimestamp()
+      venues:S.venues, venue:S.venue, dance:S.dance, krw:S.krw, savedAt:S.savedAt, updatedAt:fb.serverTimestamp()
     });
   } catch (e) { console.warn('저장 실패', e); dirty = true; }
 }
@@ -881,7 +887,7 @@ const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
       dances:{ ...(loaded.dances || {}) }, crew:{ ...(loaded.crew || {}) }, tipLv:num(loaded.tipLv), wageLv:num(loaded.wageLv),
       shares:num(loaded.shares), basis:num(loaded.basis), realized:num(loaded.realized), price:Math.max(1, num(loaded.price, START_PRICE)),
       venues:Array.isArray(loaded.venues) && loaded.venues.length ? loaded.venues : [0],
-      venue:num(loaded.venue), dance:loaded.dance || 'sway', savedAt:num(loaded.savedAt) };
+      venue:num(loaded.venue), dance:loaded.dance || 'sway', krw:!!loaded.krw, savedAt:num(loaded.savedAt) };
     if (!S.venues.includes(S.venue)) S.venue = 0;
   }
   if (newId) { S.nickname = newId; dirty = true; }
