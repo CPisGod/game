@@ -225,6 +225,7 @@ const VENUES = [
   { nm:'도시 극장',     ic:'🎭', cost:1e9 },
   { nm:'월드 투어',     ic:'🌍', cost:1e11 },
 ];
+const MAX_CREW = 30;   // 알바 종류별 최대 고용 수
 const START_PRICE = 1000, TICK_MS = 3000, FEE = 0.005;   // 바나나 1주 가격 = 비트코인 원화 가격 그대로, 매수·매도 수수료 0.5%
 const tipMult = () => Math.pow(1.5, S.tipLv), wageMult = () => Math.pow(1.3, S.wageLv);
 const tipCost = L => Math.ceil(25 * Math.pow(2, L)), wageCost = L => Math.ceil(400 * Math.pow(3, L));
@@ -625,12 +626,13 @@ const costBtn = (act, arg, cost, label, cls = 'go') =>
   `<button class="btn ${cls}" data-act="${act}" data-arg="${arg ?? ''}" data-cost="${cost}">${label}</button>`;
 
 function bulkInfo(w, mode) {
-  const n = S.crew[w.id] || 0;
+  const n = S.crew[w.id] || 0, room = MAX_CREW - n;
+  if (room <= 0) return { k:0, total:0 };
   let k = 0, total = 0;
   if (mode === 'max') {
-    while (k < 500) { const c = crewCost(w, n + k); if (total + c > S.money) break; total += c; k++; }
+    while (k < room) { const c = crewCost(w, n + k); if (total + c > S.money) break; total += c; k++; }
     if (k === 0) { k = 1; total = crewCost(w, n); }
-  } else { k = +mode; for (let i = 0; i < k; i++) total += crewCost(w, n + i); }
+  } else { k = Math.min(+mode, room); for (let i = 0; i < k; i++) total += crewCost(w, n + i); }
   return { k, total };
 }
 
@@ -647,9 +649,9 @@ function buildPanel() {
     h = `<div class="bulk">${[['1', '×1'], ['10', '×10'], ['max', '최대']].map(([m, t]) => `<button class="btn sub ${bulkMode === m ? 'on' : ''}" data-act="bulk" data-arg="${m}">${t}</button>`).join('')}</div>`
       + CREW.map(w => {
         const n = S.crew[w.id] || 0, { k, total } = bulkInfo(w, bulkMode);
-        return `<div class="row"><span class="ic">${w.ic}</span><div class="tx"><b>${w.nm} <span style="opacity:.6">×${n}</span></b>
+        return `<div class="row"><span class="ic">${w.ic}</span><div class="tx"><b>${w.nm} <span style="opacity:.6">${n}/${MAX_CREW}</span></b>
           <small>1마리당 초당 +${fmtRate(w.inc * wageMult())}원 · 합계 +${fmtRate(n * w.inc * wageMult())}원</small></div>
-          ${costBtn('hire', w.id + ',' + k, total, '고용' + (k > 1 ? ' ×' + k : '') + '<br>' + fmt(total) + '원')}</div>`;
+          ${k === 0 ? '<button class="btn" disabled>최대<br>인원</button>' : costBtn('hire', w.id + ',' + k, total, '고용' + (k > 1 ? ' ×' + k : '') + '<br>' + fmt(total) + '원')}</div>`;
       }).join('');
   } else if (tab === 'up') {
     h = `<div class="row"><span class="ic">🎟️</span><div class="tx"><b>공연료 인상 Lv.${S.tipLv}</b>
@@ -692,7 +694,7 @@ $('panel').addEventListener('click', e => {
     case 'resetChart': hist = []; if (live) hist.push({ t:Date.now(), v:S.price }); renderStock(); return;
     case 'pick': S.dance = arg; dirty = true; buildPanel(); return;
     case 'hire': { const [id, k] = arg.split(','), w = CREW.find(x => x.id === id), { total } = bulkInfo(w, bulkMode);
-      if (S.money < total) return; S.money -= total; S.crew[id] = (S.crew[id] || 0) + (+k); renderCrew(); break; }
+      if (!total || S.money < total) return; S.money -= total; S.crew[id] = (S.crew[id] || 0) + (+k); renderCrew(); break; }
     case 'tip': { const c = tipCost(S.tipLv); if (S.money < c) return; S.money -= c; S.tipLv++; break; }
     case 'wage': { const c = wageCost(S.wageLv); if (S.money < c) return; S.money -= c; S.wageLv++; break; }
     case 'buy': trade(true, +arg); return;
@@ -921,7 +923,7 @@ const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
   if (loaded) {
     const d = newState();
     S = { ...d, nickname:loaded.nickname || '', money:num(loaded.money), totalEarned:num(loaded.totalEarned), taps:num(loaded.taps),
-      dances:{ ...(loaded.dances || {}) }, crew:{ ...(loaded.crew || {}) }, tipLv:num(loaded.tipLv), wageLv:num(loaded.wageLv),
+      dances:{ ...(loaded.dances || {}) }, crew:Object.fromEntries(Object.entries(loaded.crew || {}).map(([k, v]) => [k, Math.min(MAX_CREW, num(v))])), tipLv:num(loaded.tipLv), wageLv:num(loaded.wageLv),
       shares:num(loaded.shares), basis:num(loaded.basis), realized:num(loaded.realized), price:Math.max(1, num(loaded.price, START_PRICE)),
       venues:Array.isArray(loaded.venues) && loaded.venues.length ? loaded.venues : [0],
       venue:num(loaded.venue), dance:loaded.dance || 'sway', krw:!!loaded.krw, savedAt:num(loaded.savedAt) };
