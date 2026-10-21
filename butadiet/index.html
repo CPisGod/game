@@ -264,9 +264,9 @@ const GEAR = {
   bottom: [{ id:'blue', nm:'파랑 반바지', ic:'🔵' }, { id:'black', nm:'검정 반바지', ic:'⚫' }, { id:'red', nm:'빨강 반바지', ic:'🔴', need:'q5' }, { id:'green', nm:'초록 반바지', ic:'🟢', need:'q10' }],
   waist:  [{ id:'none', nm:'없음', ic:'🚫' }, { id:'belt', nm:'웨이트 벨트', ic:'🥋', need:'q4' }],
   hand:   [{ id:'none', nm:'없음', ic:'🚫' }, { id:'wrist', nm:'손목 보호대', ic:'🩹' }, { id:'gloves', nm:'리프팅 장갑', ic:'🧤', need:'q9' }],
-  feet:   [{ id:'hoof', nm:'발굽', ic:'🐾' }, { id:'sneaker_white', nm:'흰 운동화', ic:'👟' }, { id:'sneaker_red', nm:'빨강 운동화', ic:'👠', need:'q9' }],
+  feet:   [{ id:'none', nm:'없음', ic:'🚫' }, { id:'sneaker_white', nm:'흰 운동화', ic:'👟' }, { id:'sneaker_red', nm:'빨강 운동화', ic:'👠', need:'q9' }],
 };
-const DEFAULT_OUTFIT = { head:'none', face:'none', top:'none', bottom:'blue', waist:'none', hand:'none', feet:'hoof' };
+const DEFAULT_OUTFIT = { head:'none', face:'none', top:'none', bottom:'blue', waist:'none', hand:'none', feet:'none' };
 
 const $ = id => document.getElementById(id);
 const kg = g => (g / 1000).toFixed(2);
@@ -324,7 +324,7 @@ const FOOT_Y = GY - 7, STAND_Y = GY - 7 - 66;
 
 // 플랭크 자세: 발끝(toe)을 고정하고 어깨 높이 H 에 맞춰 몸이 일직선으로 기울어짐
 function plank(H) {
-  const toe = [46, GY - 14], L = LT + LS + TL, dy = (GY - 8 - H) - toe[1];
+  const toe = [46, GY - (S.outfit.feet === 'none' ? 9 : 14)], L = LT + LS + TL, dy = (GY - 8 - H) - toe[1];
   const ux = Math.sqrt(L*L - dy*dy) / L, uy = dy / L;
   return { toe, s:[toe[0] + ux*L, toe[1] + uy*L], hip:[toe[0] + ux*(LT+LS), toe[1] + uy*(LT+LS)], th:Math.atan2(ux, -uy) };
 }
@@ -437,9 +437,10 @@ function drawPig(p, time) {
   const hoof = (k, a) => {
     let dx = a[0] - k[0], dy = a[1] - k[1]; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
     const f = [dy, -dx];
-    const sn = SNEAKER[S.outfit.feet], p0 = [a[0] - f[0]*2, a[1] - f[1]*2], p1 = [a[0] + f[0]*(sn ? 19 : 16), a[1] + f[1]*(sn ? 19 : 16)];
-    seg(p0, p1, lw*.95, sn ? sn[0] : C.hoof, sn ? sn[1] : C.hoofD);
-    if (sn) seg([a[0] + f[0]*2, a[1] + f[1]*2], [a[0] + f[0]*13, a[1] + f[1]*13], Math.max(3, lw*.28), sn[2], null);
+    const sn = SNEAKER[S.outfit.feet];
+    if (!sn) return;   // 발굽 없음: 다리 끝만 둥글게
+    seg([a[0] - f[0]*2, a[1] - f[1]*2], [a[0] + f[0]*19, a[1] + f[1]*19], lw*.95, sn[0], sn[1]);
+    seg([a[0] + f[0]*2, a[1] + f[1]*2], [a[0] + f[0]*13, a[1] + f[1]*13], Math.max(3, lw*.28), sn[2], null);
   };
   const leg = (kx, ky, ax, ay, col, ol) => { poly([hip, [kx, ky], [ax, ay]], lw, col, ol); hoof([kx, ky], [ax, ay]); };
   const gloved = S.outfit.hand === 'gloves';
@@ -482,9 +483,10 @@ function drawPig(p, time) {
   }
   // 반바지: 몸통 아래쪽 둥근 부분까지 덮고 허리선은 위쪽
   const top = [a[0] + dir[0]*18, a[1] + dir[1]*18], rr = (T + 2) / 2;
-  o += `<circle cx="${n(a[0])}" cy="${n(a[1])}" r="${n(rr + 2)}" fill="${sc[1]}"/>`;
-  seg(a, top, T + 2, sc[0], sc[1], 'butt');
-  o += `<circle cx="${n(a[0])}" cy="${n(a[1])}" r="${n(rr)}" fill="${sc[0]}"/>`;
+  const sp = [[top[0] + pr[0]*rr, top[1] + pr[1]*rr]];                       // 위쪽은 평평하게, 아래쪽만 둥글게 (반원이 위로 튀어나오지 않도록)
+  for (let k = 0; k <= 14; k++) { const f = PI * k / 14; sp.push([a[0] + pr[0]*rr*cos(f) - dir[0]*rr*sin(f), a[1] + pr[1]*rr*cos(f) - dir[1]*rr*sin(f)]); }
+  sp.push([top[0] - pr[0]*rr, top[1] - pr[1]*rr]);
+  o += `<polygon points="${sp.map(q => pt(q[0], q[1])).join(' ')}" fill="${sc[0]}" stroke="${sc[1]}" stroke-width="4" stroke-linejoin="round"/>`;
   seg([top[0] - dir[0]*3, top[1] - dir[1]*3], top, T + 2, sc[2], null, 'butt');
   if (S.outfit.waist === 'belt') {
     const b0 = [a[0] + dir[0]*14, a[1] + dir[1]*14], b1 = [a[0] + dir[0]*25, a[1] + dir[1]*25], bk = [(b0[0] + b1[0])/2 + pr[0]*T/2, (b0[1] + b1[1])/2 + pr[1]*T/2];
@@ -901,6 +903,7 @@ function askNick() {
           inv: { ...S.inv, ...(loaded.inv || {}) }, claimed: loaded.claimed || [], buff: { ...S.buff, ...(loaded.buff || {}) },
           daily: { ...newDaily(''), ...(loaded.daily || {}), cat: { a:0, b:0, c:0, ...(loaded.daily?.cat || {}) }, claimed: loaded.daily?.claimed || [] },
           outfit: { ...DEFAULT_OUTFIT, ...(loaded.outfit || {}) } };
+    if (S.outfit.feet === 'hoof') S.outfit.feet = 'none';   // 예전 기록: 발굽은 없어짐
   }
   if (newId) { S.nickname = newId; dirty = true; }
   else if (!S.nickname && au?.currentUser?.displayName) { S.nickname = au.currentUser.displayName; dirty = true; }
