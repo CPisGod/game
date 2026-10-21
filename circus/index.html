@@ -69,7 +69,8 @@
   .stock .top { display:flex; justify-content:space-between; align-items:baseline; }
   .stock .price { font-size:30px; font-weight:900; }
   .up { color:var(--red); } .down { color:var(--blue); }
-  #stChart { width:100%; height:80px; background:#fff9ec; border-radius:8px; margin:6px 0; display:block; }
+  #stChart { width:100%; height:auto; background:#fff9ec; border-radius:8px; margin:6px 0 2px; display:block; }
+  .linkbtn { background:none; border:0; padding:2px 4px; font:inherit; font-size:12px; color:var(--ink); opacity:.65; text-decoration:underline; cursor:pointer; }
   .stock .hold { font-size:13px; line-height:1.6; }
   .trade { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:8px; }
   .trade .btn { padding:9px 4px; font-size:13px; }
@@ -650,7 +651,8 @@ function buildPanel() {
   } else if (tab === 'stock') {
     h = `<div class="stock"><div class="top"><b>🍌 바나나 주식</b><span id="stLive" style="font-size:12px"></span></div>
       <div class="top"><span class="price" id="stPrice"></span><b id="stChg"></b></div>
-      <svg id="stChart" viewBox="0 0 300 80" preserveAspectRatio="none"></svg>
+      <svg id="stChart" viewBox="0 0 340 170"></svg>
+      <div style="text-align:right"><button class="linkbtn" data-act="resetChart">그래프 초기화</button></div>
       <div class="hold" id="stHold"></div>
       <div class="trade">
         <button class="btn buy" data-act="buy" data-arg=".1">매수 10%</button><button class="btn buy" data-act="buy" data-arg=".5">매수 50%</button><button class="btn buy" data-act="buy" data-arg="1">매수 전부</button>
@@ -677,6 +679,7 @@ $('panel').addEventListener('click', e => {
   const arg = b.dataset.arg;
   switch (b.dataset.act) {
     case 'bulk': bulkMode = arg; buildPanel(); return;
+    case 'resetChart': hist = []; if (live) hist.push({ t:Date.now(), v:S.price }); renderStock(); return;
     case 'pick': S.dance = arg; dirty = true; buildPanel(); return;
     case 'hire': { const [id, k] = arg.split(','), w = CREW.find(x => x.id === id), { total } = bulkInfo(w, bulkMode);
       if (S.money < total) return; S.money -= total; S.crew[id] = (S.crew[id] || 0) + (+k); renderCrew(); break; }
@@ -711,7 +714,7 @@ async function stockTick() {
     btcNow = btc;
     if (!S.krw) { S.shares = S.shares * S.price / btc; S.krw = true; }   // 예전(달러 기준) 기록은 평가액이 그대로 유지되도록 주식 수를 환산
     S.price = btc;                                     // 바나나 주가 = 비트코인 원화 가격 그대로
-    hist.push(btc); if (hist.length > 80) hist.shift();
+    hist.push({ t:Date.now(), v:btc }); if (hist.length > 120) hist.shift();
     dirty = true;
   }
   if (tab === 'stock') renderStock();
@@ -719,7 +722,7 @@ async function stockTick() {
 function renderStock() {
   const pr = $('stPrice'); if (!pr) return;
   pr.textContent = S.krw ? Math.round(S.price).toLocaleString() + '원' : '시세 연결 중…';
-  const base = hist[0] || S.price, chg = (S.price / base - 1) * 100;
+  const base = hist[0]?.v || S.price, chg = (S.price / base - 1) * 100;
   $('stChg').textContent = (chg >= 0 ? '▲ ' : '▼ ') + Math.abs(chg).toFixed(2) + '%';
   $('stChg').className = chg >= 0 ? 'up' : 'down';
   $('stLive').textContent = live ? '🟢 BTC ' + Math.round(btcNow).toLocaleString() + '원 실시간' : '🔴 BTC 시세 연결 중… (거래 불가)';
@@ -727,14 +730,38 @@ function renderStock() {
   $('stHold').innerHTML = `보유 <b>${fmtSh(S.shares)}</b>주 · 평가액 <b>${fmt(val)}</b>원<br>`
     + `매수 원금(수수료 포함) ${fmt(S.basis)}원 · 평가손익 <b class="${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '+' : '-'}${fmt(Math.abs(pl))}원 (${pl >= 0 ? '+' : ''}${pct.toFixed(2)}%)</b><br>`
     + `실현손익 <span class="${S.realized >= 0 ? 'up' : 'down'}">${S.realized >= 0 ? '+' : '-'}${fmt(Math.abs(S.realized))}원</span>`;
-  if (hist.length > 1) {
-    const mn = Math.min(...hist), mx = Math.max(...hist), span = (mx - mn) || mn * .001 || 1;
-    const pts = hist.map((v, i) => (i / (hist.length - 1) * 300).toFixed(1) + ',' + (72 - (v - mn) / span * 64).toFixed(1)).join(' ');
-    const col = hist[hist.length - 1] >= hist[0] ? '#e8504a' : '#3a9bdc';
-    $('stChart').innerHTML = `<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
-  } else $('stChart').innerHTML = '';
+  drawChart();
   const bs = document.querySelectorAll('#panel .trade .buy'), ss = document.querySelectorAll('#panel .trade .sell');
   bs.forEach(b => b.disabled = !live || S.money < 1); ss.forEach(b => b.disabled = !live || S.shares <= 0);
+}
+function drawChart() {
+  const svg = $('stChart'); if (!svg) return;
+  const W = 340, H = 170, L = 64, Rm = 10, Tm = 10, B = 26, pw = W - L - Rm, ph = H - Tm - B;
+  let o = `<text x="${L}" y="${H / 2}" font-size="11" fill="#999">시세를 모으는 중… (3초마다 한 점)</text>`;
+  if (hist.length > 1) {
+    const vs = hist.map(h => h.v), t0 = hist[0].t, t1 = hist[hist.length - 1].t, ts = Math.max(1, t1 - t0);
+    let mn = Math.min(...vs), mx = Math.max(...vs);
+    const mid = (mn + mx) / 2, span = Math.max(mx - mn, mid * 2e-4), pad = span * .12;
+    mn = mid - span / 2 - pad; mx = mid + span / 2 + pad;
+    const X = t => L + (t - t0) / ts * pw, Y = v => Tm + (1 - (v - mn) / (mx - mn)) * ph;
+    o = '';
+    for (let i = 0; i <= 4; i++) {                       // y축: 가격 눈금 + 가로 보조선
+      const v = mn + (mx - mn) * i / 4, y = Y(v);
+      o += `<line x1="${L}" y1="${y.toFixed(1)}" x2="${W - Rm}" y2="${y.toFixed(1)}" stroke="#eadcc0" stroke-width="1"/>`
+         + `<text x="${L - 5}" y="${(y + 3).toFixed(1)}" font-size="9.5" fill="#6b5a45" text-anchor="end">${Math.round(v).toLocaleString()}</text>`;
+    }
+    const fmtT = t => new Date(t).toLocaleTimeString('ko-KR', { hour12:false });
+    for (let i = 0; i <= 2; i++) {                       // x축: 시각 눈금
+      const t = t0 + ts * i / 2, x = X(t);
+      o += `<line x1="${x.toFixed(1)}" y1="${Tm}" x2="${x.toFixed(1)}" y2="${Tm + ph}" stroke="#eadcc0" stroke-width="1"/>`
+         + `<text x="${x.toFixed(1)}" y="${H - 9}" font-size="9.5" fill="#6b5a45" text-anchor="${i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}">${fmtT(t)}</text>`;
+    }
+    o += `<line x1="${L}" y1="${Tm}" x2="${L}" y2="${Tm + ph}" stroke="#6b5a45" stroke-width="1.5"/><line x1="${L}" y1="${Tm + ph}" x2="${W - Rm}" y2="${Tm + ph}" stroke="#6b5a45" stroke-width="1.5"/>`;
+    const col = vs[vs.length - 1] >= vs[0] ? '#e8504a' : '#3a9bdc';
+    o += `<polyline points="${hist.map(h => X(h.t).toFixed(1) + ',' + Y(h.v).toFixed(1)).join(' ')}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`
+       + `<circle cx="${X(t1).toFixed(1)}" cy="${Y(vs[vs.length - 1]).toFixed(1)}" r="4" fill="${col}" stroke="#fff" stroke-width="1.5"/>`;
+  }
+  svg.innerHTML = o;
 }
 function trade(buy, pct) {
   if (buy) {
@@ -901,7 +928,6 @@ const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
     toast('😴 자리를 비운 동안 ' + fmt(gain) + '원을 벌었어요');
   }
   knownUnlocked = unlocked().length;
-  hist.push(S.price);
   setVenue(S.venue);
   ready = true; await save();
   buildTabs(); buildPanel(); renderCrew(); render();
