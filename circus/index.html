@@ -267,12 +267,18 @@ function ik(A, B, l1, l2, bend) {
   const ux = dx / d, uy = dy / d;
   return [A[0] + ux * a + uy * h * bend, A[1] + uy * a - ux * h * bend, B[0], B[1]];
 }
+const SW = 11, HW = 8;   // 정면: 어깨/엉덩이 반폭 (near = 몸 기준 오른쪽, far = 왼쪽)
+function ikOut(A, B, l1, l2, pr, sd) {   // 관절이 몸 바깥쪽으로 꺾이는 쪽을 고른다
+  const r1 = ik(A, B, l1, l2, 1), r2 = ik(A, B, l1, l2, -1);
+  const mx = (A[0] + r1[2]) / 2, my = (A[1] + r1[3]) / 2;
+  return ((r1[0] - mx) * pr[0] + (r1[1] - my) * pr[1]) * sd >= 0 ? r1 : r2;
+}
 function build(o) {
-  const hip = o.hip, th = o.th, s = sh(hip, th);
-  const lb = o.legBend ?? 1, ab = o.armBend ?? -1;
-  const nl = ik(hip, o.nf, LT, LS, lb), fl = ik(hip, o.ff, LT, LS, lb);
-  const na = ik(s, o.nh || [s[0] + o.nhr[0], s[1] + o.nhr[1]], UA, FA, ab);
-  const fa = ik(s, o.fh || [s[0] + o.fhr[0], s[1] + o.fhr[1]], UA, FA, ab);
+  const hip = o.hip, th = o.th, s = sh(hip, th), pr = [cos(th), sin(th)];
+  const at = (c, w) => [c[0] + pr[0] * w, c[1] + pr[1] * w];
+  const nl = ikOut(at(hip, HW), o.nf, LT, LS, pr, 1), fl = ikOut(at(hip, -HW), o.ff, LT, LS, pr, -1);
+  const na = ikOut(at(s, SW), o.nh || [s[0] + o.nhr[0], s[1] + o.nhr[1]], UA, FA, pr, 1);
+  const fa = ikOut(at(s, -SW), o.fh || [s[0] + o.fhr[0], s[1] + o.fhr[1]], UA, FA, pr, -1);
   return { hx:hip[0], hy:hip[1], sx:s[0], sy:s[1], th, ha:o.ha || 0, hv:o.hv ?? 1, tw:o.tw || 0, mo:o.mo || 0,
     nkx:nl[0], nky:nl[1], nax:nl[2], nay:nl[3], fkx:fl[0], fky:fl[1], fax:fl[2], fay:fl[3],
     nex:na[0], ney:na[1], nhx:na[2], nhy:na[3], fex:fa[0], fey:fa[1], fhx:fa[2], fhy:fa[3] };
@@ -282,7 +288,7 @@ function build(o) {
 const POSES = {
   idle(time) {
     const b = sin(time * 3);
-    return build({ hip:[CX, STAND_Y + b * .4], th:.04, nf:[CX + 10, FOOT_Y], ff:[CX - 8, FOOT_Y], nhr:[10, 40 + b], fhr:[-6, 42 + b], tw:sin(time * 2) * .6 });
+    return build({ hip:[CX, STAND_Y + b * .4], th:.04, nf:[CX + 10, FOOT_Y], ff:[CX - 10, FOOT_Y], nhr:[14, 40 + b], fhr:[-14, 40 + b], tw:sin(time * 2) * .6 });
   },
   sway(ph) {
     const w = 2 * PI * ph * 2, d = sin(w), a = Math.max(0, d), b = Math.max(0, -d);
@@ -297,14 +303,14 @@ const POSES = {
   hang(ph) {
     const a = .45 * sin(2 * PI * ph * 1.5), P = [CX, BY + 4];
     const hip = [P[0] + 52 * sin(a), P[1] + 52 * cos(a)];
-    return build({ hip, th:PI - a, ha:.3 * a, hv:-1, nf:[P[0] + 4, P[1]], ff:[P[0] - 4, P[1]],
-      nhr:[12 * sin(2 * a) + 8, 44], fhr:[12 * sin(2 * a) - 6, 44], tw:a * 2, mo:1 });
+    return build({ hip, th:PI - a, ha:.3 * a, hv:-1, nf:[P[0] - 6, P[1]], ff:[P[0] + 6, P[1]],
+      nhr:[12 * sin(2 * a) - 8, 46], fhr:[12 * sin(2 * a) + 8, 46], tw:a * 2, mo:1 });
   },
   hand(ph) {
     const w = 2 * PI * ph * 2, t = .12 * sin(w), th = PI + t;
     const s = [CX + 3, GY - 6 - 46 + 3 * sin(w * 2)], hip = [s[0] - TL * sin(th), s[1] + TL * cos(th)];
-    return build({ hip, th, hv:-1, legBend:-1, nh:[CX + 14, GY - 6], fh:[CX - 6, GY - 6],
-      nf:[hip[0] + 12 + 16 * sin(w), hip[1] - 52], ff:[hip[0] - 8 - 16 * sin(w), hip[1] - 52], mo:1, tw:sin(w) });
+    return build({ hip, th, hv:-1, nh:[CX - 8, GY - 6], fh:[CX + 14, GY - 6],
+      nf:[hip[0] - 10 - 12 * sin(w), hip[1] - 52], ff:[hip[0] + 10 + 12 * sin(w), hip[1] - 52], mo:1, tw:sin(w) });
   },
   ball(ph) {
     const bx = CX + 22 * sin(2 * PI * ph), fy = GY - 55, w = 2 * PI * ph * 3;
@@ -323,19 +329,19 @@ const POSES = {
   },
   juggle(ph) {
     const w = 2 * PI * ph * 2;
-    return build({ hip:[CX, STAND_Y + 2 * Math.abs(sin(w))], th:.04, nf:[CX + 10, FOOT_Y], ff:[CX - 8, FOOT_Y],
+    return build({ hip:[CX, STAND_Y + 2 * Math.abs(sin(w))], th:.04, nf:[CX + 10, FOOT_Y], ff:[CX - 10, FOOT_Y],
       nhr:[30, 22 + 8 * sin(w)], fhr:[-30, 22 - 8 * sin(w)], ha:.1 * sin(w), tw:sin(w), mo:1 });
   },
   swing(ph) {
     const a = .55 * sin(2 * PI * ph), R = 90, Bx = CX + R * sin(a), By = -10 + R * cos(a);
     const s = [Bx + 44 * sin(a), By + 44 * cos(a)], hip = [s[0] + TL * sin(a), s[1] + TL * cos(a)], la = 1.4 * a;
-    return build({ hip, th:-a, ha:-a * .5, nh:[Bx + 3, By], fh:[Bx - 3, By],
-      nf:[hip[0] + 52 * sin(la) + 4, hip[1] + 52 * cos(la)], ff:[hip[0] + 52 * sin(la) - 6, hip[1] + 52 * cos(la)], tw:a * 2, mo:1 });
+    return build({ hip, th:-a, ha:-a * .5, nh:[Bx + 9, By], fh:[Bx - 9, By],
+      nf:[hip[0] + 52 * sin(la) + 6, hip[1] + 52 * cos(la)], ff:[hip[0] + 52 * sin(la) - 6, hip[1] + 52 * cos(la)], tw:a * 2, mo:1 });
   },
   fire(ph) {
     const u = ph, hx = CX - 62 + 124 * u, air = sin(PI * clamp((u - .08) / .84, 0, 1)), hy = STAND_Y - 47 * air;
     const th = 2 * PI * smooth(clamp((u - .15) / .7, 0, 1)), hip = [hx, hy], s = sh(hip, th), tk = clamp(air * 1.6, 0, 1);
-    return build({ hip, th, ha:th, nf:lerp2([hx + 10, FOOT_Y], bp(hip, th, 10, 22), tk), ff:lerp2([hx - 8, FOOT_Y], bp(hip, th, 0, 22), tk),
+    return build({ hip, th, ha:th, nf:lerp2([hx + 10, FOOT_Y], bp(hip, th, 10, 22), tk), ff:lerp2([hx - 10, FOOT_Y], bp(hip, th, -8, 22), tk),
       nh:lerp2([s[0] + 14, s[1] + 40], bp(s, th, 16, 14), tk), fh:lerp2([s[0] - 6, s[1] + 42], bp(s, th, 6, 16), tk), tw:1, mo:1 });
   },
 };
@@ -398,9 +404,10 @@ function ring(back) {
 }
 
 function drawMonkey(p, time, ph, id) {
-  const lw = 11, T = 30, n = v => v.toFixed(1), pt = (x, y) => n(x) + ',' + n(y);
+  const lw = 11, T = 34, n = v => v.toFixed(1), pt = (x, y) => n(x) + ',' + n(y);
   const th = p.th, dir = [sin(th), -cos(th)], pr = [cos(th), sin(th)];
   const hip = [p.hx, p.hy], s = [p.sx, p.sy];
+  const at = (c, w) => [c[0] + pr[0] * w, c[1] + pr[1] * w];
   let o = '';
   const poly = (pts, w, col, ol) => {
     const P = pts.map(q => pt(q[0], q[1])).join(' ');
@@ -411,13 +418,10 @@ function drawMonkey(p, time, ph, id) {
     if (ol) o += `<line x1="${n(a[0])}" y1="${n(a[1])}" x2="${n(b[0])}" y2="${n(b[1])}" stroke="${ol}" stroke-width="${n(w + 4)}" stroke-linecap="${cap}"/>`;
     o += `<line x1="${n(a[0])}" y1="${n(a[1])}" x2="${n(b[0])}" y2="${n(b[1])}" stroke="${col}" stroke-width="${n(w)}" stroke-linecap="${cap}"/>`;
   };
-  const foot = (k, a, col) => {
-    let dx = a[0] - k[0], dy = a[1] - k[1]; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
-    seg(a, [a[0] + dy * 11, a[1] - dx * 11], lw * .85, col, C.shadeD, 'round');
-  };
-  const leg = (kx, ky, ax, ay, col) => { poly([hip, [kx, ky], [ax, ay]], lw, col, C.shadeD); foot([kx, ky], [ax, ay], col); };
-  const hand = (x, y, col) => { o += `<circle cx="${n(x)}" cy="${n(y)}" r="6.5" fill="${col}" stroke="${C.shadeD}" stroke-width="2"/>`; };
-  const arm = (ex, ey, hx, hy, col, hc) => { poly([s, [ex, ey], [hx, hy]], lw * .85, col, C.shadeD); hand(hx, hy, hc); };
+  // 정면: 발끝은 바깥쪽(sd)으로 향함
+  const leg = (A, kx, ky, ax, ay, sd) => { poly([A, [kx, ky], [ax, ay]], lw, C.base, C.shadeD); seg([ax - pr[0] * sd * 2, ay - pr[1] * sd * 2], [ax + pr[0] * sd * 9, ay + pr[1] * sd * 9], lw * .9, C.face2, C.shadeD, 'round'); };
+  const hand = (x, y) => { o += `<circle cx="${n(x)}" cy="${n(y)}" r="6.5" fill="${C.face}" stroke="${C.shadeD}" stroke-width="2"/>`; };
+  const arm = (A, ex, ey, hx, hy) => { poly([A, [ex, ey], [hx, hy]], lw * .85, C.base, C.shadeD); hand(hx, hy); };
 
   // 바닥 그림자 (나무/매달리기/그네는 공중이라 없음)
   if (id !== 'tree' && id !== 'hang' && id !== 'swing') {
@@ -427,43 +431,46 @@ function drawMonkey(p, time, ph, id) {
   const pr0 = id && PROPS[id];
   if (pr0 && pr0.back) o += pr0.back(ph, p);
 
-  // 뒤쪽 팔/다리, 꼬리
-  arm(p.fex, p.fey, p.fhx, p.fhy, C.shade, C.face2);
-  leg(p.fkx, p.fky, p.fax, p.fay, C.shade);
-  const tb = [hip[0] - pr[0] * 12 + dir[0] * 4, hip[1] - pr[1] * 12 + dir[1] * 4];
-  const tip = [tb[0] - pr[0] * 40 + dir[0] * (26 + p.tw * 14), tb[1] - pr[1] * 40 + dir[1] * (26 + p.tw * 14)];
-  const tc = [tb[0] - pr[0] * 34 - dir[0] * 4, tb[1] - pr[1] * 34 - dir[1] * 4];
+  // 꼬리 (몸 옆으로 삐져나와 위로 말림)
+  const tb = at(hip, 8), tc = [tb[0] + pr[0] * 30 - dir[0] * 4, tb[1] + pr[1] * 30 - dir[1] * 4];
+  const tip = [tb[0] + pr[0] * 30 + dir[0] * (16 + p.tw * 8), tb[1] + pr[1] * 30 + dir[1] * (16 + p.tw * 8)];
   o += `<path d="M${pt(tb[0], tb[1])} Q${pt(tc[0], tc[1])} ${pt(tip[0], tip[1])}" fill="none" stroke="${C.shadeD}" stroke-width="9" stroke-linecap="round"/>`
      + `<path d="M${pt(tb[0], tb[1])} Q${pt(tc[0], tc[1])} ${pt(tip[0], tip[1])}" fill="none" stroke="${C.base}" stroke-width="5" stroke-linecap="round"/>`;
 
-  // 몸통 + 배 + 조끼
-  const a = [hip[0] + dir[0] * T * .28, hip[1] + dir[1] * T * .28], b = [s[0] - dir[0] * T * .05, s[1] - dir[1] * T * .05];
+  // 다리 → 몸통
+  leg(at(hip, -HW), p.fkx, p.fky, p.fax, p.fay, -1);
+  leg(at(hip, HW), p.nkx, p.nky, p.nax, p.nay, 1);
+  const a = [hip[0] + dir[0] * T * .3, hip[1] + dir[1] * T * .3], b = [s[0] - dir[0] * T * .05, s[1] - dir[1] * T * .05];
   seg(a, b, T, C.base, C.shadeD, 'round');
-  const bm = [(a[0] + b[0]) / 2 + pr[0] * T * .14, (a[1] + b[1]) / 2 + pr[1] * T * .14], bl = Math.hypot(b[0] - a[0], b[1] - a[1]);
-  o += `<ellipse transform="translate(${n(bm[0])} ${n(bm[1])}) rotate(${n(th * 180 / PI)})" rx="${n(T * .3)}" ry="${n(bl * .42 + T * .06)}" fill="${C.face2}"/>`;
-  const v0 = [a[0] + (b[0] - a[0]) * .3, a[1] + (b[1] - a[1]) * .3];
-  seg(v0, b, T + 2, C.red, C.redD, 'round');
-  seg([v0[0] + pr[0] * T * .3, v0[1] + pr[1] * T * .3], [b[0] + pr[0] * T * .3, b[1] + pr[1] * T * .3], 3, '#ffffff66', null);
-  o += CI(a[0] + (b[0] - a[0]) * .55 + pr[0] * T * .42, a[1] + (b[1] - a[1]) * .55 + pr[1] * T * .42, 2.5, C.gold)
-     + CI(a[0] + (b[0] - a[0]) * .8 + pr[0] * T * .42, a[1] + (b[1] - a[1]) * .8 + pr[1] * T * .42, 2.5, C.gold);
-  leg(p.nkx, p.nky, p.nax, p.nay, C.base);
+  const bm = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], bl = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  o += `<ellipse transform="translate(${n(bm[0])} ${n(bm[1])}) rotate(${n(th * 180 / PI)})" rx="${n(T * .34)}" ry="${n(bl * .46 + T * .06)}" fill="${C.face2}"/>`;
+  // 조끼: 가운데가 트인 빨간 조끼 두 쪽 + 금단추
+  const v0 = [a[0] + (b[0] - a[0]) * .25, a[1] + (b[1] - a[1]) * .25];
+  for (const sd of [-1, 1]) seg(at(v0, sd * T * .3), at(b, sd * T * .32), T * .36, C.red, C.redD, 'round');
+  for (const f of [.45, .7]) o += CI(a[0] + (b[0] - a[0]) * f + pr[0] * T * .12, a[1] + (b[1] - a[1]) * f + pr[1] * T * .12, 2.4, C.gold);
 
-  // 머리
-  const hc = [s[0] + dir[0] * 24 + pr[0] * 6, s[1] + dir[1] * 24 + pr[1] * 6];
+  // 머리 (정면)
+  const hc = [s[0] + dir[0] * 25, s[1] + dir[1] * 25];
   const blink = (time % 4) < .13;
   let hd = `<g transform="translate(${n(hc[0])} ${n(hc[1])}) rotate(${n(p.ha * 180 / PI)}) scale(1 ${n(p.hv)})">`;
-  const rc = (x, y, w, h, f, st) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}"${st ? ` stroke="${st}" stroke-width="2"` : ''}/>`;
-  hd += `<circle cx="-20" cy="0" r="10" fill="${C.base}" stroke="${C.shadeD}" stroke-width="2"/><circle cx="-20" cy="0" r="5.5" fill="${C.face}"/>`;
-  hd += rc(-23, -22, 42, 40, C.base, C.shadeD) + rc(-4, -9, 24, 27, C.face, C.shadeD) + rc(10, 2, 19, 16, C.face2, C.shadeD);
-  hd += rc(22, 6, 3, 4, C.ink) + (p.mo > .5 ? rc(14, 12, 12, 6, '#7a2e2e') : rc(14, 13, 12, 2, C.ink));
-  hd += `<rect x="1" y="6" width="6" height="4" fill="${C.cheek}" opacity=".7"/>`;
-  hd += blink ? rc(4, -5, 10, 2, C.ink) : rc(4, -10, 10, 11, C.white, C.shadeD) + rc(8, -8, 5, 8, C.ink);
-  hd += rc(3, -14, 12, 3, C.shadeD);
-  hd += rc(-14, -36, 26, 14, C.red, C.redD) + rc(-14, -26, 26, 3, C.gold) + `<line x1="-2" y1="-36" x2="-8" y2="-44" stroke="${C.gold}" stroke-width="3" stroke-linecap="round"/>${CI(-8, -45, 3, C.gold)}`;
+  const rc = (x, y, w, h, f, st, rx = 0) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${f}"${st ? ` stroke="${st}" stroke-width="2"` : ''}/>`;
+  for (const sd of [-1, 1]) hd += `<circle cx="${sd * 25}" cy="-1" r="10" fill="${C.base}" stroke="${C.shadeD}" stroke-width="2"/><circle cx="${sd * 25}" cy="-1" r="5.5" fill="${C.face}"/>`;
+  hd += rc(-23, -22, 46, 42, C.base, C.shadeD, 10);
+  hd += `<circle cx="-9" cy="-4" r="11" fill="${C.face}"/><circle cx="9" cy="-4" r="11" fill="${C.face}"/><ellipse cx="0" cy="8" rx="15" ry="11" fill="${C.face}"/>`;
+  hd += `<ellipse cx="0" cy="9" rx="10" ry="7" fill="${C.face2}"/>`;
+  for (const sd of [-1, 1]) {
+    hd += blink ? rc(sd * 9 - 4, -5, 8, 2, C.ink) : rc(sd * 9 - 4.5, -10, 9, 10, C.white, C.shadeD, 2) + rc(sd * 9 - 2, -8, 5, 7, C.ink, null, 1);
+    hd += rc(sd * 9 - 5, -14, 10, 3, C.shadeD, null, 1) + `<circle cx="${sd * 17}" cy="6" r="3.5" fill="${C.cheek}" opacity=".7"/>`;
+  }
+  hd += rc(-4, 5, 2.5, 3, C.ink) + rc(1.5, 5, 2.5, 3, C.ink);
+  hd += p.mo > .5 ? `<path d="M-7 11 Q0 22 7 11Z" fill="#7a2e2e" stroke="${C.ink}" stroke-width="1.5" stroke-linejoin="round"/>` : `<path d="M-6 12 Q0 16 6 12" fill="none" stroke="${C.ink}" stroke-width="2" stroke-linecap="round"/>`;
+  hd += rc(-14, -37, 28, 15, C.red, C.redD, 2) + rc(-14, -27, 28, 3, C.gold) + `<line x1="0" y1="-37" x2="-6" y2="-45" stroke="${C.gold}" stroke-width="3" stroke-linecap="round"/>${CI(-6, -46, 3, C.gold)}`;
   hd += '</g>';
   o += hd;
 
-  arm(p.nex, p.ney, p.nhx, p.nhy, C.base, C.face);
+  // 팔 (머리 앞)
+  arm(at(s, -SW), p.fex, p.fey, p.fhx, p.fhy);
+  arm(at(s, SW), p.nex, p.ney, p.nhx, p.nhy);
   if (pr0 && pr0.front) o += pr0.front(ph, p);
   return o;
 }
