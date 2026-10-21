@@ -191,18 +191,19 @@ const fmtRate = r => r < 10 ? r.toFixed(1) : fmt(r);
 const fmtSh = s => s < 1e4 ? (s >= 100 ? s.toFixed(1) : s.toFixed(3)) : fmt(s);
 
 // ---------- 게임 데이터 ----------
-// need = 이 묘기를 해금하는 누적 수입
+// 묘기는 모두 같은 금액(TAP_PAY)을 줘요. need = 이 묘기를 해금하는 누적 수입 (고른 묘기 하나만 보여줌)
+const TAP_PAY = 1;
 const DANCES = [
-  { id:'sway',   ic:'💃', nm:'덩실덩실 춤',       pay:1,     need:0,    dur:1100 },
-  { id:'tree',   ic:'🌴', nm:'나무에서 춤추기',   pay:3,     need:1e2,  dur:1200 },
-  { id:'hang',   ic:'🙃', nm:'거꾸로 매달리기',   pay:8,     need:1e3,  dur:1400 },
-  { id:'hand',   ic:'🤸', nm:'물구나무 서기',     pay:25,    need:1e4,  dur:1300 },
-  { id:'ball',   ic:'⚽', nm:'공 위에서 균형 잡기', pay:80,    need:1e5,  dur:1500 },
-  { id:'cycle',  ic:'🚲', nm:'외발자전거',        pay:250,   need:1e6,  dur:1500 },
-  { id:'hula',   ic:'⭕', nm:'훌라후프',          pay:800,   need:1e7,  dur:1300 },
-  { id:'juggle', ic:'🍌', nm:'바나나 저글링',     pay:2500,  need:1e8,  dur:1500 },
-  { id:'swing',  ic:'🎪', nm:'공중그네',          pay:8000,  need:1e9,  dur:1700 },
-  { id:'fire',   ic:'🔥', nm:'불붙은 링 통과',    pay:30000, need:1e10, dur:1200 },
+  { id:'sway',   ic:'💃', nm:'덩실덩실 춤',       need:0,    dur:1100 },
+  { id:'tree',   ic:'🌴', nm:'나무에서 춤추기',   need:1e2,  dur:1200 },
+  { id:'hang',   ic:'🙃', nm:'거꾸로 매달리기',   need:1e3,  dur:1400 },
+  { id:'hand',   ic:'🤸', nm:'물구나무 서기',     need:1e4,  dur:1300 },
+  { id:'ball',   ic:'⚽', nm:'공 위에서 균형 잡기', need:1e5,  dur:1500 },
+  { id:'cycle',  ic:'🚲', nm:'외발자전거',        need:1e6,  dur:1500 },
+  { id:'hula',   ic:'⭕', nm:'훌라후프',          need:1e7,  dur:1300 },
+  { id:'juggle', ic:'🍌', nm:'바나나 저글링',     need:1e8,  dur:1500 },
+  { id:'swing',  ic:'🎪', nm:'공중그네',          need:1e9,  dur:1700 },
+  { id:'fire',   ic:'🔥', nm:'불붙은 링 통과',    need:1e10, dur:1200 },
 ];
 // 알바(동물 친구들): cost = 기본 가격(고용할 때마다 15%씩 비싸짐), inc = 1마리당 초당 수입
 const CREW = [
@@ -223,7 +224,7 @@ const VENUES = [
   { nm:'도시 극장',     ic:'🎭', cost:1e9 },
   { nm:'월드 투어',     ic:'🌍', cost:1e11 },
 ];
-const START_PRICE = 1000, PRICE_MIN = 10, AMP = 25, TICK_MS = 3000;   // 비트코인 변동률 × AMP 만큼 바나나 주가가 움직임
+const START_PRICE = 1000, TICK_MS = 3000, FEE = 0.005;   // 바나나 1주 가격 = 비트코인 가격(USD 숫자 그대로), 매수·매도 수수료 0.5%
 const tipMult = () => Math.pow(1.35, S.tipLv), wageMult = () => Math.pow(1.4, S.wageLv);
 const tipCost = L => Math.ceil(25 * Math.pow(2.2, L)), wageCost = L => Math.ceil(400 * Math.pow(3, L));
 const crewCost = (w, n) => Math.ceil(w.cost * Math.pow(1.15, n));
@@ -234,10 +235,10 @@ const netWorth = () => S.money + S.shares * S.price;
 // ---------- 상태 ----------
 let uid = 'local', db = null, fb = null, online = false;
 const newState = () => ({ nickname:'', money:0, totalEarned:0, taps:0, dances:{}, crew:{}, tipLv:0, wageLv:0,
-  shares:0, basis:0, realized:0, price:START_PRICE, lastBtc:0, venues:[0], venue:0, savedAt:0 });
+  shares:0, basis:0, realized:0, price:START_PRICE, venues:[0], venue:0, dance:'sway', savedAt:0 });
 let S = newState();
 let dirty = false, ready = false;
-let tab = 'dance', bulkMode = '1', lastDance = null, knownUnlocked = 1;
+let tab = 'dance', bulkMode = '1', knownUnlocked = 1;
 
 const LS_KEY = 'circus-local';
 const lsKey = () => uid === 'local' ? LS_KEY : LS_KEY + '-' + uid;
@@ -554,10 +555,8 @@ function loop(now) {
 function showMsg(t) { $('msg').textContent = t; clearTimeout(showMsg.t); showMsg.t = setTimeout(() => $('msg').textContent = '', 900); }
 $('stage').addEventListener('pointerdown', ev => {
   if (!ready || !S.nickname) return;
-  const list = unlocked().filter(d => d.id !== lastDance);
-  const d = (list.length ? list : unlocked())[Math.floor(Math.random() * (list.length || unlocked().length))];
-  lastDance = d.id;
-  const pay = d.pay * tipMult();
+  const d = DANCES.find(x => x.id === S.dance && S.totalEarned >= x.need) || DANCES[0];
+  const pay = TAP_PAY * tipMult();
   earn(pay);
   S.taps++; S.dances[d.id] = (S.dances[d.id] || 0) + 1;
   anim.id = d.id; anim.start = performance.now(); anim.dur = d.dur;
@@ -574,7 +573,7 @@ function checkUnlock() {
   const n = unlocked().length;
   if (n > knownUnlocked) {
     const d = DANCES[n - 1];
-    toast('🎉 새 묘기 해금! ' + d.ic + ' ' + d.nm);
+    toast('🎉 새 묘기 해금! ' + d.ic + ' ' + d.nm + ' (묘기 탭에서 선택)');
     knownUnlocked = n;
     if (tab === 'dance') buildPanel();
   }
@@ -627,10 +626,11 @@ function bulkInfo(w, mode) {
 function buildPanel() {
   let h = '';
   if (tab === 'dance') {
-    h = '<div class="note gray" style="margin:0 0 8px">터치할 때마다 해금된 묘기 중 하나를 무작위로 춰요. 묘기마다 수입이 달라요.</div>' + DANCES.map(d => {
-      const ok = S.totalEarned >= d.need;
-      return `<div class="row ${ok ? '' : 'lock'}"><span class="ic">${ok ? d.ic : '🔒'}</span><div class="tx"><b>${ok ? d.nm : '???'}</b>
-        <small>${ok ? '1회 +' + fmt(d.pay * tipMult()) + '원 · 공연 ' + (S.dances[d.id] || 0).toLocaleString() + '회' : '누적 수입 ' + fmt(d.need) + '원이면 해금'}</small></div></div>`;
+    h = `<div class="note gray" style="margin:0 0 8px">보여줄 묘기를 하나 골라요. 어떤 묘기든 터치당 +${fmt(TAP_PAY * tipMult())}원으로 똑같아요. 누적 수입이 쌓이면 새 묘기가 열려요.</div>` + DANCES.map(d => {
+      const ok = S.totalEarned >= d.need, on = S.dance === d.id;
+      return `<div class="row ${ok ? '' : 'lock'} ${on ? 'on' : ''}"><span class="ic">${ok ? d.ic : '🔒'}</span><div class="tx"><b>${ok ? d.nm : '???'}</b>
+        <small>${ok ? '공연 ' + (S.dances[d.id] || 0).toLocaleString() + '회' : '누적 수입 ' + fmt(d.need) + '원이면 해금'}</small></div>
+        ${ok ? (on ? '<span style="font-weight:700;color:var(--acc)">공연 중</span>' : `<button class="btn go" data-act="pick" data-arg="${d.id}">선택</button>`) : ''}</div>`;
     }).join('');
   } else if (tab === 'crew') {
     h = `<div class="bulk">${[['1', '×1'], ['10', '×10'], ['max', '최대']].map(([m, t]) => `<button class="btn sub ${bulkMode === m ? 'on' : ''}" data-act="bulk" data-arg="${m}">${t}</button>`).join('')}</div>`
@@ -656,7 +656,7 @@ function buildPanel() {
         <button class="btn buy" data-act="buy" data-arg=".1">매수 10%</button><button class="btn buy" data-act="buy" data-arg=".5">매수 50%</button><button class="btn buy" data-act="buy" data-arg="1">매수 전부</button>
         <button class="btn sell" data-act="sell" data-arg=".25">매도 25%</button><button class="btn sell" data-act="sell" data-arg=".5">매도 50%</button><button class="btn sell" data-act="sell" data-arg="1">매도 전부</button>
       </div></div>
-      <div class="note gray">바나나 시세는 실제 비트코인(BTC) 변동률의 ${AMP}배로 움직여요. 비트코인이 오르면 바나나도 오르고, 내리면 같이 내려요. 접속하지 않은 동안의 변동도 반영돼요.</div>`;
+      <div class="note gray">바나나 1주 가격은 실제 비트코인(BTC) 가격과 완전히 똑같아요. (BTC $67,000이면 1주 67,000원) 매수·매도할 때마다 수수료 ${(FEE * 100).toFixed(1)}%가 붙어요.</div>`;
   } else {
     h = VENUES.map((v, i) => {
       const own = S.venues.includes(i), on = S.venue === i;
@@ -677,6 +677,7 @@ $('panel').addEventListener('click', e => {
   const arg = b.dataset.arg;
   switch (b.dataset.act) {
     case 'bulk': bulkMode = arg; buildPanel(); return;
+    case 'pick': S.dance = arg; dirty = true; buildPanel(); return;
     case 'hire': { const [id, k] = arg.split(','), w = CREW.find(x => x.id === id), { total } = bulkInfo(w, bulkMode);
       if (S.money < total) return; S.money -= total; S.crew[id] = (S.crew[id] || 0) + (+k); renderCrew(); break; }
     case 'tip': { const c = tipCost(S.tipLv); if (S.money < c) return; S.money -= c; S.tipLv++; break; }
@@ -690,7 +691,7 @@ $('panel').addEventListener('click', e => {
 });
 
 // ================= 바나나 주식 (비트코인 연동) =================
-let hist = [], btcNow = 0, live = false, firstTick = true;
+let hist = [], btcNow = 0, live = false;
 async function fetchBtc() {
   const srcs = [['https://api.coinbase.com/v2/prices/BTC-USD/spot', j => +j.data.amount], ['https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT', j => +j.price]];
   for (const [u, f] of srcs) {
@@ -701,29 +702,24 @@ async function fetchBtc() {
 async function stockTick() {
   if (!ready) return;
   const btc = await fetchBtc();
-  let r;
+  live = !!btc;
   if (btc) {
-    r = S.lastBtc > 0 ? (btc / S.lastBtc - 1) * AMP : 0;
-    S.lastBtc = btc; btcNow = btc; live = true;
-  } else { live = false; r = (Math.random() - .5) * .01; }   // 비트코인 시세를 못 가져오면 임시로 랜덤 변동
-  r = clamp(r, -.6, 2);
-  if (firstTick && Math.abs(r) > .05 && S.shares > 0) toast('📈 자리를 비운 사이 바나나 주가가 ' + (r > 0 ? '+' : '') + (r * 100).toFixed(1) + '% 변했어요');
-  firstTick = false;
-  S.price = Math.max(PRICE_MIN, S.price * (1 + r));
-  hist.push(S.price); if (hist.length > 80) hist.shift();
-  dirty = true;
+    btcNow = btc; S.price = btc;                       // 바나나 주가 = 비트코인 가격 그대로
+    hist.push(btc); if (hist.length > 80) hist.shift();
+    dirty = true;
+  }
   if (tab === 'stock') renderStock();
 }
 function renderStock() {
   const pr = $('stPrice'); if (!pr) return;
-  pr.textContent = fmt(S.price) + '원';
+  pr.textContent = Math.round(S.price).toLocaleString() + '원';
   const base = hist[0] || S.price, chg = (S.price / base - 1) * 100;
   $('stChg').textContent = (chg >= 0 ? '▲ ' : '▼ ') + Math.abs(chg).toFixed(2) + '%';
   $('stChg').className = chg >= 0 ? 'up' : 'down';
-  $('stLive').textContent = live ? '🟢 BTC $' + Math.round(btcNow).toLocaleString() + ' 연동 중' : '🔴 BTC 연결 실패 · 임시 시세';
+  $('stLive').textContent = live ? '🟢 BTC $' + btcNow.toLocaleString('en-US', { maximumFractionDigits:2 }) + ' 실시간' : '🔴 BTC 시세 연결 중… (거래 불가)';
   const val = S.shares * S.price, pl = val - S.basis, pct = S.basis > 0 ? pl / S.basis * 100 : 0;
   $('stHold').innerHTML = `보유 <b>${fmtSh(S.shares)}</b>주 · 평가액 <b>${fmt(val)}</b>원<br>`
-    + `매수 원금 ${fmt(S.basis)}원 · 평가손익 <b class="${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '+' : '-'}${fmt(Math.abs(pl))}원 (${pl >= 0 ? '+' : ''}${pct.toFixed(2)}%)</b><br>`
+    + `매수 원금(수수료 포함) ${fmt(S.basis)}원 · 평가손익 <b class="${pl >= 0 ? 'up' : 'down'}">${pl >= 0 ? '+' : '-'}${fmt(Math.abs(pl))}원 (${pl >= 0 ? '+' : ''}${pct.toFixed(2)}%)</b><br>`
     + `실현손익 <span class="${S.realized >= 0 ? 'up' : 'down'}">${S.realized >= 0 ? '+' : '-'}${fmt(Math.abs(S.realized))}원</span>`;
   if (hist.length > 1) {
     const mn = Math.min(...hist), mx = Math.max(...hist), span = (mx - mn) || mn * .001 || 1;
@@ -732,19 +728,21 @@ function renderStock() {
     $('stChart').innerHTML = `<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
   } else $('stChart').innerHTML = '';
   const bs = document.querySelectorAll('#panel .trade .buy'), ss = document.querySelectorAll('#panel .trade .sell');
-  bs.forEach(b => b.disabled = S.money < 1); ss.forEach(b => b.disabled = S.shares <= 0);
+  bs.forEach(b => b.disabled = !live || S.money < 1); ss.forEach(b => b.disabled = !live || S.shares <= 0);
 }
 function trade(buy, pct) {
   if (buy) {
+    if (!live) return;
     const spend = S.money * pct; if (spend < 1) return;
-    S.shares += spend / S.price; S.basis += spend; S.money -= spend;
-    toast('🍌 바나나 주식 ' + fmt(spend) + '원어치 매수!');
+    const fee = spend * FEE;
+    S.shares += (spend - fee) / S.price; S.basis += spend; S.money -= spend;
+    toast('🍌 매수 ' + fmt(spend) + '원 (수수료 ' + fmt(fee) + '원)');
   } else {
-    if (S.shares <= 0) return;
-    const full = pct >= 1, sh = full ? S.shares : S.shares * pct, val = sh * S.price, cost = full ? S.basis : S.basis * pct;
+    if (!live || S.shares <= 0) return;
+    const full = pct >= 1, sh = full ? S.shares : S.shares * pct, gross = sh * S.price, fee = gross * FEE, val = gross - fee, cost = full ? S.basis : S.basis * pct;
     S.realized += val - cost; S.money += val;
     S.shares = full ? 0 : S.shares - sh; S.basis = full ? 0 : S.basis - cost;
-    toast('💰 바나나 주식 매도! ' + (val - cost >= 0 ? '+' : '-') + fmt(Math.abs(val - cost)) + '원');
+    toast('💰 매도 ' + fmt(val) + '원 받음 (수수료 ' + fmt(fee) + '원) · 손익 ' + (val - cost >= 0 ? '+' : '-') + fmt(Math.abs(val - cost)) + '원');
   }
   dirty = true; save(); render(); renderStock(); refreshDyn();
 }
@@ -770,8 +768,8 @@ async function save() {
   try {
     await fb.setDoc(fb.doc(db, 'circus', uid), {
       nickname:S.nickname, money:S.money, totalEarned:S.totalEarned, netWorth:netWorth(), taps:S.taps, dances:S.dances, crew:S.crew,
-      tipLv:S.tipLv, wageLv:S.wageLv, shares:S.shares, basis:S.basis, realized:S.realized, price:S.price, lastBtc:S.lastBtc,
-      venues:S.venues, venue:S.venue, savedAt:S.savedAt, updatedAt:fb.serverTimestamp()
+      tipLv:S.tipLv, wageLv:S.wageLv, shares:S.shares, basis:S.basis, realized:S.realized, price:S.price,
+      venues:S.venues, venue:S.venue, dance:S.dance, savedAt:S.savedAt, updatedAt:fb.serverTimestamp()
     });
   } catch (e) { console.warn('저장 실패', e); dirty = true; }
 }
@@ -881,9 +879,9 @@ const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
     const d = newState();
     S = { ...d, nickname:loaded.nickname || '', money:num(loaded.money), totalEarned:num(loaded.totalEarned), taps:num(loaded.taps),
       dances:{ ...(loaded.dances || {}) }, crew:{ ...(loaded.crew || {}) }, tipLv:num(loaded.tipLv), wageLv:num(loaded.wageLv),
-      shares:num(loaded.shares), basis:num(loaded.basis), realized:num(loaded.realized), price:Math.max(PRICE_MIN, num(loaded.price, START_PRICE)),
-      lastBtc:num(loaded.lastBtc), venues:Array.isArray(loaded.venues) && loaded.venues.length ? loaded.venues : [0],
-      venue:num(loaded.venue), savedAt:num(loaded.savedAt) };
+      shares:num(loaded.shares), basis:num(loaded.basis), realized:num(loaded.realized), price:Math.max(1, num(loaded.price, START_PRICE)),
+      venues:Array.isArray(loaded.venues) && loaded.venues.length ? loaded.venues : [0],
+      venue:num(loaded.venue), dance:loaded.dance || 'sway', savedAt:num(loaded.savedAt) };
     if (!S.venues.includes(S.venue)) S.venue = 0;
   }
   if (newId) { S.nickname = newId; dirty = true; }
