@@ -460,7 +460,7 @@ function drawPig(p, time) {
   // 뒤쪽 팔/다리
   arm(p.fex, p.fey, p.fhx, p.fhy, C.shade, C.shadeD, C.light);
   leg(p.fkx, p.fky, p.fax, p.fay, C.shade, C.shadeD);
-  { const d = Math.hypot(p.fkx - hip[0], p.fky - hip[1]) || 1; seg(hip, [hip[0] + (p.fkx - hip[0])/d*26, hip[1] + (p.fky - hip[1])/d*26], lw + 3, sc[1], null); }   // 뒤쪽 다리 반바지 밑단
+  { const d = Math.hypot(p.fkx - hip[0], p.fky - hip[1]) || 1; seg(hip, [hip[0] + (p.fkx - hip[0])/d*(LT - 4), hip[1] + (p.fky - hip[1])/d*(LT - 4)], lw + 3, sc[1], null); }   // 뒤쪽 다리 반바지 밑단
 
   // 꼬리 (엉덩이 뒤쪽)
   const tb = [hip[0] - pr[0]*T*.42 + dir[0]*6, hip[1] - pr[1]*T*.42 + dir[1]*6];
@@ -472,6 +472,8 @@ function drawPig(p, time) {
   seg(a, b, T, C.base, C.shadeD, 'round');
   const bm = [(a[0] + b[0])/2 + pr[0]*T*.14, (a[1] + b[1])/2 + pr[1]*T*.14], bl = Math.hypot(b[0]-a[0], b[1]-a[1]);
   o += `<ellipse transform="translate(${n(bm[0])} ${n(bm[1])}) rotate(${n(th*180/PI)})" rx="${n(T*.32)}" ry="${n(bl*.42 + T*.08)}" fill="${C.belly}"/>`;
+  leg(p.nkx, p.nky, p.nax, p.nay, C.base, C.shadeD);
+
   // 상의 (몸통 전체를 덮음)
   const tk = TANK[S.outfit.top];
   if (tk) {
@@ -490,10 +492,9 @@ function drawPig(p, time) {
     o += `<rect transform="translate(${n(bk[0])} ${n(bk[1])}) rotate(${n(th*180/PI)})" x="-6" y="-6" width="12" height="12" fill="#f2c14e" stroke="${C.ink}" stroke-width="2"/>`;
   }
 
-  // 앞쪽 다리 (반바지 밑단 포함)
-  leg(p.nkx, p.nky, p.nax, p.nay, C.base, C.shadeD);
+  // 앞쪽 다리의 반바지 밑단 (다리는 반바지보다 먼저 그려서 허벅지 윗부분이 바지 안으로 들어가 보이게 함)
   const kd = Math.hypot(p.nkx - hip[0], p.nky - hip[1]) || 1;
-  seg(hip, [hip[0] + (p.nkx - hip[0])/kd*30, hip[1] + (p.nky - hip[1])/kd*30], lw + 4, sc[0], sc[1], 'butt');
+  seg(hip, [hip[0] + (p.nkx - hip[0])/kd*(LT - 3), hip[1] + (p.nky - hip[1])/kd*(LT - 3)], lw + 4, sc[0], sc[1], 'butt');
 
   // 머리: 각진 주둥이, 계단 귀, 네모 눈
   const hc = [s[0] + dir[0]*26 + pr[0]*8, s[1] + dir[1]*26 + pr[1]*8];
@@ -702,7 +703,8 @@ $('stage').addEventListener('pointerdown', ev => {
   ensureDaily(); S.daily.total++; S.daily.cat[curEx.cls]++;
 
   const ea = EX_ANIM[curEx.id];
-  anim.tg = Math.min(anim.tg + ea.per, anim.ph + ea.per * 2.5);
+  // 밀린 동작은 최대 3번 분량까지만 쌓고, 목표 위상은 항상 한 동작(per)의 정수배로 맞춰서 끝에서 기본 자세로 돌아오게 한다
+  anim.tg = Math.min(anim.tg + ea.per, (Math.ceil(anim.ph / ea.per - 1e-6) + 3) * ea.per);
   const r = $('stage').getBoundingClientRect();
   const f = document.createElement('div'); f.className = 'float';
   f.textContent = '-' + (g / 1000).toFixed(2);
