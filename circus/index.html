@@ -536,13 +536,24 @@ function setVenue(i) {
 }
 
 // ================= 애니메이션 루프 =================
-const anim = { id:null, start:0, dur:1000, cur:null, drawn:0, last:performance.now() };
+const anim = { id:null, start:0, dur:1000, cur:null, drawn:0, last:performance.now(), queue:0 };
+const curDance = () => DANCES.find(x => x.id === S.dance && S.totalEarned >= x.need) || DANCES[0];
+function startDance() {
+  const d = curDance();
+  anim.id = d.id; anim.start = performance.now(); anim.dur = d.dur;
+  $('exlabel').textContent = d.ic + ' ' + d.nm;
+  showMsg(d.ic + ' ' + d.nm + '!');
+}
 function loop(now) {
   const dt = Math.min(.05, (now - anim.last) / 1000); anim.last = now;
   requestAnimationFrame(loop);
   if (document.hidden) return;
   let ph = 0, id = null;
-  if (anim.id) { ph = (now - anim.start) / anim.dur; if (ph >= 1) { anim.id = null; anim.cur = null; } else id = anim.id; }
+  if (anim.id) {
+    ph = (now - anim.start) / anim.dur;
+    if (ph >= 1 && anim.queue > 0) { anim.queue--; startDance(); ph = 0; }   // 밀린 터치가 있으면 끊김 없이 다음 동작
+    if (ph >= 1) { anim.id = null; anim.cur = null; } else id = anim.id;
+  }
   const time = now / 1000;
   const tgt = id ? POSES[id](ph) : POSES.idle(time);
   if (!anim.cur) anim.cur = { ...tgt };
@@ -556,13 +567,12 @@ function loop(now) {
 function showMsg(t) { $('msg').textContent = t; clearTimeout(showMsg.t); showMsg.t = setTimeout(() => $('msg').textContent = '', 900); }
 $('stage').addEventListener('pointerdown', ev => {
   if (!ready || !S.nickname) return;
-  const d = DANCES.find(x => x.id === S.dance && S.totalEarned >= x.need) || DANCES[0];
   const pay = TAP_PAY * tipMult();
   earn(pay);
+  const d = curDance();
   S.taps++; S.dances[d.id] = (S.dances[d.id] || 0) + 1;
-  anim.id = d.id; anim.start = performance.now(); anim.dur = d.dur;
-  $('exlabel').textContent = d.ic + ' ' + d.nm;
-  showMsg(d.ic + ' ' + d.nm + '!');
+  if (anim.id) anim.queue = Math.min(3, anim.queue + 1);   // 동작이 진행 중이면 끝까지 보여주고 이어서 한 번 더
+  else startDance();
   const r = $('stage').getBoundingClientRect();
   const f = document.createElement('div'); f.className = 'float'; f.textContent = '+' + fmt(pay) + '원';
   f.style.left = (ev.clientX - r.left - 24) + 'px'; f.style.top = (ev.clientY - r.top - 20) + 'px';
