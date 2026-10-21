@@ -22,7 +22,7 @@
   @keyframes bounce { 40% { transform:translateY(-14px); } }
   #bubble { position:absolute; right:12px; bottom:auto; top:62px; width:52%; background:#fff; color:var(--ink); padding:8px 12px; border-radius:12px;
     font-size:14px; font-weight:700; min-height:38px; display:flex; align-items:center; z-index:2; border:2px solid var(--ink); }
-    #panel { padding:14px; min-height:290px; }
+    #panel { padding:10px; min-height:290px; }
   h2 { margin:0 0 10px; font-size:18px; }
   .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
   .ing { background:var(--wood2); border:3px solid #2e1b10; border-radius:12px; color:var(--paper); padding:8px 4px; cursor:pointer;
@@ -33,6 +33,21 @@
     font:900 18px inherit; font-family:inherit; cursor:pointer; }
   .btn:disabled { opacity:.45; cursor:default; }
   .btn:active:not(:disabled) { transform:translateY(2px); }
+  #burners { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  @media (min-width:520px) { #burners { grid-template-columns:repeat(3,1fr); } }
+  .pot { background:#2e1b10; border:3px solid #1a0f08; border-radius:12px; padding:6px; min-height:128px; display:flex; flex-direction:column; gap:4px; }
+  .pot .hd { font-size:12px; font-weight:700; display:flex; justify-content:space-between; opacity:.9; }
+  .pot .ic { font-size:28px; text-align:center; }
+  .pot .g { position:relative; height:16px; background:#1a0f08; border-radius:8px; overflow:hidden; }
+  .pot .z { position:absolute; top:0; bottom:0; background:#3fa045aa; border-left:2px solid #7fd36a; border-right:2px solid #7fd36a; }
+  .pot .n { position:absolute; top:0; bottom:0; width:5px; background:#fff; box-shadow:0 0 6px #fff; }
+  .pot .b { margin-top:auto; padding:7px 2px; border:0; border-radius:8px; background:var(--gold); color:var(--ink); font:900 13px inherit; font-family:inherit; cursor:pointer; }
+  .pot .b.red { background:#ff7a5c; }
+  .pot .chips { display:grid; grid-template-columns:repeat(4,1fr); gap:3px; }
+  .pot .chip { background:var(--wood2); border:2px solid #1a0f08; border-radius:6px; color:var(--paper); font-size:15px; padding:2px 0; cursor:pointer; }
+  .pot .chip.on { background:var(--red); border-color:var(--gold); }
+  .pot.burnt { border-color:#ff5a3c; }
+  .pot.ready { border-color:var(--gold); }
   #cust { display:flex; align-items:center; gap:10px; background:#2e1b10; border-radius:12px; padding:8px 10px; margin-bottom:10px; }
   #cust .face { font-size:34px; }
   #cust .ord { flex:1; font-size:14px; font-weight:700; }
@@ -64,7 +79,7 @@
 <a class="home-btn" href="../">🏠 메인 메뉴</a>
 
 <div id="game">
-  <div id="hud"><span>❤️ <b id="lives">3</b></span><span>🍲 <b id="count">0</b>그릇</span><span>💰 <b id="money-total">0</b>원</span></div>
+  <div id="hud"><span>⏱ <b id="time">120</b>초</span><span>🍲 <b id="count">0</b>그릇</span><span>💰 <b id="money-total">0</b>원</span></div>
   <div id="shop">
     <svg id="chuk" viewBox="0 0 150 170" shape-rendering="crispEdges" aria-label="척추">
       <!-- 뼈 다리 -->
@@ -104,14 +119,14 @@
     </svg>
     <div id="bubble">어서 와라… 뼈해장국 한 그릇 말아주마.</div>
   </div>
-  <div id="panel"></div>
+  <div id="panel"><div id="burners"></div></div>
 
   <div id="start" class="overlay">
     <h1>🦴 척추의 뼈해장국 가게</h1>
-    <p>손님이 주문한 뼈해장국을 순서대로 만들어 내줘라!<br>
-    <b>물 붓기 → 등뼈 → 양념 → 재료 → 끓이기 → 서빙</b><br>
-    주문과 다른 재료를 넣으면 손님이 화낸다.<br>
-    손님이 기다리다 지치면 ❤️가 줄어든다. (3번이면 영업 종료)</p>
+    <p>버너 <b>6개</b>로 최대한 많은 뼈해장국을 끓여 내줘라! (120초)<br>
+    <b>물 → 등뼈 → 양념 → 재료(최대 2개) → 끓이기 → 서빙</b><br>
+    초록 구간에 맞출수록, 정석 재료일수록 돈을 많이 받는다.<br>
+    끓이다 방치하면 타버린다! (키보드 1~6 = 해당 버너 진행)</p>
     <button class="btn" id="startBtn">영업 시작</button>
     <div class="hint" id="best" style="margin-top:12px"></div>
   </div>
@@ -124,161 +139,99 @@
 
 <script>
 const INGS = [
-  { id:'ugeoji', icon:'🥬', name:'우거지' },
-  { id:'potato', icon:'🥔', name:'감자' },
-  { id:'perilla',icon:'🌿', name:'들깨가루' },
-  { id:'scallion',icon:'🧅', name:'대파' },
+  { id:'ugeoji', icon:'🥬', name:'우거지', score:20 },
+  { id:'potato', icon:'🥔', name:'감자',   score:20 },
+  { id:'perilla',icon:'🌿', name:'들깨가루', score:10 },
+  { id:'scallion',icon:'🧅', name:'대파',  score:8 },
 ];
-const ORDERS = [ ['ugeoji','potato'], ['ugeoji'], ['potato'], ['ugeoji','perilla'], ['ugeoji','scallion'], ['potato','perilla'], [] ];
-const FACES = ['😀','😎','🥴','😴','🤠','🥱','😤'];
-const STEP_NAMES = ['물 붓기','등뼈','양념','재료','끓이기','서빙'];
+const GAME_TIME = 120, N = 6, COOK_SPEED = 11, BURN_AT = 100;
 const $ = id => document.getElementById(id);
-let lives, bowls, total, order, patMax, pat, step, running, raf, q, face, patTimer;
+let time, bowls, total, running, pots, timer, raf;
 
 function say(t) { $('bubble').textContent = t; }
 function bounce() { const c = $('chuk'); c.classList.remove('bounce'); void c.offsetWidth; c.classList.add('bounce'); }
 function bestGet() { try { return +localStorage.getItem('chukBest') || 0; } catch (e) { return 0; } }
 function bestSet(v) { try { localStorage.setItem('chukBest', v); } catch (e) {} }
 function showBest() { $('best').textContent = bestGet() ? `최고 기록: ${bestGet().toLocaleString()}원` : ''; }
-function updateHud() { $('lives').textContent = '❤️'.repeat(lives) || '💀'; $('count').textContent = bowls; $('money-total').textContent = total.toLocaleString(); }
-const ordText = o => o.length ? '뼈해장국 + ' + o.map(id => { const i = INGS.find(x => x.id === id); return i.icon + i.name; }).join(', ') : '그냥 기본 뼈해장국 (재료 없이)';
+function updateHud() { $('time').textContent = time; $('count').textContent = bowls; $('money-total').textContent = total.toLocaleString(); }
+
+// step: -1 빈 버너, 0 물, 1 등뼈, 2 양념, 3 재료, 4 끓이기, 5 완성, 6 탐
+const mkPot = () => ({ step:-1, v:0, dir:1, sel:[], q:{ w:0, i:0, c:0 }, last:'' });
 
 function start() {
-  lives = 3; bowls = 0; total = 0; running = true;
+  time = GAME_TIME; bowls = 0; total = 0; running = true;
+  pots = Array.from({ length:N }, mkPot);
   $('start').classList.add('hidden'); $('end').classList.add('hidden');
-  updateHud(); newCustomer();
-}
-
-function newCustomer() {
-  order = ORDERS[Math.floor(Math.random() * ORDERS.length)];
-  face = FACES[Math.floor(Math.random() * FACES.length)];
-  patMax = Math.max(25, 50 - bowls * 1.5); pat = patMax;
-  q = { water:0, ing:0, cook:0 }; step = 0;
-  say('어서 와라. 주문 확인해라.');
-  clearInterval(patTimer);
-  patTimer = setInterval(() => {
+  updateHud(); renderAll(); say('버너 여섯 개다. 쉬지 말고 끓여라.');
+  clearInterval(timer);
+  timer = setInterval(() => { time--; updateHud(); if (time <= 0) finish(); }, 1000);
+  cancelAnimationFrame(raf); let last = performance.now();
+  const loop = now => {
     if (!running) return;
-    pat -= .1; const f = $('patfill');
-    if (f) { f.style.width = Math.max(0, pat / patMax * 100) + '%'; f.style.background = pat / patMax > .5 ? '#7fd36a' : pat / patMax > .25 ? '#ffd23f' : '#ff5a3c'; }
-    if (pat <= 0) leave();
-  }, 100);
-  render();
-}
-
-function header() {
-  return `<div id="cust"><div class="face">${face}</div><div class="ord">주문: ${ordText(order)}<div id="pat"><div id="patfill" style="width:${pat / patMax * 100}%"></div></div></div></div>
-  <div class="steps">${STEP_NAMES.map((n, i) => i === step ? `<b>[${n}]</b>` : n).join(' › ')}</div>`;
-}
-
-function render() {
-  cancelAnimationFrame(raf);
-  const p = $('panel');
-  if (step === 0) {
-    p.innerHTML = header() + `<div id="pot">🍲</div><div id="gauge"><div id="zone" style="left:60%;width:20%"></div><div id="needle" style="width:auto;background:#4aa3ff;right:auto;left:0;width:0%;"></div></div>
-      <div class="hint">버튼을 누르고 있으면 물이 차오른다. 초록 선에 맞춰 떼기!</div>
-      <button class="btn" id="waterBtn">💧 물 붓기 (꾹 누르기)</button>`;
-    setupWater();
-  } else if (step === 1) {
-    p.innerHTML = header() + `<div id="pot" style="font-size:80px">🦴🍲</div><button class="btn" id="go">🦴 등뼈 넣기</button>`;
-    $('go').onclick = () => { bounce(); say('좋아, 뼈부터.'); step = 2; render(); };
-  } else if (step === 2) {
-    p.innerHTML = header() + `<div id="pot" style="font-size:80px">🌶️🍲</div><button class="btn" id="go">🌶️ 양념 (다대기) 넣기</button>`;
-    $('go').onclick = () => { bounce(); step = 3; render(); };
-  } else if (step === 3) {
-    sel = [];
-    p.innerHTML = header() + `<div class="grid" style="grid-template-columns:repeat(4,1fr)">${INGS.map(i => `<button class="ing" data-id="${i.id}"><span>${i.icon}</span>${i.name}</button>`).join('')}</div>
-      <div class="hint" style="margin-top:6px">재료는 최대 2개</div><button class="btn" id="go">재료 넣기 완료</button>`;
-    document.querySelectorAll('.ing').forEach(b => b.onclick = () => {
-      const id = b.dataset.id, k = sel.indexOf(id);
-      if (k >= 0) sel.splice(k, 1); else if (sel.length < 2) sel.push(id); else { say('두 개까지라고.'); return; }
-      document.querySelectorAll('.ing').forEach(x => x.classList.toggle('on', sel.includes(x.dataset.id)));
-    });
-    $('go').onclick = () => {
-      const miss = order.filter(x => !sel.includes(x)).length, extra = sel.filter(x => !order.includes(x)).length;
-      q.ing = Math.max(0, 40 - (miss + extra) * 20);
-      step = 4; render();
-    };
-  } else if (step === 4) {
-    boilUI();
-  } else if (step === 5) {
-    p.innerHTML = header() + `<div id="pot" style="font-size:80px">🍲➡️${face}</div><button class="btn" id="go">🍽️ 손님에게 서빙</button>`;
-    $('go').onclick = serve;
-  }
-}
-let sel = [];
-
-function setupWater() {
-  let level = 0, holding = false, last = performance.now();
-  const btn = $('waterBtn'), n = $('needle');
-  n.style.cssText = 'position:absolute;top:0;bottom:0;left:0;width:0%;background:#4aa3ff;';
-  $('zone').style.left = '70%'; $('zone').style.width = '15%';
-  const down = e => { e.preventDefault(); holding = true; }, up = () => {
-    if (!holding) return; holding = false;
-    const d = Math.abs(level - 77.5);
-    q.water = d <= 7.5 ? 20 : Math.max(0, Math.round(20 - (d - 7.5) * .8));
-    cancelAnimationFrame(raf); step = 1; render();
-  };
-  btn.onmousedown = down; btn.ontouchstart = down; window.onmouseup = up; btn.ontouchend = up;
-  const loop = now => {
-    const dt = (now - last) / 1000; last = now;
-    if (holding) level = Math.min(100, level + dt * 55);
-    n.style.width = level + '%';
-    if (level >= 100 && holding) { up(); return; }
+    const dt = Math.min(.1, (now - last) / 1000); last = now;
+    pots.forEach((p, i) => tick(p, i, dt));
     raf = requestAnimationFrame(loop);
   };
   raf = requestAnimationFrame(loop);
 }
 
-function boilUI() {
-  const zs = 50 + Math.random() * 30; let x = 0, dir = 1, last = performance.now();
-  $('panel').innerHTML = header() + `<div id="pot">🍲🔥</div>
-    <div id="gauge"><div id="zone" style="left:${zs}%"></div><div id="needle"></div></div>
-    <div class="hint">초록 구간에서 불 끄기 (스페이스바 가능)</div><button class="btn" id="offBtn">🧯 불 끄기</button>`;
-  window._off = () => {
-    cancelAnimationFrame(raf);
-    const d = Math.abs(x - (zs + 10));
-    q.cook = d <= 10 ? Math.round(40 - d * 1.5) : Math.max(0, Math.round(25 - (d - 10) * .8));
-    step = 5; window._off = null; render();
-  };
-  $('offBtn').onclick = window._off;
-  const loop = now => {
-    const dt = (now - last) / 1000; last = now;
-    x += dir * dt * (80 + bowls * 2);
-    if (x >= 100) { x = 100; dir = -1; } else if (x <= 0) { x = 0; dir = 1; }
-    const n = $('needle'); if (n) n.style.left = `calc(${x}% - ${x * .06}px)`;
-    raf = requestAnimationFrame(loop);
-  };
-  raf = requestAnimationFrame(loop);
+function tick(p, i, dt) {
+  if (p.step === 0) { p.v += p.dir * dt * 95; if (p.v >= 100) { p.v = 100; p.dir = -1; } else if (p.v <= 0) { p.v = 0; p.dir = 1; } }
+  else if (p.step === 4) { p.v += dt * COOK_SPEED; if (p.v >= BURN_AT) { p.step = 6; p.q.c = 0; render(i); say('앗, 하나 탔다!'); return; } }
+  else return;
+  const n = $('n' + i); if (n) n.style.left = `calc(${p.v}% - ${p.v * .05}px)`;
 }
 
-function serve() {
-  clearInterval(patTimer); cancelAnimationFrame(raf);
-  const Q = Math.min(100, q.water + q.ing + q.cook);
-  const wrong = q.ing < 40;
-  const stars = wrong ? 0 : Q >= 90 ? 3 : Q >= 65 ? 2 : 1;
-  const bonus = 1 + (pat / patMax) * .3;
-  const pay = Math.round(((1000 + Q * 140) * bonus) / 100) * 100;
+const gauge = (i, zl, zw) => `<div class="g"><div class="z" style="left:${zl}%;width:${zw}%"></div><div class="n" id="n${i}"></div></div>`;
+function render(i) {
+  const p = pots[i], el = $('pot' + i); if (!el) return;
+  let ic = '🔥', body = '', btn = '', cls = 'pot';
+  if (p.step === -1) { ic = '⬛'; btn = '🍲 새 해장국'; }
+  else if (p.step === 0) { ic = '💧'; body = gauge(i, 65, 20); btn = '💧 물 멈추기'; }
+  else if (p.step === 1) { ic = '🍲'; btn = '🦴 등뼈 넣기'; }
+  else if (p.step === 2) { ic = '🦴🍲'; btn = '🌶️ 양념 넣기'; }
+  else if (p.step === 3) { ic = '🌶️🍲'; body = `<div class="chips">${INGS.map(g => `<button class="chip${p.sel.includes(g.id) ? ' on' : ''}" data-i="${i}" data-id="${g.id}" title="${g.name}">${g.icon}</button>`).join('')}</div>`; btn = '재료 완료'; }
+  else if (p.step === 4) { ic = '🍲🔥'; body = gauge(i, 55, 20); btn = '🧯 불 끄기'; }
+  else if (p.step === 5) { ic = '🍲✨'; cls += ' ready'; btn = '🍽️ 서빙!'; }
+  else if (p.step === 6) { ic = '💀'; cls += ' burnt'; btn = '🗑️ 버리기'; }
+  el.className = cls;
+  el.innerHTML = `<div class="hd"><span>버너 ${i + 1}</span><span>${['물','등뼈','양념','재료','끓이기','완성','탔다'][p.step] || '비어있음'}</span></div>
+    <div class="ic">${ic}</div>${body}<button class="b${p.step === 6 ? ' red' : ''}" data-act="${i}">${btn}</button>`;
+  el.querySelector('.b').onclick = () => act(i);
+  el.querySelectorAll('.chip').forEach(c => c.onclick = () => toggle(i, c.dataset.id));
+}
+function renderAll() { $('burners').innerHTML = pots.map((_, i) => `<div id="pot${i}"></div>`).join(''); pots.forEach((_, i) => render(i)); }
+
+function toggle(i, id) {
+  const p = pots[i], k = p.sel.indexOf(id);
+  if (k >= 0) p.sel.splice(k, 1); else if (p.sel.length < 2) p.sel.push(id); else { say('재료는 두 개까지다.'); return; }
+  render(i);
+}
+
+function act(i) {
+  if (!running) return;
+  const p = pots[i];
+  if (p.step === -1) { Object.assign(p, mkPot(), { step:0 }); }
+  else if (p.step === 0) { const d = Math.abs(p.v - 75); p.q.w = d <= 10 ? 20 : Math.max(0, Math.round(20 - (d - 10) * .8)); p.step = 1; }
+  else if (p.step === 1) p.step = 2;
+  else if (p.step === 2) p.step = 3;
+  else if (p.step === 3) { p.q.i = Math.min(40, p.sel.reduce((s, id) => s + INGS.find(g => g.id === id).score, 0)); p.step = 4; p.v = 0; }
+  else if (p.step === 4) { const d = Math.abs(p.v - 65); p.q.c = d <= 10 ? Math.round(40 - d * 1.5) : Math.max(0, Math.round(25 - (d - 10) * .8)); p.step = 5; }
+  else if (p.step === 5) return serve(i);
+  else if (p.step === 6) { pots[i] = mkPot(); }
+  render(i);
+}
+
+function serve(i) {
+  const p = pots[i], Q = Math.min(100, p.q.w + p.q.i + p.q.c);
+  const pay = Math.round((1000 + Q * 140) / 100) * 100;
   bowls++; total += pay; updateHud(); bounce();
-  say(wrong ? '주문이랑 다르잖아…' : Q >= 90 ? '크으… 이게 정석이다.' : Q >= 65 ? '나쁘지 않군.' : '그냥 먹을 만은 하다.');
-  $('panel').innerHTML = `<div id="result"><div style="font-size:56px">${wrong ? '😡' : face}</div>
-    <div id="stars">${'⭐'.repeat(stars)}${'▫️'.repeat(3 - stars)}</div>
-    <div>품질 <b>${Q}</b>점 (물 ${q.water} + 재료 ${q.ing} + 끓이기 ${q.cook})${wrong ? '<br>주문과 다른 재료!' : ''}</div>
-    <div id="money">+${pay.toLocaleString()}원</div>
-    <button class="btn" id="nextBtn">다음 손님 ▶</button></div>`;
-  $('nextBtn').onclick = () => { if (running) newCustomer(); };
-}
-
-function leave() {
-  clearInterval(patTimer); cancelAnimationFrame(raf);
-  lives--; updateHud(); say('기다리다 그냥 갔군…');
-  if (lives <= 0) return finish();
-  $('panel').innerHTML = `<div id="result"><div style="font-size:56px">💢</div><div>손님이 화나서 나가버렸다!</div>
-    <button class="btn" id="nextBtn">다음 손님 ▶</button></div>`;
-  $('nextBtn').onclick = newCustomer;
+  say(`${Q}점! +${pay.toLocaleString()}원 ` + (Q >= 90 ? '— 이게 정석이다.' : Q >= 65 ? '— 나쁘지 않군.' : '— 더 신경 써라.'));
+  pots[i] = mkPot(); render(i);
 }
 
 function finish() {
-  running = false; clearInterval(patTimer); cancelAnimationFrame(raf);
+  running = false; clearInterval(timer); cancelAnimationFrame(raf);
   const best = bestGet(); let note = '';
   if (total > best) { bestSet(total); note = '<br>🏆 신기록!'; }
   $('endText').innerHTML = `${bowls}그릇 판매<br>총 매출 <b style="color:var(--gold);font-size:26px">${total.toLocaleString()}원</b>${note}`;
@@ -286,11 +239,8 @@ function finish() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code !== 'Space') return;
-  e.preventDefault();
-  if (step === 4 && window._off) window._off();
-  else if (step === 5) $('go')?.click();
-  else if ($('nextBtn')) $('nextBtn').click();
+  const k = parseInt(e.key, 10);
+  if (k >= 1 && k <= N && running) { e.preventDefault(); act(k - 1); }
 });
 $('startBtn').onclick = start; $('againBtn').onclick = start;
 showBest();
