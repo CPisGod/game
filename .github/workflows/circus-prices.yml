@@ -1,0 +1,33 @@
+name: circus-prices
+
+# 원숭이 서커스 주식(포도=테슬라, 오이=SK하이닉스) 시세를 5분마다 받아서
+# data 브랜치의 prices.json 으로 올린다. (브라우저에서는 야후 등을 직접 못 부르기 때문)
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: circus-prices
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 시세 받기
+        run: node .github/scripts/prices.mjs > /tmp/prices.json && cat /tmp/prices.json
+      - name: data 브랜치에 올리기 (항상 커밋 1개만 유지)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan data-tmp
+          git rm -rf -q . 
+          cp /tmp/prices.json prices.json
+          git add prices.json
+          git commit -q -m "prices $(date -u +%FT%TZ)"
+          git push -f origin data-tmp:data

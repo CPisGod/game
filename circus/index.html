@@ -232,8 +232,8 @@ const venueMult = () => VENUES[S.venue]?.bonus || 1;
 // 주식: 1주 가격 = 실제 시세의 원화 가격 (바나나=비트코인, 포도=테슬라, 오이=SK하이닉스)
 const STOCKS = [
   { id:'banana',   ic:'🍌', nm:'바나나 주식', src:'비트코인(BTC)',     ivl:3000 },
-  { id:'grape',    ic:'🍇', nm:'포도 주식',   src:'테슬라(TSLA)',       ivl:10000 },
-  { id:'cucumber', ic:'🥒', nm:'오이 주식',   src:'SK하이닉스(000660)', ivl:10000 },
+  { id:'grape',    ic:'🍇', nm:'포도 주식',   src:'테슬라(TSLA)',       ivl:30000 },
+  { id:'cucumber', ic:'🥒', nm:'오이 주식',   src:'SK하이닉스(000660)', ivl:30000 },
 ];
 const newStocks = () => Object.fromEntries(STOCKS.map(x => [x.id, { shares:0, basis:0, realized:0, price:0, conv:false }]));
 const MAX_CREW = 30;   // 알바 종류별 최대 고용 수
@@ -728,7 +728,7 @@ function buildPanel() {
         <small>알바 수입 ×${wageMult().toFixed(2)} → ×${(wageMult() * 1.3).toFixed(2)}<br>모든 알바의 초당 수입이 30% 늘어요</small></div>
         ${costBtn('wage', '', wageCost(S.wageLv), '올리기<br>' + fmt(wageCost(S.wageLv)) + '원')}</div>`;
   } else if (tab === 'stock') {
-    const x = stk(), note = { banana:'실제 비트코인(BTC) 원화 가격과 완전히 똑같아요.', grape:'테슬라(TSLA) 달러 시세 × 실시간 환율로 계산한 원화 가격이에요. 미국 장이 닫혀 있을 땐 마지막 가격 그대로예요.', cucumber:'SK하이닉스(000660) 원화 주가와 같아요. 장이 닫혀 있을 땐 마지막 가격 그대로예요.' }[x.id];
+    const x = stk(), note = { banana:'실제 비트코인(BTC) 원화 가격과 완전히 똑같아요.', grape:'테슬라(TSLA) 달러 시세 × 환율로 계산한 원화 가격이에요. 약 5분마다 갱신되고, 미국 장이 닫혀 있을 땐 마지막 가격 그대로예요.', cucumber:'SK하이닉스(000660) 원화 주가와 같아요. 약 5분마다 갱신되고, 장이 닫혀 있을 땐 마지막 가격 그대로예요.' }[x.id];
     h = `<div class="bulk">${STOCKS.map(t => `<button class="btn sub ${t.id === curStock ? 'on' : ''}" data-act="stk" data-arg="${t.id}">${t.ic} ${t.nm.replace(' 주식', '')}</button>`).join('')}</div>
       <div class="stock"><div class="top"><b>${x.ic} ${x.nm}</b><span id="stLive" style="font-size:12px"></span></div>
       <div id="stErr" style="font-size:11px;color:#b36;word-break:break-all"></div>
@@ -778,10 +778,10 @@ $('panel').addEventListener('click', e => {
 
 // ================= 주식 시세 =================
 let curStock = 'banana';
-const MK = Object.fromEntries(STOCKS.map(x => [x.id, { hist:[], live:false, closed:false, busy:false, err:'' }]));
+const MK = Object.fromEntries(STOCKS.map(x => [x.id, { hist:[], live:false, closed:false, busy:false, err:'', age:0 }]));
 const cs = () => S.stocks[curStock], mk = () => MK[curStock], stk = () => STOCKS.find(x => x.id === curStock);
 const ERR = {};   // 출처 주소별 마지막 실패 이유 (화면에 표시해서 원인 확인용)
-const SRC_HOSTS = { banana:['upbit.com', 'bithumb.com', 'coinbase.com', 'open.er-api.com'], grape:['finance.yahoo.com', 'stooq.com', 'open.er-api.com', 'corsproxy.io', 'allorigins.win', 'codetabs.com'], cucumber:['finance.yahoo.com', 'stock.naver.com', 'corsproxy.io', 'allorigins.win', 'codetabs.com'] };
+const SRC_HOSTS = { banana:['upbit.com', 'bithumb.com', 'coinbase.com', 'open.er-api.com'], grape:['raw.githubusercontent.com'], cucumber:['raw.githubusercontent.com'] };
 const host = u => { try { return new URL(u).hostname.replace(/^(www|query\d|api|m)\./, ''); } catch { return u; } };
 async function fetchText(u, unwrap) {
   try {
@@ -793,20 +793,18 @@ async function fetchText(u, unwrap) {
   } catch (e) { ERR[host(u)] = e.name === 'TimeoutError' ? '시간초과' : e.message === 'Failed to fetch' ? '차단/네트워크' : e.message; throw e; }
 }
 const getJson = async u => JSON.parse(await fetchText(u));
-// 브라우저에서 바로 안 되는 주소(CORS)는 공개 중계 서버 여러 곳에 동시에 요청해서 먼저 성공한 걸 씀
-const PROXIES = [
-  u => fetchText('https://corsproxy.io/?url=' + encodeURIComponent(u)),
-  u => fetchText('https://api.allorigins.win/raw?url=' + encodeURIComponent(u)),
-  u => fetchText('https://api.allorigins.win/get?url=' + encodeURIComponent(u), true),
-  u => fetchText('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u)),
-];
-const anyText = urls => Promise.any(urls.flatMap(u => [fetchText(u), ...PROXIES.map(p => p(u))]));
-async function yahoo(sym) {
-  const q = h => `https://${h}.finance.yahoo.com/v8/finance/chart/${sym}?interval=1m&range=1d`;
-  const j = JSON.parse(await anyText([q('query1'), q('query2')]));
-  const m = j.chart.result[0].meta, price = +m.regularMarketPrice;
-  if (!(price > 0)) throw 0;
-  return { price, closed: Date.now() / 1000 - (m.regularMarketTime || 0) > 900 };   // 15분 넘게 시세가 안 바뀌면 장 마감으로 봄
+// 포도(테슬라)·오이(SK하이닉스) 시세는 브라우저에서 직접 못 가져와서, GitHub Actions가 5분마다 받아 올려주는 파일을 읽음
+const PRICES_URL = 'https://raw.githubusercontent.com/CPisGod/game/data/prices.json';
+let pj = { v:null, t:0 };
+async function prices() {
+  if (pj.v && Date.now() - pj.t < 25000) return pj.v;
+  const v = await getJson(PRICES_URL + '?m=' + Math.floor(Date.now() / 60000));
+  pj = { v, t:Date.now() }; return v;
+}
+async function fromPrices(id) {
+  const p = (await prices())[id];
+  if (!p || !(p.price > 0)) { ERR['raw.githubusercontent.com'] = '서버 시세 없음 (Actions 실행 대기)'; throw new Error('no data'); }
+  return { price:p.price, closed:!!p.closed, age:(Date.now() - p.at) / 60000 };
 }
 let fx = { v:0, t:0 };
 async function usdKrw() {
@@ -814,7 +812,7 @@ async function usdKrw() {
   let v = 0;
   try { v = +(await getJson('https://open.er-api.com/v6/latest/USD')).rates.KRW; } catch {}
   if (!(v > 0)) try { v = +(await getJson('https://api.frankfurter.app/latest?from=USD&to=KRW')).rates.KRW; } catch {}
-  if (!(v > 0)) v = (await yahoo('KRW=X')).price;
+  if (!(v > 0)) throw new Error('환율 없음');
   fx = { v, t:Date.now() }; return v;
 }
 async function btcKrw() {   // 업비트 → 빗썸 → 코인베이스 USD × 환율
@@ -828,21 +826,8 @@ async function btcKrw() {   // 업비트 → 빗썸 → 코인베이스 USD × �
 }
 const FETCH = {
   banana: async () => ({ price:await btcKrw() }),
-  grape: async () => {
-    let q;
-    try { q = await yahoo('TSLA'); }
-    catch {
-      const t = (await anyText(['https://stooq.com/q/l/?s=tsla.us&f=sd2t2c&h&e=csv'])).trim().split('\n')[1].split(',');   // 심볼,날짜,시간,종가
-      q = { price:+t[3], closed:false }; if (!(q.price > 0)) throw 0;
-    }
-    return { price:q.price * await usdKrw(), closed:q.closed };
-  },
-  cucumber: async () => {
-    try { return await yahoo('000660.KS'); } catch {}
-    const j = JSON.parse(await anyText(['https://m.stock.naver.com/api/stock/000660/basic'])), price = +String(j.closePrice).replace(/,/g, '');
-    if (!(price > 0)) throw 0;
-    return { price, closed:j.marketStatus !== 'OPEN' };
-  },
+  grape: () => fromPrices('grape'),
+  cucumber: () => fromPrices('cucumber'),
 };
 async function tickStock(id) {
   const m = MK[id]; if (!ready || m.busy) return;
@@ -851,7 +836,7 @@ async function tickStock(id) {
   try { q = await FETCH[id](); } catch {}
   m.busy = false; m.live = !!q; m.err = q ? '' : SRC_HOSTS[id].filter(h => ERR[h]).map(h => h + ' ' + ERR[h]).join(' / ');
   if (q) {
-    const st = S.stocks[id]; m.closed = !!q.closed;
+    const st = S.stocks[id]; m.closed = !!q.closed; m.age = q.age || 0;
     if (st.conv && st.price > 0) st.shares = st.shares * st.price / q.price;   // 예전(달러 기준) 기록은 평가액이 그대로 유지되도록 주식 수를 환산
     st.conv = false; st.price = q.price;
     m.hist.push({ t:Date.now(), v:q.price }); if (m.hist.length > 120) m.hist.shift();
@@ -866,7 +851,7 @@ function renderStock() {
   const base = hist[0]?.v || st.price, chg = base > 0 ? (st.price / base - 1) * 100 : 0;
   $('stChg').textContent = (chg >= 0 ? '▲ ' : '▼ ') + Math.abs(chg).toFixed(2) + '%';
   $('stChg').className = chg >= 0 ? 'up' : 'down';
-  $('stLive').textContent = m.live ? (m.closed ? '🟡 장 마감 · 마지막 시세' : '🟢 실시간') + ' · ' + stk().src : '🔴 시세 연결 중… (거래 불가)';
+  $('stLive').textContent = m.live ? (m.closed ? '🟡 장 마감 · 마지막 시세' : m.age > 20 ? '🟡 ' + Math.round(m.age) + '분 전 시세' : '🟢 실시간') + ' · ' + stk().src : '🔴 시세 연결 중… (거래 불가)';
   $('stErr').textContent = m.live || !m.err ? '' : '실패한 곳: ' + m.err;
   const val = st.shares * st.price, pl = val - st.basis, pct = st.basis > 0 ? pl / st.basis * 100 : 0;
   $('stHold').innerHTML = `보유 <b>${fmtSh(st.shares)}</b>주 · 평가액 <b>${fmt(val)}</b>원<br>`
