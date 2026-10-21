@@ -250,7 +250,7 @@ let uid = 'local', db = null, fb = null, online = false;
 const newState = () => ({ nickname:'', money:0, totalEarned:0, taps:0, dances:{}, crew:{}, tipLv:0, wageLv:0,
   stocks:newStocks(), venues:[0], venue:0, dance:'sway', savedAt:0 });
 let S = newState();
-let dirty = false, ready = false;
+let dirty = false, ready = false, stale = false, syncedAt = 0;   // syncedAt: 이 기기가 마지막으로 확인한 서버 기록의 savedAt
 let tab = 'dance', bulkMode = '1', knownUnlocked = 1;
 
 const LS_KEY = 'circus-local';
@@ -926,13 +926,26 @@ async function save() {
   S.savedAt = Date.now();
   saveLocal();
   if (!online || !dirty) return;
+  if (stale) return;
   dirty = false;
   try {
-    await fb.setDoc(fb.doc(db, 'circus', uid), {
-      nickname:S.nickname, money:S.money, totalEarned:S.totalEarned, netWorth:netWorth(), taps:S.taps, dances:S.dances, crew:S.crew,
-      tipLv:S.tipLv, wageLv:S.wageLv, stocks:S.stocks,
-      venues:S.venues, venue:S.venue, dance:S.dance, savedAt:S.savedAt, updatedAt:fb.serverTimestamp()
+    // 다른 기기가 더 진행된 기록을 올려뒀다면 덮어쓰지 않는다 (오래된 기기가 기록을 날리는 것 방지)
+    const ref = fb.doc(db, 'circus', uid);
+    const res = await fb.runTransaction(db, async tx => {
+      const snap = await tx.get(ref), sv = snap.exists() ? snap.data() : null;
+      if (sv && num(sv.savedAt) !== syncedAt && num(sv.totalEarned) > S.totalEarned) return 'stale';
+      tx.set(ref, {
+        nickname:S.nickname, money:S.money, totalEarned:S.totalEarned, netWorth:netWorth(), taps:S.taps, dances:S.dances, crew:S.crew,
+        tipLv:S.tipLv, wageLv:S.wageLv, stocks:S.stocks,
+        venues:S.venues, venue:S.venue, dance:S.dance, savedAt:S.savedAt, updatedAt:fb.serverTimestamp()
+      });
+      return 'ok';
     });
+    if (res === 'stale') {
+      stale = true;
+      alert('다른 기기에서 더 진행된 기록이 있어요. 최신 기록을 불러올게요.');
+      location.reload();
+    } else syncedAt = S.savedAt;
   } catch (e) { console.warn('저장 실패', e); dirty = true; }
 }
 setInterval(save, 5000);
@@ -1037,6 +1050,7 @@ const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
     try { const d = await fb.getDoc(fb.doc(db, 'circus', uid)); if (d.exists()) loaded = d.data(); else loaded = null; }
     catch (e) { console.warn(e); online = false; loaded = readKey(lsKey()); }   // 읽기 실패 시 서버 기록을 덮어쓰지 않도록 이번엔 로컬로만
   } else loaded = readKey(lsKey());
+  if (online && loaded) syncedAt = num(loaded.savedAt);
   if (loaded) {
     const d = newState();
     S = { ...d, nickname:loaded.nickname || '', money:num(loaded.money), totalEarned:num(loaded.totalEarned), taps:num(loaded.taps),
