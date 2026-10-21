@@ -703,7 +703,8 @@ $('stage').addEventListener('pointerdown', ev => {
   ensureDaily(); S.daily.total++; S.daily.cat[curEx.cls]++;
 
   const ea = EX_ANIM[curEx.id];
-  anim.tg = Math.min(anim.tg + ea.per, anim.ph + ea.per * 2.5);
+  // 밀린 동작은 최대 3번 분량까지만 쌓고, 목표 위상은 항상 한 동작(per)의 정수배로 맞춰서 끝에서 기본 자세로 돌아오게 한다
+  anim.tg = Math.min(anim.tg + ea.per, (Math.ceil(anim.ph / ea.per - 1e-6) + 3) * ea.per);
   const r = $('stage').getBoundingClientRect();
   const f = document.createElement('div'); f.className = 'float';
   f.textContent = '-' + (g / 1000).toFixed(2);
