@@ -482,9 +482,10 @@ function drawPig(p, time) {
   }
   // 반바지: 몸통 아래쪽 둥근 부분까지 덮고 허리선은 위쪽
   const top = [a[0] + dir[0]*18, a[1] + dir[1]*18], rr = (T + 2) / 2;
-  o += `<circle cx="${n(a[0])}" cy="${n(a[1])}" r="${n(rr + 2)}" fill="${sc[1]}"/>`;
-  seg(a, top, T + 2, sc[0], sc[1], 'butt');
-  o += `<circle cx="${n(a[0])}" cy="${n(a[1])}" r="${n(rr)}" fill="${sc[0]}"/>`;
+  const sp = [[top[0] + pr[0]*rr, top[1] + pr[1]*rr]];                       // 위쪽은 평평하게, 아래쪽만 둥글게 (반원이 위로 튀어나오지 않도록)
+  for (let k = 0; k <= 14; k++) { const f = PI * k / 14; sp.push([a[0] + pr[0]*rr*cos(f) - dir[0]*rr*sin(f), a[1] + pr[1]*rr*cos(f) - dir[1]*rr*sin(f)]); }
+  sp.push([top[0] - pr[0]*rr, top[1] - pr[1]*rr]);
+  o += `<polygon points="${sp.map(q => pt(q[0], q[1])).join(' ')}" fill="${sc[0]}" stroke="${sc[1]}" stroke-width="4" stroke-linejoin="round"/>`;
   seg([top[0] - dir[0]*3, top[1] - dir[1]*3], top, T + 2, sc[2], null, 'butt');
   if (S.outfit.waist === 'belt') {
     const b0 = [a[0] + dir[0]*14, a[1] + dir[1]*14], b1 = [a[0] + dir[0]*25, a[1] + dir[1]*25], bk = [(b0[0] + b1[0])/2 + pr[0]*T/2, (b0[1] + b1[1])/2 + pr[1]*T/2];
