@@ -279,6 +279,7 @@ let S = { nickname:'', weightG:START_G, totalLostG:0, runs:1, runMs:0, bestClear
           stats:newStats(), inv:{ protein:0, chicken:0, salad:0 }, claimed:[], buff:{ chicken:0, saladUntil:0 }, daily:newDaily(''), outfit:{ ...DEFAULT_OUTFIT } };
 let stamina = STAMINA_MAX, exhausted = false, lastTap = 0, curEx = EXERCISES[0];
 let dirty = false;
+let stale = false, syncedAt = 0;   // syncedAt: 이 기기가 마지막으로 확인한 서버 기록의 savedAt
 let ready = false;   // 저장된 기록을 불러오기 전에는 기록을 덮어쓰지 않는다
 
 const LEGACY_KEY = 'butadiet-local';   // 계정 도입 전(또는 오프라인)에 쓰던 기기 저장소
@@ -755,15 +756,31 @@ $('clearRank').onclick = () => openRank();
 async function save() {
   if (!ready) return;
   saveLocal();
-  if (!online || !dirty) return;
+  if (!online || !dirty || stale) return;
   dirty = false;
+  const savedAt = Date.now();
   try {
-    await fb.setDoc(fb.doc(db, 'buta', uid), {
-      nickname: S.nickname, weightG: S.weightG, totalLostG: S.totalLostG, runs: S.runs,
-      runMs: Math.round(S.runMs), bestClearMs: S.bestClearMs, cleared: S.cleared,
-      stats: S.stats, inv: S.inv, claimed: S.claimed, buff: S.buff, daily: S.daily, outfit: S.outfit,
-      updatedAt: fb.serverTimestamp()
+    // 다른 기기가 더 진행된 기록을 올려뒀다면 덮어쓰지 않는다 (오래된 기기가 기록을 날리는 것 방지)
+    const ref = fb.doc(db, 'buta', uid);
+    const res = await fb.runTransaction(db, async tx => {
+      const snap = await tx.get(ref), sv = snap.exists() ? snap.data() : null;
+      if (sv && (sv.savedAt || 0) !== syncedAt) {
+        const sr = sv.runs ?? 1;
+        if (sr > S.runs || (sr === S.runs && (sv.totalLostG ?? 0) > S.totalLostG)) return 'stale';
+      }
+      tx.set(ref, {
+        nickname: S.nickname, weightG: S.weightG, totalLostG: S.totalLostG, runs: S.runs,
+        runMs: Math.round(S.runMs), bestClearMs: S.bestClearMs, cleared: S.cleared,
+        stats: S.stats, inv: S.inv, claimed: S.claimed, buff: S.buff, daily: S.daily, outfit: S.outfit,
+        savedAt, updatedAt: fb.serverTimestamp()
+      });
+      return 'ok';
     });
+    if (res === 'stale') {
+      stale = true;
+      alert('다른 기기에서 더 진행된 기록이 있어요. 최신 기록을 불러올게요.');
+      location.reload();
+    } else syncedAt = savedAt;
   } catch (e) { console.warn('저장 실패', e); dirty = true; }
 }
 setInterval(save, 5000);
@@ -896,6 +913,7 @@ function askNick() {
       else { const l = loadLocal() || (newId ? readKey(LEGACY_KEY) : null); if (l?.nickname) { loaded = l; dirty = true; migrated = !loadLocal(); } }   // 서버에 기록이 없으면 이 기기에 저장된 기록을 올린다
     } catch (e) { console.warn(e); online = false; loaded = loadLocal(); }          // 읽기 실패 시 서버 기록을 덮어쓰지 않도록 이번엔 로컬로만
   } else loaded = loadLocal();
+  if (online && loaded) syncedAt = loaded.savedAt || 0;
   if (loaded) {
     S = { ...S, nickname: loaded.nickname || '', weightG: loaded.weightG ?? START_G, totalLostG: loaded.totalLostG ?? 0,
           runs: loaded.runs ?? 1, runMs: loaded.runMs ?? 0, bestClearMs: loaded.bestClearMs ?? null, cleared: !!loaded.cleared,
