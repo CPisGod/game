@@ -24,6 +24,7 @@
 
   .weight { text-align:center; margin:6px 0 2px; }
   .weight b { font-size:52px; line-height:1; }
+  .playtime { text-align:center; font-size:14px; font-weight:700; margin:0 0 4px; }
   .weight span { font-size:20px; margin-left:4px; }
   .sub-info { text-align:center; font-size:13px; opacity:.75; margin-bottom:6px; }
   .bar { height:18px; background:#fff; border:2px solid var(--ink); border-radius:999px; overflow:hidden; position:relative; }
@@ -106,6 +107,7 @@
   </header>
 
   <div class="weight"><b id="wt">200.00</b><span>kg</span></div>
+  <div class="playtime">⏱️ 플레이타임 <b id="ptime">0분 0초</b></div>
   <div class="sub-info"><span id="nick">-</span> · 목표 70kg · 지금까지 <span id="lost">0.00</span>kg 감량 · <span id="runinfo">1회차</span> · <a href="#" id="logoutBtn" style="display:none;color:inherit">로그아웃</a></div>
   <div class="bar" id="wbar"><i></i></div>
 
@@ -571,6 +573,7 @@ function pigLoop(now) {
 // ---------- 화면 갱신 ----------
 function render() {
   $('wt').textContent = kg(S.weightG);
+  $('ptime').textContent = fmt(S.runMs);
   $('lost').textContent = kg(S.totalLostG);
   $('nick').textContent = S.nickname;
   $('runinfo').textContent = S.runs + '회차';
