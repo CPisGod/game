@@ -63,7 +63,17 @@
   td, th { padding:6px 4px; border-bottom:1px solid #eee; text-align:left; }
   td:last-child, th:last-child { text-align:right; }
   tr.me { background:#ffe3ea; font-weight:900; }
+  header { flex-wrap:wrap; }
   header > div { display:flex; gap:6px; }
+  .modal.sheet { background:transparent; align-items:flex-end; pointer-events:none; padding:0; }
+  .modal.sheet .card { pointer-events:auto; border-radius:18px 18px 0 0; width:min(520px,100%); max-height:34vh; padding:12px 14px; box-shadow:0 -4px 20px #0004; }
+  .wt { flex:0 0 auto; padding:5px 12px; border-radius:999px; border:2px solid #d9c9a8; background:#fff; font-family:inherit; font-weight:700; font-size:13px; color:var(--ink); cursor:pointer; }
+  .wt.on { background:var(--pink-d); border-color:var(--pink-d); color:#fff; }
+  .wrow { display:flex; gap:6px; overflow-x:auto; padding:4px 0; }
+  .wi { flex:0 0 auto; min-width:76px; background:#fff; border:2px solid #d9c9a8; border-radius:10px; padding:5px 6px; font-family:inherit; color:var(--ink); text-align:center; cursor:pointer; }
+  .wi.on { border-color:var(--pink-d); background:#ffe3ea; }
+  .wi:disabled { opacity:.5; cursor:default; }
+  .wi .ic { font-size:20px; display:block; } .wi .nm { font-size:11px; font-weight:700; display:block; } .wi small { font-size:9px; opacity:.75; display:block; }
   header h1 { font-size:18px; white-space:nowrap; }
   header .btn { padding:7px 9px; font-size:13px; white-space:nowrap; }
   .badge { display:none; min-width:18px; padding:0 5px; border-radius:9px; background:#e8504a; color:#fff; font-size:12px; line-height:18px; }
@@ -89,6 +99,7 @@
   <header>
     <h1>🐷 부타 다이어트</h1>
     <div>
+      <button class="btn sub" id="wardBtn">👕 옷장</button>
       <button class="btn sub" id="questBtn">🎯 미션 <span id="questBadge" class="badge">0</span></button>
       <button class="btn sub" id="rankBtn">🏆 순위</button>
     </div>
@@ -146,6 +157,16 @@
     <p>부타 다이어트 성공!<br>클리어 시간 <b id="clearTime"></b></p>
     <button class="btn" id="restartBtn" style="width:100%">다시 200kg부터 도전</button>
     <p><button class="btn sub" id="clearRank" style="width:100%">🏆 순위 보기</button></p>
+  </div>
+</div>
+
+<!-- 옷장: 아래에서 올라오는 창 (위쪽에서 부타가 바로 보임) -->
+<div class="modal sheet" id="wardModal">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b>👕 옷장</b><button class="btn sub" id="wardClose" style="padding:5px 12px">닫기</button></div>
+    <div id="wardTabs" class="wrow"></div>
+    <div id="wardList"></div>
+    <div class="note" style="margin:2px 0 0;color:#777">누르면 바로 입어요. 🔒는 미션을 완료하고 보상을 받으면 열려요.</div>
   </div>
 </div>
 
@@ -234,6 +255,19 @@ const QUESTS = [
   { id:'d5', daily:1, nm:'오늘의 대장',  desc:'오늘 운동 300회',      goal:300, val:() => S.daily.total,  reward:{ protein:1, chicken:1, salad:1 } },
 ];
 
+// ---------- 옷장 (헬스용 옷/보조용품). need = 해금에 필요한 미션 id (받기까지 완료해야 함) ----------
+const SLOTS = [['head','머리'], ['face','얼굴'], ['top','상의'], ['bottom','하의'], ['waist','허리'], ['hand','손'], ['feet','신발']];
+const GEAR = {
+  head:   [{ id:'none', nm:'없음', ic:'🚫' }, { id:'band_red', nm:'빨간 헤어밴드', ic:'🎀' }, { id:'towel', nm:'땀 수건', ic:'🧻', need:'q1' }, { id:'band_black', nm:'검정 헤어밴드', ic:'🖤', need:'q5' }],
+  face:   [{ id:'none', nm:'없음', ic:'🚫' }, { id:'goggles', nm:'스포츠 고글', ic:'🥽', need:'q3' }],
+  top:    [{ id:'none', nm:'없음', ic:'🚫' }, { id:'tank_gray', nm:'회색 민소매', ic:'🎽' }, { id:'tank_yellow', nm:'형광 민소매', ic:'💛', need:'q2' }, { id:'tank_black', nm:'검정 민소매', ic:'🖤', need:'q7' }],
+  bottom: [{ id:'blue', nm:'파랑 반바지', ic:'🔵' }, { id:'black', nm:'검정 반바지', ic:'⚫' }, { id:'red', nm:'빨강 반바지', ic:'🔴', need:'q5' }, { id:'green', nm:'초록 반바지', ic:'🟢', need:'q10' }],
+  waist:  [{ id:'none', nm:'없음', ic:'🚫' }, { id:'belt', nm:'웨이트 벨트', ic:'🥋', need:'q4' }],
+  hand:   [{ id:'none', nm:'없음', ic:'🚫' }, { id:'wrist', nm:'손목 보호대', ic:'🩹' }, { id:'gloves', nm:'리프팅 장갑', ic:'🧤', need:'q9' }],
+  feet:   [{ id:'hoof', nm:'발굽', ic:'🐾' }, { id:'sneaker_white', nm:'흰 운동화', ic:'👟' }, { id:'sneaker_red', nm:'빨강 운동화', ic:'👠', need:'q9' }],
+};
+const DEFAULT_OUTFIT = { head:'none', face:'none', top:'none', bottom:'blue', waist:'none', hand:'none', feet:'hoof' };
+
 const $ = id => document.getElementById(id);
 const kg = g => (g / 1000).toFixed(2);
 
@@ -242,7 +276,7 @@ let uid = 'local', db = null, fb = null, online = false;
 const newStats = () => ({ total:0, cat:{ a:0, b:0, c:0 }, ex:{} });
 const newDaily = date => ({ date, total:0, cat:{ a:0, b:0, c:0 }, claimed:[] });
 let S = { nickname:'', weightG:START_G, totalLostG:0, runs:1, runMs:0, bestClearMs:null, cleared:false,
-          stats:newStats(), inv:{ protein:0, chicken:0, salad:0 }, claimed:[], buff:{ chicken:0, saladUntil:0 }, daily:newDaily('') };
+          stats:newStats(), inv:{ protein:0, chicken:0, salad:0 }, claimed:[], buff:{ chicken:0, saladUntil:0 }, daily:newDaily(''), outfit:{ ...DEFAULT_OUTFIT } };
 let stamina = STAMINA_MAX, exhausted = false, lastTap = 0, curEx = EXERCISES[0];
 let dirty = false;
 let ready = false;   // 저장된 기록을 불러오기 전에는 기록을 덮어쓰지 않는다
@@ -282,6 +316,9 @@ function build(o) {
     nkx:nl[0], nky:nl[1], nax:nl[2], nay:nl[3], fkx:fl[0], fky:fl[1], fax:fl[2], fay:fl[3],
     nex:na[0], ney:na[1], nhx:na[2], nhy:na[3], fex:fa[0], fey:fa[1], fhx:fa[2], fhy:fa[3], db:o.db || 0, rope:o.rope || 0 };
 }
+const SHORTS = { blue:[C.blue, C.blueD, C.blueL], black:['#3a3a44', '#1f1f26', '#6a6a78'], red:['#d9483b', '#9d2d24', '#ff8a7a'], green:['#3fae6a', '#27794a', '#82dba5'] };
+const TANK = { tank_gray:['#aab3c5', '#6b7387'], tank_yellow:['#ffe14d', '#c9a800'], tank_black:['#3a3a44', '#1f1f26'] };
+const SNEAKER = { sneaker_white:['#f4f4f8', '#6b6b7a', '#e0483c'], sneaker_red:['#e0483c', '#8d2a22', '#f4f4f8'] };
 const wave = ph => (1 - cos(2 * PI * ph)) / 2;     // 0→1→0 (정수 위상에서 0)
 const FOOT_Y = GY - 7, STAND_Y = GY - 7 - 66;
 
@@ -400,11 +437,20 @@ function drawPig(p, time) {
   const hoof = (k, a) => {
     let dx = a[0] - k[0], dy = a[1] - k[1]; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
     const f = [dy, -dx];
-    seg([a[0] - f[0]*2, a[1] - f[1]*2], [a[0] + f[0]*16, a[1] + f[1]*16], lw*.95, C.hoof, C.hoofD);
+    const sn = SNEAKER[S.outfit.feet], p0 = [a[0] - f[0]*2, a[1] - f[1]*2], p1 = [a[0] + f[0]*(sn ? 19 : 16), a[1] + f[1]*(sn ? 19 : 16)];
+    seg(p0, p1, lw*.95, sn ? sn[0] : C.hoof, sn ? sn[1] : C.hoofD);
+    if (sn) seg([a[0] + f[0]*2, a[1] + f[1]*2], [a[0] + f[0]*13, a[1] + f[1]*13], Math.max(3, lw*.28), sn[2], null);
   };
   const leg = (kx, ky, ax, ay, col, ol) => { poly([hip, [kx, ky], [ax, ay]], lw, col, ol); hoof([kx, ky], [ax, ay]); };
-  const hand = (x, y, col) => { o += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(lw*.62)}" fill="${col}" stroke="${C.shadeD}" stroke-width="2"/>`; };
-  const arm = (ex, ey, hx, hy, col, ol, hc) => { poly([s, [ex, ey], [hx, hy]], lw*.9, col, ol); hand(hx, hy, hc); };
+  const gloved = S.outfit.hand === 'gloves';
+  const hand = (x, y, col) => { o += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(lw*.62 + (gloved ? 1.5 : 0))}" fill="${gloved ? '#33333d' : col}" stroke="${gloved ? C.ink : C.shadeD}" stroke-width="2"/>`; };
+  const arm = (ex, ey, hx, hy, col, ol, hc) => {
+    poly([s, [ex, ey], [hx, hy]], lw*.9, col, ol); hand(hx, hy, hc);
+    const wl = Math.hypot(hx - ex, hy - ey) || 1, u = [(hx - ex)/wl, (hy - ey)/wl];
+    if (S.outfit.hand === 'wrist') seg([hx - u[0]*12, hy - u[1]*12], [hx - u[0]*6, hy - u[1]*6], lw*.9 + 2, '#e0483c', C.ink);
+    if (gloved) seg([hx - u[0]*11, hy - u[1]*11], [hx - u[0]*6, hy - u[1]*6], lw*.9 + 2, '#f4f4f8', C.ink);
+  };
+  const sc = SHORTS[S.outfit.bottom] || SHORTS.blue;
 
   // 바닥 + 그림자
   const mid = (p.hx + p.nax) / 2;
@@ -414,6 +460,7 @@ function drawPig(p, time) {
   // 뒤쪽 팔/다리
   arm(p.fex, p.fey, p.fhx, p.fhy, C.shade, C.shadeD, C.light);
   leg(p.fkx, p.fky, p.fax, p.fay, C.shade, C.shadeD);
+  { const d = Math.hypot(p.fkx - hip[0], p.fky - hip[1]) || 1; seg(hip, [hip[0] + (p.fkx - hip[0])/d*26, hip[1] + (p.fky - hip[1])/d*26], lw + 3, sc[1], null); }   // 뒤쪽 다리 반바지 밑단
 
   // 꼬리 (엉덩이 뒤쪽)
   const tb = [hip[0] - pr[0]*T*.42 + dir[0]*6, hip[1] - pr[1]*T*.42 + dir[1]*6];
@@ -425,14 +472,28 @@ function drawPig(p, time) {
   seg(a, b, T, C.base, C.shadeD, 'round');
   const bm = [(a[0] + b[0])/2 + pr[0]*T*.14, (a[1] + b[1])/2 + pr[1]*T*.14], bl = Math.hypot(b[0]-a[0], b[1]-a[1]);
   o += `<ellipse transform="translate(${n(bm[0])} ${n(bm[1])}) rotate(${n(th*180/PI)})" rx="${n(T*.32)}" ry="${n(bl*.42 + T*.08)}" fill="${C.belly}"/>`;
-  const sa = [hip[0] + dir[0]*T*.36, hip[1] + dir[1]*T*.36], sb = [hip[0] - dir[0]*T*.12, hip[1] - dir[1]*T*.12];
-  seg(sb, sa, T + 2, C.blue, C.blueD, 'butt');
-  seg([sa[0] - dir[0]*3, sa[1] - dir[1]*3], sa, T + 2, C.blueL, null, 'butt');
+  // 상의 (몸통 전체를 덮음)
+  const tk = TANK[S.outfit.top];
+  if (tk) {
+    seg(a, b, T + 3, tk[0], tk[1], 'round');
+    seg([a[0] + pr[0]*T*.3, a[1] + pr[1]*T*.3], [b[0] + pr[0]*T*.3, b[1] + pr[1]*T*.3], 4, '#ffffff66', null);
+  }
+  // 반바지: 몸통 아래쪽 둥근 부분까지 덮고 허리선은 위쪽
+  const top = [a[0] + dir[0]*18, a[1] + dir[1]*18], rr = (T + 2) / 2;
+  o += `<circle cx="${n(a[0])}" cy="${n(a[1])}" r="${n(rr + 2)}" fill="${sc[1]}"/>`;
+  seg(a, top, T + 2, sc[0], sc[1], 'butt');
+  o += `<circle cx="${n(a[0])}" cy="${n(a[1])}" r="${n(rr)}" fill="${sc[0]}"/>`;
+  seg([top[0] - dir[0]*3, top[1] - dir[1]*3], top, T + 2, sc[2], null, 'butt');
+  if (S.outfit.waist === 'belt') {
+    const b0 = [a[0] + dir[0]*14, a[1] + dir[1]*14], b1 = [a[0] + dir[0]*25, a[1] + dir[1]*25], bk = [(b0[0] + b1[0])/2 + pr[0]*T/2, (b0[1] + b1[1])/2 + pr[1]*T/2];
+    seg(b0, b1, T + 4, '#2b2b33', C.ink, 'butt');
+    o += `<rect transform="translate(${n(bk[0])} ${n(bk[1])}) rotate(${n(th*180/PI)})" x="-6" y="-6" width="12" height="12" fill="#f2c14e" stroke="${C.ink}" stroke-width="2"/>`;
+  }
 
   // 앞쪽 다리 (반바지 밑단 포함)
   leg(p.nkx, p.nky, p.nax, p.nay, C.base, C.shadeD);
   const kd = Math.hypot(p.nkx - hip[0], p.nky - hip[1]) || 1;
-  seg(hip, [hip[0] + (p.nkx - hip[0])/kd*17, hip[1] + (p.nky - hip[1])/kd*17], lw + 4, C.blue, C.blueD, 'butt');
+  seg(hip, [hip[0] + (p.nkx - hip[0])/kd*30, hip[1] + (p.nky - hip[1])/kd*30], lw + 4, sc[0], sc[1], 'butt');
 
   // 머리: 각진 주둥이, 계단 귀, 네모 눈
   const hc = [s[0] + dir[0]*26 + pr[0]*8, s[1] + dir[1]*26 + pr[1]*8];
@@ -444,6 +505,13 @@ function drawPig(p, time) {
   hd += rc(38, 0, 5, 6, C.nostril) + rc(24, 14, 14, 3, C.nostril);
   if (exhausted) hd += `<path d="M2 -14L14 -2M14 -14L2 -2" stroke="${C.ink}" stroke-width="3.5"/>`;
   else hd += rc(3, -16, 12, 15, C.white, C.shadeD) + rc(8, -14, 6, 11, C.ink);
+  const hg = S.outfit.head;
+  if (hg === 'band_red' || hg === 'band_black') {
+    const bc = hg === 'band_red' ? '#e0483c' : '#2b2b33';
+    hd += rc(-34, -20, 9, 6, bc, C.ink) + rc(-34, -12, 9, 6, bc, C.ink) + rc(-27, -23, 52, 9, bc, C.ink);
+  }
+  if (hg === 'towel') hd += rc(-33, -22, 9, 24, '#f4f4f8', '#9aa0b4') + rc(-27, -26, 52, 12, '#f4f4f8', '#9aa0b4') + rc(-27, -21, 52, 3, '#6aa6ff');
+  if (S.outfit.face === 'goggles') hd += rc(-27, -14, 52, 5, '#2b2b3a') + `<rect x="-1" y="-20" width="24" height="18" rx="4" fill="rgba(120,220,255,.55)" stroke="#2b2b3a" stroke-width="3"/>`;
   hd += '</g>';
   o += hd;
 
@@ -596,6 +664,23 @@ $('claimAll').onclick = () => {
 $('tabDaily').onclick = () => { questTab = 'daily'; openQuests(); };
 $('tabAch').onclick = () => { questTab = 'ach'; openQuests(); };
 $('questBtn').onclick = openQuests;
+
+// ---------- 옷장 ----------
+const gearOk = it => !it.need || S.claimed.includes(it.need);
+let wardSlot = 'head';
+function openWardrobe() {
+  const k = wardSlot;
+  $('wardTabs').innerHTML = SLOTS.map(([id, nm]) => `<button class="wt ${id === k ? 'on' : ''}" data-s="${id}">${nm}</button>`).join('');
+  $('wardTabs').querySelectorAll('.wt').forEach(b => b.onclick = () => { wardSlot = b.dataset.s; openWardrobe(); });
+  $('wardList').innerHTML = '<div class="wrow">' + GEAR[k].map(it => {
+    const ok = gearOk(it), on = S.outfit[k] === it.id, q = it.need && QUESTS.find(x => x.id === it.need);
+    return `<button class="wi ${on ? 'on' : ''}" data-i="${it.id}" ${ok ? '' : 'disabled'}><span class="ic">${ok ? it.ic : '🔒'}</span><span class="nm">${it.nm}</span>${ok ? '' : `<small>미션 '${q.nm}'</small>`}</button>`;
+  }).join('') + '</div>';
+  $('wardList').querySelectorAll('.wi').forEach(b => b.onclick = () => { S.outfit[k] = b.dataset.i; dirty = true; save(); openWardrobe(); });
+  $('wardModal').classList.add('show');
+}
+$('wardBtn').onclick = openWardrobe;
+$('wardClose').onclick = () => $('wardModal').classList.remove('show');
 $('questClose').onclick = () => $('questModal').classList.remove('show');
 
 // ---------- 운동 ----------
@@ -672,7 +757,7 @@ async function save() {
     await fb.setDoc(fb.doc(db, 'buta', uid), {
       nickname: S.nickname, weightG: S.weightG, totalLostG: S.totalLostG, runs: S.runs,
       runMs: Math.round(S.runMs), bestClearMs: S.bestClearMs, cleared: S.cleared,
-      stats: S.stats, inv: S.inv, claimed: S.claimed, buff: S.buff, daily: S.daily,
+      stats: S.stats, inv: S.inv, claimed: S.claimed, buff: S.buff, daily: S.daily, outfit: S.outfit,
       updatedAt: fb.serverTimestamp()
     });
   } catch (e) { console.warn('저장 실패', e); dirty = true; }
@@ -812,7 +897,8 @@ function askNick() {
           runs: loaded.runs ?? 1, runMs: loaded.runMs ?? 0, bestClearMs: loaded.bestClearMs ?? null, cleared: !!loaded.cleared,
           stats: { ...newStats(), ...(loaded.stats || {}), cat: { a:0, b:0, c:0, ...(loaded.stats?.cat || {}) }, ex: { ...(loaded.stats?.ex || {}) } },
           inv: { ...S.inv, ...(loaded.inv || {}) }, claimed: loaded.claimed || [], buff: { ...S.buff, ...(loaded.buff || {}) },
-          daily: { ...newDaily(''), ...(loaded.daily || {}), cat: { a:0, b:0, c:0, ...(loaded.daily?.cat || {}) }, claimed: loaded.daily?.claimed || [] } };
+          daily: { ...newDaily(''), ...(loaded.daily || {}), cat: { a:0, b:0, c:0, ...(loaded.daily?.cat || {}) }, claimed: loaded.daily?.claimed || [] },
+          outfit: { ...DEFAULT_OUTFIT, ...(loaded.outfit || {}) } };
   }
   if (newId) { S.nickname = newId; dirty = true; }
   else if (!S.nickname && au?.currentUser?.displayName) { S.nickname = au.currentUser.displayName; dirty = true; }
