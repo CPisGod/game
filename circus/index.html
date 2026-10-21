@@ -35,6 +35,8 @@
   #stage { position:relative; margin-top:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; }
   #mk { width:min(100%, 340px, calc(34vh * 1.1538)); height:auto; aspect-ratio:300/260; border:3px solid var(--ink); border-radius:16px; background:#fff; display:block; }
   .float { position:absolute; font-weight:900; font-size:22px; color:var(--acc); text-shadow:0 2px 0 #fff, 0 0 4px #fff; pointer-events:none; animation: up .8s ease-out forwards; white-space:nowrap; }
+  .puff { position:absolute; font-size:16px; pointer-events:none; animation: puff .9s ease-out forwards; z-index:3; }
+  @keyframes puff { from { transform:translate(0,0) scale(.6); opacity:1; } to { transform:translate(var(--dx), var(--dy)) scale(1.1) rotate(40deg); opacity:0; } }
   @keyframes up { to { transform: translateY(-70px); opacity:0; } }
   #msg { position:absolute; top:10px; width:100%; text-align:center; font-weight:900; color:#fff; text-shadow:0 2px 0 var(--ink), 0 0 6px var(--ink); min-height:22px; pointer-events:none; z-index:2; }
   #exlabel { width:100%; text-align:center; font-weight:700; font-size:14px; margin-top:6px; pointer-events:none; min-height:20px; }
@@ -114,7 +116,7 @@
 
   <div id="stage">
     <div id="msg"></div>
-    <svg id="mk" viewBox="0 0 300 260"><g id="bg"></g><g id="fg"></g></svg>
+    <svg id="mk" viewBox="0 0 300 260"><g id="bg"></g><g id="fx"></g><g id="fg"></g></svg>
     <div id="exlabel">원숭이를 터치하면 춤을 춰요! (컴퓨터는 스페이스바)</div>
   </div>
   <div id="crew"></div>
@@ -217,20 +219,22 @@ const CREW = [
   { id:'giraffe',  ic:'🦒', nm:'기린 공중 곡예',   cost:2e7,   inc:5600 },
   { id:'unicorn',  ic:'🦄', nm:'유니콘 마술사',    cost:33e7,  inc:4e4 },
 ];
+// bonus = 사용 중인 무대의 수입 배율(터치·알바 모두), puff = 터치할 때 튀는 효과
 const VENUES = [
-  { nm:'길거리 공연',   ic:'🏙️', cost:0 },
-  { nm:'동네 공원 무대', ic:'🌳', cost:2e4 },
-  { nm:'동네 서커스',   ic:'🎪', cost:5e5 },
-  { nm:'대형 서커스 텐트', ic:'🎡', cost:2e7 },
-  { nm:'도시 극장',     ic:'🎭', cost:1e9 },
-  { nm:'월드 투어',     ic:'🌍', cost:1e11 },
+  { nm:'길거리 공연',     ic:'🏙️', cost:0,     bonus:1,    puff:'🪙', fx:'떠다니는 음표' },
+  { nm:'동네 공원 무대',   ic:'🌳', cost:2e4,   bonus:1.1,  puff:'🍃', fx:'흘러가는 구름, 떨어지는 나뭇잎' },
+  { nm:'동네 서커스',     ic:'🎪', cost:5e5,   bonus:1.25, puff:'🎈', fx:'깜빡이는 전구 장식' },
+  { nm:'대형 서커스 텐트', ic:'🎡', cost:2e7,   bonus:1.5,  puff:'⭐', fx:'휘젓는 스포트라이트' },
+  { nm:'도시 극장',       ic:'🎭', cost:1e9,   bonus:2,    puff:'🌹', fx:'색색의 조명 빔, 반짝이 가루' },
+  { nm:'월드 투어',       ic:'🌍', cost:1e11,  bonus:3,    puff:'🎆', fx:'터지는 불꽃놀이, 반짝이는 별' },
 ];
+const venueMult = () => VENUES[S.venue]?.bonus || 1;
 const MAX_CREW = 30;   // 알바 종류별 최대 고용 수
 const START_PRICE = 1000, TICK_MS = 3000, FEE = 0.005;   // 바나나 1주 가격 = 비트코인 원화 가격 그대로, 매수·매도 수수료 0.5%
 const tipMult = () => Math.pow(1.5, S.tipLv), wageMult = () => Math.pow(1.3, S.wageLv);
 const tipCost = L => Math.ceil(25 * Math.pow(2, L)), wageCost = L => Math.ceil(400 * Math.pow(3, L));
 const crewCost = (w, n) => Math.ceil(w.cost * Math.pow(1.15, n));
-const crewRate = () => CREW.reduce((s, w) => s + (S.crew[w.id] || 0) * w.inc, 0) * wageMult();
+const crewRate = () => CREW.reduce((s, w) => s + (S.crew[w.id] || 0) * w.inc, 0) * wageMult() * venueMult();
 const unlocked = () => DANCES.filter(d => S.totalEarned >= d.need);
 const netWorth = () => S.money + S.shares * S.price;
 
@@ -531,6 +535,42 @@ function bgSvg(v) {
   }
   return o;
 }
+function fxSvg(v, t) {
+  const f1 = x => x.toFixed(1);
+  let o = '';
+  if (v === 0) {                                                       // 떠다니는 음표
+    for (let i = 0; i < 5; i++) { const k = ((t * .12 + i * .2) % 1), x = 30 + i * 58 + 10 * sin(t + i * 2), y = 215 - k * 170;
+      o += `<text x="${f1(x)}" y="${f1(y)}" font-size="18" font-weight="900" fill="#7a4ab8" stroke="#fff" stroke-width="2" paint-order="stroke" opacity="${f1(1 - k)}">${i % 2 ? '♪' : '♫'}</text>`; }
+  } else if (v === 1) {                                                // 구름 + 나뭇잎
+    for (let i = 0; i < 2; i++) { const x = ((t * 6 + i * 170) % 380) - 40, y = 34 + i * 26;
+      o += `<ellipse cx="${f1(x)}" cy="${y}" rx="30" ry="11" fill="#fff" opacity=".85"/><ellipse cx="${f1(x + 18)}" cy="${y - 7}" rx="20" ry="9" fill="#fff" opacity=".85"/>`; }
+    for (let i = 0; i < 7; i++) { const x = (i * 47 + t * 9 + 18 * sin(t * .9 + i)) % 320 - 10, y = (t * 22 + i * 41) % 250;
+      o += `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="5" ry="2.6" fill="${i % 2 ? '#7fcb6a' : '#e0a83c'}" transform="rotate(${f1(t * 90 + i * 50)} ${f1(x)} ${f1(y)})"/>`; }
+  } else if (v === 2) {                                                // 깜빡이는 전구 줄
+    o += `<path d="M0 22 Q75 62 150 28 T300 22" fill="none" stroke="#3b2a1a" stroke-width="2"/>`;
+    const cs = ['#ff5a5a', '#ffd23f', '#6ec6ff', '#7ee08a', '#ff8ad8'];
+    for (let i = 0; i <= 10; i++) { const x = i * 30, y = i % 2 ? 41 + 3 * sin(i) : 36, a = .35 + .65 * Math.max(0, sin(t * 4 + i * 1.3));
+      o += `<circle cx="${x}" cy="${f1(y)}" r="${f1(5 + a * 2)}" fill="${cs[i % 5]}" opacity="${f1(.25 + a * .75)}"/><circle cx="${x}" cy="${f1(y)}" r="${f1(11 * a)}" fill="${cs[i % 5]}" opacity="${f1(.18 * a)}"/>`; }
+  } else if (v === 3) {                                                // 휘젓는 스포트라이트
+    for (let k = 0; k < 2; k++) { const sx = k ? 250 : 50, ex = 150 + 95 * sin(t * .9 + k * 2.4);
+      o += `<polygon points="${sx - 6},0 ${sx + 6},0 ${f1(ex + 34)},${GY} ${f1(ex - 34)},${GY}" fill="#fff" opacity=".2"/><ellipse cx="${f1(ex)}" cy="${GY + 2}" rx="34" ry="6" fill="#fff" opacity=".3"/>`; }
+  } else if (v === 4) {                                                // 색색 조명 빔 + 반짝이 가루
+    const cs = ['#ff6aa0', '#ffd23f', '#6ec6ff'];
+    for (let k = 0; k < 3; k++) { const sx = 50 + k * 100, ex = sx + 70 * sin(t * .8 + k * 2.1);
+      o += `<polygon points="${sx - 5},26 ${sx + 5},26 ${f1(ex + 28)},${GY} ${f1(ex - 28)},${GY}" fill="${cs[k]}" opacity=".24"/><ellipse cx="${f1(ex)}" cy="${GY + 2}" rx="28" ry="5" fill="${cs[k]}" opacity=".35"/>`; }
+    for (let i = 0; i < 14; i++) { const x = (i * 71 + 13) % 300, y = ((t * 18 + i * 53) % 220) + 20, a = .4 + .6 * Math.abs(sin(t * 3 + i));
+      o += `<circle cx="${x}" cy="${f1(y)}" r="1.8" fill="#ffe9a8" opacity="${f1(a)}"/>`; }
+  } else {                                                             // 불꽃놀이 + 별 반짝임
+    for (const [x, y] of STARS) o += `<circle cx="${x}" cy="${y}" r="${f1(1.2 + 1.2 * Math.abs(sin(t * 2 + x)))}" fill="#fff" opacity="${f1(.4 + .6 * Math.abs(sin(t * 2 + y)))}"/>`;
+    const cs = ['#ff6aa0', '#6ec6ff', '#ffd23f', '#9be07a'];
+    for (let k = 0; k < 3; k++) {
+      const per = 2.6, u = ((t + k * .9) % per) / per, n = Math.floor((t + k * .9) / per), bx = 50 + ((n * 97 + k * 83) % 200), by = 40 + ((n * 41 + k * 29) % 60);
+      if (u > .08) for (let i = 0; i < 12; i++) { const a = i / 12 * 2 * PI, r1 = 4 + u * 26, r2 = r1 + 7 * (1 - u);
+        o += LN(bx + r1 * cos(a), by + r1 * sin(a) + u * u * 10, bx + r2 * cos(a), by + r2 * sin(a) + u * u * 10, 2, cs[(n + k) % 4]).replace('stroke-linecap', `opacity="${f1(1 - u)}" stroke-linecap`); }
+    }
+  }
+  return o;
+}
 function setVenue(i) {
   S.venue = i; dirty = true;
   $('bg').innerHTML = bgSvg(i);
@@ -545,6 +585,7 @@ function startDance() {
   $('exlabel').textContent = d.ic + ' ' + d.nm;
   showMsg(d.ic + ' ' + d.nm + '!');
 }
+let fxDrawn = 0;
 function loop(now) {
   const dt = Math.min(.05, (now - anim.last) / 1000); anim.last = now;
   requestAnimationFrame(loop);
@@ -561,6 +602,7 @@ function loop(now) {
   const k = 1 - Math.exp(-dt * 22);
   let diff = 0;
   for (const key in tgt) { const d = tgt[key] - anim.cur[key]; diff += Math.abs(d); anim.cur[key] += d * k; }
+  if (now - fxDrawn > 45) { fxDrawn = now; $('fx').innerHTML = fxSvg(S.venue, time); }
   if (id || diff > .3 || now - anim.drawn > 90) { anim.drawn = now; $('fg').innerHTML = drawMonkey(anim.cur, time, ph, id); }
 }
 
@@ -568,7 +610,7 @@ function loop(now) {
 function showMsg(t) { $('msg').textContent = t; clearTimeout(showMsg.t); showMsg.t = setTimeout(() => $('msg').textContent = '', 900); }
 function tap(cx, cy) {
   if (!ready || !S.nickname) return;
-  const pay = TAP_PAY * tipMult();
+  const pay = TAP_PAY * tipMult() * venueMult();
   earn(pay);
   const d = curDance();
   S.taps++; S.dances[d.id] = (S.dances[d.id] || 0) + 1;
@@ -578,6 +620,13 @@ function tap(cx, cy) {
   const f = document.createElement('div'); f.className = 'float'; f.textContent = '+' + fmt(pay) + '원';
   f.style.left = (cx - r.left - 24) + 'px'; f.style.top = (cy - r.top - 20) + 'px';
   $('stage').appendChild(f); setTimeout(() => f.remove(), 800);
+  const pf = VENUES[S.venue].puff;
+  for (let i = 0; i < 3 + S.venue; i++) {
+    const e = document.createElement('span'); e.className = 'puff'; e.textContent = pf;
+    e.style.left = (cx - r.left) + 'px'; e.style.top = (cy - r.top) + 'px';
+    e.style.setProperty('--dx', ((Math.random() - .5) * 120).toFixed(0) + 'px'); e.style.setProperty('--dy', (-30 - Math.random() * 60).toFixed(0) + 'px');
+    $('stage').appendChild(e); setTimeout(() => e.remove(), 900);
+  }
   checkUnlock();
   render();
 }
@@ -650,7 +699,7 @@ function bulkInfo(w, mode) {
 function buildPanel() {
   let h = '';
   if (tab === 'dance') {
-    h = `<div class="note gray" style="margin:0 0 8px">보여줄 묘기를 하나 골라요. 어떤 묘기든 터치당 +${fmt(TAP_PAY * tipMult())}원으로 똑같아요. 누적 수입이 쌓이면 새 묘기가 열려요.</div>` + DANCES.map(d => {
+    h = `<div class="note gray" style="margin:0 0 8px">보여줄 묘기를 하나 골라요. 어떤 묘기든 터치당 +${fmt(TAP_PAY * tipMult() * venueMult())}원으로 똑같아요. 누적 수입이 쌓이면 새 묘기가 열려요.</div>` + DANCES.map(d => {
       const ok = S.totalEarned >= d.need, on = S.dance === d.id;
       return `<div class="row ${ok ? '' : 'lock'} ${on ? 'on' : ''}"><span class="ic">${ok ? d.ic : '🔒'}</span><div class="tx"><b>${ok ? d.nm : '???'}</b>
         <small>${ok ? '공연 ' + (S.dances[d.id] || 0).toLocaleString() + '회' : '누적 수입 ' + fmt(d.need) + '원이면 해금'}</small></div>
@@ -685,9 +734,9 @@ function buildPanel() {
   } else {
     h = VENUES.map((v, i) => {
       const own = S.venues.includes(i), on = S.venue === i;
-      return `<div class="row ${on ? 'on' : ''}"><span class="ic">${v.ic}</span><div class="tx"><b>${v.nm}</b><small>${on ? '지금 공연 중!' : own ? '구매 완료' : fmt(v.cost) + '원'}</small></div>
+      return `<div class="row ${on ? 'on' : ''}"><span class="ic">${v.ic}</span><div class="tx"><b>${v.nm}</b><small>${on ? '지금 공연 중! · ' : own ? '구매 완료 · ' : fmt(v.cost) + '원 · '}수입 ×${v.bonus}<br>효과: ${v.fx}</small></div>
         ${own ? (on ? '<span style="font-weight:700;color:var(--acc)">사용 중</span>' : `<button class="btn go" data-act="venueUse" data-arg="${i}">사용</button>`) : costBtn('venueBuy', i, v.cost, '구매<br>' + fmt(v.cost) + '원')}</div>`;
-    }).join('') + '<div class="note gray">무대는 배경을 바꾸는 꾸미기예요. 한 번 사면 계속 쓸 수 있어요.</div>';
+    }).join('') + '<div class="note gray">무대마다 수입 보너스(터치·알바 모두)와 효과가 달라요. 보너스는 지금 사용 중인 무대 것만 적용되고, 산 무대는 언제든 바꿔 쓸 수 있어요.</div>';
   }
   $('panel').innerHTML = h;
   refreshDyn();
