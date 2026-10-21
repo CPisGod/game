@@ -188,12 +188,12 @@ function fmt(n) {
   if (n >= 1e28) return n.toExponential(2).replace('e+', '×10^');
   for (const [v, u] of UNITS) if (n >= v) { const x = n / v; return (x >= 100 ? Math.floor(x) : x >= 10 ? x.toFixed(1) : x.toFixed(2)) + u; }
 }
-const fmtRate = r => r < 10 ? r.toFixed(1) : fmt(r);
+const fmtRate = r => r < 1 ? r.toFixed(2) : r < 10 ? r.toFixed(1) : fmt(r);
 const fmtSh = s => s < 1e4 ? (s >= 100 ? s.toFixed(1) : s >= 1 ? s.toFixed(3) : s.toFixed(6)) : fmt(s);
 
 // ---------- 게임 데이터 ----------
 // 묘기는 모두 같은 금액(TAP_PAY)을 줘요. need = 이 묘기를 해금하는 누적 수입 (고른 묘기 하나만 보여줌)
-const TAP_PAY = 1;
+const TAP_PAY = 3;
 const DANCES = [
   { id:'sway',   ic:'💃', nm:'덩실덩실 춤',       need:0,    dur:1100 },
   { id:'tree',   ic:'🌴', nm:'나무에서 춤추기',   need:1e2,  dur:1200 },
@@ -208,14 +208,14 @@ const DANCES = [
 ];
 // 알바(동물 친구들): cost = 기본 가격(고용할 때마다 15%씩 비싸짐), inc = 1마리당 초당 수입
 const CREW = [
-  { id:'parrot',   ic:'🦜', nm:'앵무새 호객꾼',    cost:15,    inc:.2 },
-  { id:'penguin',  ic:'🐧', nm:'펭귄 표 판매원',   cost:120,   inc:1.5 },
-  { id:'elephant', ic:'🐘', nm:'코끼리 짐꾼',      cost:1100,  inc:9 },
-  { id:'lion',     ic:'🦁', nm:'사자 조련 쇼',     cost:12e3,  inc:55 },
-  { id:'otter',    ic:'🦦', nm:'수달 저글러',      cost:13e4,  inc:340 },
-  { id:'bear',     ic:'🐻', nm:'곰 자전거 곡예',   cost:14e5,  inc:2100 },
-  { id:'giraffe',  ic:'🦒', nm:'기린 공중 곡예',   cost:2e7,   inc:14000 },
-  { id:'unicorn',  ic:'🦄', nm:'유니콘 마술사',    cost:33e7,  inc:1e5 },
+  { id:'parrot',   ic:'🦜', nm:'앵무새 호객꾼',    cost:15,    inc:.08 },
+  { id:'penguin',  ic:'🐧', nm:'펭귄 표 판매원',   cost:120,   inc:.6 },
+  { id:'elephant', ic:'🐘', nm:'코끼리 짐꾼',      cost:1100,  inc:3.6 },
+  { id:'lion',     ic:'🦁', nm:'사자 조련 쇼',     cost:12e3,  inc:22 },
+  { id:'otter',    ic:'🦦', nm:'수달 저글러',      cost:13e4,  inc:136 },
+  { id:'bear',     ic:'🐻', nm:'곰 자전거 곡예',   cost:14e5,  inc:840 },
+  { id:'giraffe',  ic:'🦒', nm:'기린 공중 곡예',   cost:2e7,   inc:5600 },
+  { id:'unicorn',  ic:'🦄', nm:'유니콘 마술사',    cost:33e7,  inc:4e4 },
 ];
 const VENUES = [
   { nm:'길거리 공연',   ic:'🏙️', cost:0 },
@@ -226,8 +226,8 @@ const VENUES = [
   { nm:'월드 투어',     ic:'🌍', cost:1e11 },
 ];
 const START_PRICE = 1000, TICK_MS = 3000, FEE = 0.005;   // 바나나 1주 가격 = 비트코인 원화 가격 그대로, 매수·매도 수수료 0.5%
-const tipMult = () => Math.pow(1.35, S.tipLv), wageMult = () => Math.pow(1.4, S.wageLv);
-const tipCost = L => Math.ceil(25 * Math.pow(2.2, L)), wageCost = L => Math.ceil(400 * Math.pow(3, L));
+const tipMult = () => Math.pow(1.5, S.tipLv), wageMult = () => Math.pow(1.3, S.wageLv);
+const tipCost = L => Math.ceil(25 * Math.pow(2, L)), wageCost = L => Math.ceil(400 * Math.pow(3, L));
 const crewCost = (w, n) => Math.ceil(w.cost * Math.pow(1.15, n));
 const crewRate = () => CREW.reduce((s, w) => s + (S.crew[w.id] || 0) * w.inc, 0) * wageMult();
 const unlocked = () => DANCES.filter(d => S.totalEarned >= d.need);
@@ -653,10 +653,10 @@ function buildPanel() {
       }).join('');
   } else if (tab === 'up') {
     h = `<div class="row"><span class="ic">🎟️</span><div class="tx"><b>공연료 인상 Lv.${S.tipLv}</b>
-        <small>묘기 수입 ×${tipMult().toFixed(2)} → ×${(tipMult() * 1.35).toFixed(2)}<br>터치할 때 받는 돈이 35% 늘어요</small></div>
+        <small>묘기 수입 ×${tipMult().toFixed(2)} → ×${(tipMult() * 1.5).toFixed(2)}<br>터치할 때 받는 돈이 50% 늘어요</small></div>
         ${costBtn('tip', '', tipCost(S.tipLv), '올리기<br>' + fmt(tipCost(S.tipLv)) + '원')}</div>
       <div class="row"><span class="ic">💼</span><div class="tx"><b>알바 월급 인상 Lv.${S.wageLv}</b>
-        <small>알바 수입 ×${wageMult().toFixed(2)} → ×${(wageMult() * 1.4).toFixed(2)}<br>모든 알바의 초당 수입이 40% 늘어요</small></div>
+        <small>알바 수입 ×${wageMult().toFixed(2)} → ×${(wageMult() * 1.3).toFixed(2)}<br>모든 알바의 초당 수입이 30% 늘어요</small></div>
         ${costBtn('wage', '', wageCost(S.wageLv), '올리기<br>' + fmt(wageCost(S.wageLv)) + '원')}</div>`;
   } else if (tab === 'stock') {
     h = `<div class="stock"><div class="top"><b>🍌 바나나 주식</b><span id="stLive" style="font-size:12px"></span></div>
