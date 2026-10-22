@@ -52,7 +52,7 @@
   .pet small { font-size:11px; font-weight:700; opacity:.7; }
   @keyframes hop { 0%,100% { transform:translateY(0); } 40% { transform:translateY(-8px); } }
 
-  .tabs5 { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px; }
+  .tabs5 { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:10px; }
   .tab { background:#fff; border:2px solid #d9c9a8; border-radius:12px; padding:7px 2px; text-align:center; cursor:pointer; font-family:inherit; color:var(--ink); }
   .tab.on { border-color:var(--acc); background:var(--acc-l); box-shadow:0 3px 0 var(--acc); }
   .tab .ic { font-size:20px; display:block; } .tab .nm { font-size:11px; font-weight:700; display:block; }
@@ -293,7 +293,7 @@ const netWorth = () => S.money + STOCKS.reduce((a, x) => a + S.stocks[x.id].shar
 
 // ---------- 상태 ----------
 let uid = 'local', db = null, fb = null, online = false;
-const newState = () => ({ nickname:'', money:0, totalEarned:0, taps:0, dances:{}, crew:{}, estate:{}, tipLv:0, wageLv:0,
+const newState = () => ({ nickname:'', money:0, totalEarned:0, taps:0, dances:{}, crew:{}, estate:{}, skins:['basic'], skin:'basic', tipLv:0, wageLv:0,
   stocks:newStocks(), venues:[0], venue:0, dance:'sway', savedAt:0 });
 let S = newState();
 let dirty = false, ready = false, stale = false, syncedAt = 0;   // syncedAt: 이 기기가 마지막으로 확인한 서버 기록의 savedAt
@@ -309,6 +309,23 @@ function earn(x) { S.money += x; S.totalEarned += x; dirty = true; }
 // ================= 원숭이 그리기 (뼈대 + IK, 부타와 같은 도트 느낌) =================
 const C = { base:'#9a6240', shade:'#7a4a2f', shadeD:'#4f2e1c', light:'#b98258', face:'#f5d6a8', face2:'#e6bd85', ink:'#2a2027', white:'#fff8e6',
   red:'#d9483b', redD:'#8d2a22', gold:'#f2c14e', cheek:'#ff9f8a' };
+// 스킨(의상 세트): vest = 조끼 색[밝은색, 어두운색], btn = 단추 색, hat/face/over = 머리 좌표계 SVG(모자·얼굴 장식·맨 앞 장식), cape = 망토[색, 테두리]
+const SKINS = [
+  { id:'basic', ic:'🎪', nm:'서커스단 기본복', cost:0, desc:'빨간 조끼와 빨간 모자', vest:[C.red, C.redD], btn:C.gold,
+    hat:`<rect x="-14" y="-37" width="28" height="15" rx="2" fill="${C.red}" stroke="${C.redD}" stroke-width="2"/><rect x="-14" y="-27" width="28" height="3" fill="${C.gold}"/><line x1="0" y1="-37" x2="-6" y2="-45" stroke="${C.gold}" stroke-width="3" stroke-linecap="round"/><circle cx="-6" cy="-46" r="3" fill="${C.gold}"/>` },
+  { id:'pirate', ic:'🏴‍☠️', nm:'해적 선장', cost:1e9, desc:'해적 모자, 안대, 갈색 조끼', vest:['#7a4a2b', '#4a2a15'], btn:'#e8c34a',
+    hat:`<path d="M-27 -21 Q-20 -40 0 -44 Q20 -40 27 -21 Q0 -29 -27 -21Z" fill="#22222c" stroke="${C.ink}" stroke-width="2" stroke-linejoin="round"/><circle cx="0" cy="-31" r="4.5" fill="#fff"/><rect x="-2" y="-28" width="4" height="3" fill="#fff"/><circle cx="-1.8" cy="-31.5" r="1.1" fill="#22222c"/><circle cx="1.8" cy="-31.5" r="1.1" fill="#22222c"/>`,
+    face:`<line x1="-23" y1="-14" x2="9" y2="-5" stroke="#22222c" stroke-width="2"/><ellipse cx="9" cy="-5" rx="7" ry="6" fill="#22222c" stroke="${C.ink}" stroke-width="1.5"/>` },
+  { id:'astro', ic:'🧑‍🚀', nm:'우주비행사', cost:1e10, desc:'하얀 우주복과 유리 헬멧', vest:['#f0f0f5', '#9aa0b4'], btn:'#e8504a',
+    hat:'', over:`<circle cx="0" cy="-2" r="37" fill="#bfe9ff" opacity=".3"/><circle cx="0" cy="-2" r="37" fill="none" stroke="#fff" stroke-width="4"/><path d="M-26 -22 A32 32 0 0 1 -6 -33" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".8"/><ellipse cx="0" cy="33" rx="30" ry="6" fill="#d8dce8" stroke="#9aa0b4" stroke-width="2.5"/><line x1="26" y1="-26" x2="34" y2="-44" stroke="#9aa0b4" stroke-width="3"/><circle cx="34" cy="-45" r="3.5" fill="#e8504a"/>` },
+  { id:'ninja', ic:'🥷', nm:'닌자', cost:1e11, desc:'검은 복면과 빨간 머리띠', vest:['#2f2f3d', '#15151d'], btn:'#e8504a',
+    hat:`<rect x="-24" y="-26" width="48" height="9" fill="#e8504a" stroke="#8d2a22" stroke-width="2"/><path d="M22 -22 L38 -30 L34 -20 L40 -12 L22 -18Z" fill="#e8504a" stroke="#8d2a22" stroke-width="2" stroke-linejoin="round"/><path d="M-7 -23 L-2 -29 L3 -23 L-2 -17Z" fill="#c0c4d0" stroke="${C.ink}" stroke-width="1.5"/>`,
+    face:`<rect x="-23" y="1" width="46" height="19" rx="8" fill="#2f2f3d" stroke="#15151d" stroke-width="2"/>` },
+  { id:'king', ic:'🤴', nm:'원숭이 왕', cost:1e12, desc:'황금 왕관과 보라색 망토', vest:['#8a3fc4', '#4a1f78'], btn:'#f2c14e', cape:['#8a3fc4', '#fff8e6'],
+    hat:`<polygon points="-17,-22 -18,-42 -8,-32 0,-46 8,-32 18,-42 17,-22" fill="${C.gold}" stroke="${C.ink}" stroke-width="2" stroke-linejoin="round"/><rect x="-17" y="-26" width="34" height="5" fill="#d99a1f" stroke="${C.ink}" stroke-width="1.5"/><circle cx="-8" cy="-23.5" r="2.2" fill="#e8504a"/><circle cx="0" cy="-23.5" r="2.2" fill="#3a9bdc"/><circle cx="8" cy="-23.5" r="2.2" fill="#e8504a"/>` },
+  { id:'hero', ic:'🦸', nm:'슈퍼 히어로', cost:1e13, desc:'파란 슈트, 빨간 망토, 눈가면', vest:['#3a5bd9', '#22358f'], btn:'#ffd23f', cape:['#e8504a', '#ffd23f'], star:true,
+    hat:'', face:`<path fill-rule="evenodd" d="M-22 -15 L22 -15 L22 2 L-22 2Z M-13.5 -11 H-4.5 V-1 H-13.5Z M4.5 -11 H13.5 V-1 H4.5Z" fill="#e8504a" stroke="#8d2a22" stroke-width="2"/>` },
+];
 const GY = 244, CX = 150;
 const LT = 30, LS = 28, UA = 26, FA = 24, TL = 48;
 const FOOT_Y = GY - 7, STAND_Y = FOOT_Y - 50;
@@ -519,7 +536,7 @@ function ring(back) {
 function drawMonkey(p, time, ph, id) {
   const lw = 11, T = 34, n = v => v.toFixed(1), pt = (x, y) => n(x) + ',' + n(y);
   const th = p.th, dir = [sin(th), -cos(th)], pr = [cos(th), sin(th)];
-  const hip = [p.hx, p.hy], s = [p.sx, p.sy];
+  const hip = [p.hx, p.hy], s = [p.sx, p.sy], sk = curSkin();
   const at = (c, w) => [c[0] + pr[0] * w, c[1] + pr[1] * w];
   let o = '';
   const poly = (pts, w, col, ol) => {
@@ -550,6 +567,13 @@ function drawMonkey(p, time, ph, id) {
   o += `<path d="M${pt(tb[0], tb[1])} Q${pt(tc[0], tc[1])} ${pt(tip[0], tip[1])}" fill="none" stroke="${C.shadeD}" stroke-width="9" stroke-linecap="round"/>`
      + `<path d="M${pt(tb[0], tb[1])} Q${pt(tc[0], tc[1])} ${pt(tip[0], tip[1])}" fill="none" stroke="${C.base}" stroke-width="5" stroke-linecap="round"/>`;
 
+  // 망토
+  if (sk.cape) {
+    const w = 6 * sin(time * 4) + p.tw * 4, tl = [s[0] - dir[0] * 4 - pr[0] * 18, s[1] - dir[1] * 4 - pr[1] * 18], tr = [s[0] - dir[0] * 4 + pr[0] * 18, s[1] - dir[1] * 4 + pr[1] * 18];
+    const bl = [hip[0] - dir[0] * 20 - pr[0] * (30 + w), hip[1] - dir[1] * 20 - pr[1] * (30 + w)], br = [hip[0] - dir[0] * 20 + pr[0] * (30 - w), hip[1] - dir[1] * 20 + pr[1] * (30 - w)];
+    o += `<polygon points="${pt(tl[0], tl[1])} ${pt(tr[0], tr[1])} ${pt(br[0], br[1])} ${pt(bl[0], bl[1])}" fill="${sk.cape[0]}" stroke="${C.ink}" stroke-width="2" stroke-linejoin="round"/>`
+       + `<line x1="${n(bl[0])}" y1="${n(bl[1])}" x2="${n(br[0])}" y2="${n(br[1])}" stroke="${sk.cape[1]}" stroke-width="5" stroke-linecap="round"/>`;
+  }
   // 다리 → 몸통
   leg(at(hip, -HW), p.fkx, p.fky, p.fax, p.fay, -1);
   leg(at(hip, HW), p.nkx, p.nky, p.nax, p.nay, 1);
@@ -559,8 +583,9 @@ function drawMonkey(p, time, ph, id) {
   o += `<ellipse transform="translate(${n(bm[0])} ${n(bm[1])}) rotate(${n(th * 180 / PI)})" rx="${n(T * .34)}" ry="${n(bl * .46 + T * .06)}" fill="${C.face2}"/>`;
   // 조끼: 가운데가 트인 빨간 조끼 두 쪽 + 금단추
   const v0 = [a[0] + (b[0] - a[0]) * .25, a[1] + (b[1] - a[1]) * .25];
-  for (const sd of [-1, 1]) seg(at(v0, sd * T * .3), at(b, sd * T * .32), T * .36, C.red, C.redD, 'round');
-  for (const f of [.45, .7]) o += CI(a[0] + (b[0] - a[0]) * f + pr[0] * T * .12, a[1] + (b[1] - a[1]) * f + pr[1] * T * .12, 2.4, C.gold);
+  for (const sd of [-1, 1]) seg(at(v0, sd * T * .3), at(b, sd * T * .32), T * .36, sk.vest[0], sk.vest[1], 'round');
+  for (const f of [.45, .7]) o += CI(a[0] + (b[0] - a[0]) * f + pr[0] * T * .12, a[1] + (b[1] - a[1]) * f + pr[1] * T * .12, 2.4, sk.btn);
+  if (sk.star) o += `<text x="${n(a[0] + (b[0] - a[0]) * .5 - pr[0] * T * .2)}" y="${n(a[1] + (b[1] - a[1]) * .5 - pr[1] * T * .2 + 5)}" font-size="14" text-anchor="middle" fill="#ffd23f" stroke="#8d6a00" stroke-width="1">★</text>`;
 
   // 머리 (정면)
   const hc = [s[0] + dir[0] * 25, s[1] + dir[1] * 25];
@@ -577,7 +602,7 @@ function drawMonkey(p, time, ph, id) {
   }
   hd += rc(-4, 5, 2.5, 3, C.ink) + rc(1.5, 5, 2.5, 3, C.ink);
   hd += p.mo > .5 ? `<path d="M-7 11 Q0 22 7 11Z" fill="#7a2e2e" stroke="${C.ink}" stroke-width="1.5" stroke-linejoin="round"/>` : `<path d="M-6 12 Q0 16 6 12" fill="none" stroke="${C.ink}" stroke-width="2" stroke-linecap="round"/>`;
-  hd += rc(-14, -37, 28, 15, C.red, C.redD, 2) + rc(-14, -27, 28, 3, C.gold) + `<line x1="0" y1="-37" x2="-6" y2="-45" stroke="${C.gold}" stroke-width="3" stroke-linecap="round"/>${CI(-6, -46, 3, C.gold)}`;
+  hd += (sk.face || '') + sk.hat + (sk.over || '');
   hd += '</g>';
   o += hd;
 
@@ -739,6 +764,7 @@ function setVenue(i) {
 
 // ================= 애니메이션 루프 =================
 const anim = { id:null, start:0, dur:1000, cur:null, drawn:0, last:performance.now(), queue:0 };
+const curSkin = () => SKINS.find(x => x.id === S.skin && S.skins.includes(x.id)) || SKINS[0];
 const curDance = () => DANCES.find(x => x.id === S.dance && S.totalEarned >= x.need) || DANCES[0];
 function startDance() {
   const d = curDance();
@@ -835,7 +861,7 @@ function renderCrew() {
 }
 
 // ---------- 탭 ----------
-const TABS = [['dance', '🎭', '묘기'], ['crew', '🐾', '알바'], ['up', '⬆️', '강화'], ['stock', '📈', '주식'], ['venue', '🏟️', '무대'], ['estate', '🌴', '부동산']];
+const TABS = [['dance', '🎭', '묘기'], ['crew', '🐾', '알바'], ['up', '⬆️', '강화'], ['stock', '📈', '주식'], ['venue', '🏟️', '무대'], ['estate', '🌴', '부동산'], ['skin', '👕', '스킨']];
 function buildTabs() {
   $('tabs').innerHTML = TABS.map(([id, ic, nm]) => `<button class="tab" data-tab="${id}"><span class="ic">${ic}</span><span class="nm">${nm}</span></button>`).join('');
 }
@@ -904,6 +930,13 @@ function buildPanel() {
         <button class="btn sell" data-act="sell" data-arg=".25">매도 25%</button><button class="btn sell" data-act="sell" data-arg=".5">매도 50%</button><button class="btn sell" data-act="sell" data-arg="1">매도 전부</button>
       </div></div>
       <div class="note gray">${x.nm} 1주 가격은 ${note} 매수·매도할 때마다 수수료 ${(FEE * 100).toFixed(1)}%가 붙어요.</div>`;
+  } else if (tab === 'skin') {
+    h = `<div class="note gray" style="margin:0 0 8px">원숭이에게 재미있는 의상 세트를 입혀요. 의상은 꾸미기 전용이라 수입은 그대로예요. 산 의상은 언제든 바꿔 입을 수 있어요.</div>`
+      + SKINS.map(k => {
+        const own = S.skins.includes(k.id), on = curSkin().id === k.id;
+        return `<div class="row ${on ? 'on' : ''}"><span class="ic">${k.ic}</span><div class="tx"><b>${k.nm}</b><small>${k.desc}<br>${own ? (on ? '입고 있어요' : '보유 중') : fmt(k.cost) + '원'}</small></div>
+          ${own ? (on ? '<span style="font-weight:700;color:var(--acc)">착용 중</span>' : `<button class="btn go" data-act="skinUse" data-arg="${k.id}">입기</button>`) : costBtn('skinBuy', k.id, k.cost, '구매<br>' + fmt(k.cost) + '원')}</div>`;
+      }).join('');
   } else if (tab === 'estate') {
     const tot = estateRate();
     h = `<div class="note gray" style="margin:0 0 8px">🌴 아마존에 부동산을 세워요. 종류마다 최대 ${MAX_ESTATE}채까지 지을 수 있고, 지을수록 같은 종류의 다음 채 가격이 첫 채 가격의 ${ESTATE_STEP * 100}%씩 (단리) 올라가요. 지은 건물은 초당 수입을 가져다줘요.<br>지금 부동산 수입: <b>+${fmtRate(tot)}원/초</b></div>`
@@ -944,6 +977,8 @@ $('panel').addEventListener('click', e => {
     case 'sell': trade(false, +arg); return;
     case 'venueBuy': { const v = VENUES[+arg]; if (S.money < v.cost) return; S.money -= v.cost; S.venues.push(+arg); setVenue(+arg); toast('🎉 ' + v.nm + ' 무대를 샀어요!'); break; }
     case 'venueUse': setVenue(+arg); break;
+    case 'skinUse': if (S.skins.includes(arg)) S.skin = arg; break;
+    case 'skinBuy': { const k = SKINS.find(x => x.id === arg); if (!k || S.skins.includes(arg) || S.money < k.cost) return; S.money -= k.cost; S.skins.push(arg); S.skin = arg; toast('🎉 ' + k.nm + ' 의상을 샀어요!'); break; }
     case 'estBuy': { const e = ESTATES.find(x => x.id === arg), n = S.estate[arg] || 0; if (!e || n >= MAX_ESTATE) return; const c = estateCost(e, n);
       if (S.money < c) return; S.money -= c; S.estate[arg] = n + 1; toast('🎉 ' + e.nm + ' ' + (n + 1) + '번째 채를 지었어요!'); break; }
   }
@@ -1109,7 +1144,7 @@ async function save() {
       const snap = await tx.get(ref), sv = snap.exists() ? snap.data() : null;
       if (sv && num(sv.savedAt) !== syncedAt && num(sv.totalEarned) > S.totalEarned) return 'stale';
       tx.set(ref, {
-        nickname:S.nickname, money:S.money, totalEarned:S.totalEarned, netWorth:netWorth(), taps:S.taps, dances:S.dances, crew:S.crew, estate:S.estate,
+        nickname:S.nickname, money:S.money, totalEarned:S.totalEarned, netWorth:netWorth(), taps:S.taps, dances:S.dances, crew:S.crew, estate:S.estate, skins:S.skins, skin:S.skin,
         tipLv:S.tipLv, wageLv:S.wageLv, stocks:S.stocks,
         venues:S.venues, venue:S.venue, dance:S.dance, savedAt:S.savedAt, updatedAt:fb.serverTimestamp()
       });
@@ -1235,6 +1270,8 @@ const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
       })),
       venues:Array.isArray(loaded.venues) && loaded.venues.length ? loaded.venues : [0],
       venue:num(loaded.venue), dance:loaded.dance || 'sway', savedAt:num(loaded.savedAt) };
+    S.skins = ['basic', ...(Array.isArray(loaded.skins) ? loaded.skins.filter(k => k !== 'basic' && SKINS.some(x => x.id === k)) : [])];
+    S.skin = S.skins.includes(loaded.skin) ? loaded.skin : 'basic';
     if (!S.venues.includes(S.venue)) S.venue = 0;
   }
   if (newId) { S.nickname = newId; dirty = true; }
