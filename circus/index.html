@@ -288,7 +288,8 @@ const FEE = 0.005;   // 매수·매도 수수료 0.5%
 const tipMult = () => Math.pow(1.5, S.tipLv), wageMult = () => Math.pow(1.3, S.wageLv);
 const tipCost = L => Math.ceil(25 * Math.pow(2, L)), wageCost = L => Math.ceil(400 * Math.pow(3, L));
 const crewCost = (w, n) => Math.ceil(w.cost * Math.pow(1.15, n));
-const crewRate = () => (CREW.reduce((s, w) => s + (S.crew[w.id] || 0) * w.inc, 0) * wageMult() * venueMult() + estateRate()) * S.run;
+const runMult = (n = S.run) => Math.pow(2, n) - 1;   // 회차 수입 배수: 1회차 ×1, 2회차 ×3, 3회차 ×7 ...
+const crewRate = () => (CREW.reduce((s, w) => s + (S.crew[w.id] || 0) * w.inc, 0) * wageMult() * venueMult() + estateRate()) * runMult();
 const lifeEarned = () => S.history.reduce((a, h) => a + h.earned, 0) + S.totalEarned;   // 모든 회차를 합친 누적 수입
 const REBIRTH_MONEY = 1e21;   // 환생하려면 이번 회차 누적 수입이 10해 이상이어야 함
 const rebirthReq = () => [
@@ -809,7 +810,7 @@ function loop(now) {
 function showMsg(t) { $('msg').textContent = t; clearTimeout(showMsg.t); showMsg.t = setTimeout(() => $('msg').textContent = '', 900); }
 function tap(cx, cy) {
   if (!ready || !S.nickname) return;
-  const pay = TAP_PAY * tipMult() * venueMult() * S.run;
+  const pay = TAP_PAY * tipMult() * venueMult() * runMult();
   earn(pay);
   const d = curDance();
   S.taps++; S.dances[d.id] = (S.dances[d.id] || 0) + 1;
@@ -907,7 +908,7 @@ function buildPanel() {
   if (!tab) return;
   let h = '';
   if (tab === 'dance') {
-    h = `<div class="note gray" style="margin:0 0 8px">보여줄 묘기를 하나 골라요. 어떤 묘기든 터치당 +${fmt(TAP_PAY * tipMult() * venueMult() * S.run)}원으로 똑같아요. 누적 수입이 쌓이면 새 묘기가 열려요.</div>` + DANCES.map(d => {
+    h = `<div class="note gray" style="margin:0 0 8px">보여줄 묘기를 하나 골라요. 어떤 묘기든 터치당 +${fmt(TAP_PAY * tipMult() * venueMult() * runMult())}원으로 똑같아요. 누적 수입이 쌓이면 새 묘기가 열려요.</div>` + DANCES.map(d => {
       const ok = S.totalEarned >= d.need, on = S.dance === d.id;
       return `<div class="row ${ok ? '' : 'lock'} ${on ? 'on' : ''}"><span class="ic">${ok ? d.ic : '🔒'}</span><div class="tx"><b>${ok ? d.nm : '???'}</b>
         <small>${ok ? '공연 ' + (S.dances[d.id] || 0).toLocaleString() + '회' : '누적 수입 ' + fmt(d.need) + '원이면 해금'}</small></div>
@@ -944,12 +945,12 @@ function buildPanel() {
       <div class="note gray">${x.nm} 1주 가격은 ${note} 매수·매도할 때마다 수수료 ${(FEE * 100).toFixed(1)}%가 붙어요.</div>`;
   } else if (tab === 'rebirth') {
     const req = rebirthReq(), ok = canRebirth(), nx = S.run + 1;
-    h = `<div class="note gray" style="margin:0 0 8px">알바·무대·스킨·묘기·부동산을 모두 모으고 이번 회차 누적 수입이 10해 이상이면 다시 태어날 수 있어요. 돈과 모은 것이 전부 처음으로 돌아가고, 이번 회차의 누적 수입은 기록으로 남아요. 대신 다음 회차부터는 모든 수입(터치·알바·부동산)이 회차 수만큼 곱해져요.</div>
-      <div class="row on"><span class="ic">🔁</span><div class="tx"><b>지금 ${S.run}회차 (수입 ×${S.run})</b><small>이번 회차 누적 ${fmt(S.totalEarned)}원 · 전체 누적 ${fmt(lifeEarned())}원</small></div></div>`
+    h = `<div class="note gray" style="margin:0 0 8px">알바·무대·스킨·묘기·부동산을 모두 모으고 이번 회차 누적 수입이 10해 이상이면 다시 태어날 수 있어요. 돈과 모은 것이 전부 처음으로 돌아가고, 이번 회차의 누적 수입은 기록으로 남아요. 대신 다음 회차부터는 모든 수입(터치·알바·부동산)이 2^회차 − 1배(2회차 ×3, 3회차 ×7, 4회차 ×15…)로 곱해져요.</div>
+      <div class="row on"><span class="ic">🔁</span><div class="tx"><b>지금 ${S.run}회차 (수입 ×${fmt(runMult())})</b><small>이번 회차 누적 ${fmt(S.totalEarned)}원 · 전체 누적 ${fmt(lifeEarned())}원</small></div></div>`
       + req.map(([nm, a, b, f]) => `<div class="row ${a >= b ? 'on' : ''}"><span class="ic">${a >= b ? '✅' : '⬜'}</span><div class="tx"><b>${nm}</b><small>${f ? f(a) : a} / ${f ? f(b) : b}</small>${f ? `<div style="height:8px;margin-top:5px;border-radius:4px;background:rgba(0,0,0,.15);overflow:hidden"><div style="height:100%;width:${Math.min(100, a / b * 100)}%;background:var(--acc)"></div></div><small>진행도 ${(Math.min(100, a / b * 100)).toFixed(a >= b ? 0 : 2)}%</small>` : ''}</div></div>`).join('')
-      + `<button class="btn go" style="width:100%;margin:4px 0 12px;padding:12px" data-act="rebirth" ${ok ? '' : 'disabled'}>${ok ? '🔁 ' + nx + '회차로 다시 태어나기 (수입 ×' + nx + ')' : '아직 다 모으지 못했어요'}</button>
+      + `<button class="btn go" style="width:100%;margin:4px 0 12px;padding:12px" data-act="rebirth" ${ok ? '' : 'disabled'}>${ok ? '🔁 ' + nx + '회차로 다시 태어나기 (수입 ×' + fmt(runMult(nx)) + ')' : '아직 다 모으지 못했어요'}</button>
       <b>📜 지난 회차 기록</b>`
-      + (S.history.length ? S.history.slice().reverse().map(x => `<div class="row"><span class="ic">🏅</span><div class="tx"><b>${x.run}회차 · ${fmt(x.earned)}원</b><small>${x.at ? new Date(x.at).toLocaleDateString('ko-KR') + ' 졸업 · ' : ''}수입 ×${x.run}</small></div></div>`).join('') : '<div class="note gray">아직 끝낸 회차가 없어요.</div>');
+      + (S.history.length ? S.history.slice().reverse().map(x => `<div class="row"><span class="ic">🏅</span><div class="tx"><b>${x.run}회차 · ${fmt(x.earned)}원</b><small>${x.at ? new Date(x.at).toLocaleDateString('ko-KR') + ' 졸업 · ' : ''}수입 ×${fmt(runMult(x.run))}</small></div></div>`).join('') : '<div class="note gray">아직 끝낸 회차가 없어요.</div>');
   } else if (tab === 'skin') {
     h = `<div class="note gray" style="margin:0 0 8px">원숭이에게 재미있는 의상 세트를 입혀요. 의상은 꾸미기 전용이라 수입은 그대로예요. 산 의상은 언제든 바꿔 입을 수 있어요.</div>`
       + SKINS.map(k => {
@@ -998,12 +999,12 @@ $('panel').addEventListener('click', e => {
     case 'venueBuy': { const v = VENUES[+arg]; if (S.money < v.cost) return; S.money -= v.cost; S.venues.push(+arg); setVenue(+arg); toast('🎉 ' + v.nm + ' 무대를 샀어요!'); break; }
     case 'venueUse': setVenue(+arg); break;
     case 'rebirth': {
-      if (!canRebirth() || !confirm((S.run + 1) + '회차로 다시 태어날까요?\n돈·알바·무대·스킨·묘기·부동산·강화·주식이 모두 처음으로 돌아가요.\n이번 회차 기록은 남고, 수입이 ×' + (S.run + 1) + '이 돼요.')) return;
+      if (!canRebirth() || !confirm((S.run + 1) + '회차로 다시 태어날까요?\n돈·알바·무대·스킨·묘기·부동산·강화·주식이 모두 처음으로 돌아가요.\n이번 회차 기록은 남고, 수입이 ×' + fmt(runMult(S.run + 1)) + '이 돼요.')) return;
       closePanel(); rebirthFx(S.run);   // 환생 전 모습을 찍어 두고 우주로 날려 보냄
       S.history.push({ run:S.run, earned:S.totalEarned, at:Date.now() });
       const st = newStocks(); for (const x of STOCKS) st[x.id].price = S.stocks[x.id].price;
       Object.assign(S, { run:S.run + 1, money:0, totalEarned:0, taps:0, dances:{}, crew:{}, estate:{}, tipLv:0, wageLv:0, stocks:st, venues:[0], skins:['basic'], skin:'basic', dance:'sway' });
-      knownUnlocked = 1; setVenue(0); renderCrew(); startDance(); toast('🔁 ' + S.run + '회차 시작! 모든 수입이 ×' + S.run + '배예요'); break; }
+      knownUnlocked = 1; setVenue(0); renderCrew(); startDance(); toast('🔁 ' + S.run + '회차 시작! 모든 수입이 ×' + fmt(runMult()) + '배예요'); break; }
     case 'skinUse': if (S.skins.includes(arg)) S.skin = arg; break;
     case 'skinBuy': { const k = SKINS.find(x => x.id === arg); if (!k || S.skins.includes(arg) || S.money < k.cost) return; S.money -= k.cost; S.skins.push(arg); S.skin = arg; toast('🎉 ' + k.nm + ' 의상을 샀어요!'); break; }
     case 'estBuy': { const e = ESTATES.find(x => x.id === arg), n = S.estate[arg] || 0; if (!e || n >= MAX_ESTATE) return; const c = estateCost(e, n);
