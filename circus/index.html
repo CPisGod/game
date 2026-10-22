@@ -290,12 +290,14 @@ const tipCost = L => Math.ceil(25 * Math.pow(2, L)), wageCost = L => Math.ceil(4
 const crewCost = (w, n) => Math.ceil(w.cost * Math.pow(1.15, n));
 const crewRate = () => (CREW.reduce((s, w) => s + (S.crew[w.id] || 0) * w.inc, 0) * wageMult() * venueMult() + estateRate()) * S.run;
 const lifeEarned = () => S.history.reduce((a, h) => a + h.earned, 0) + S.totalEarned;   // 모든 회차를 합친 누적 수입
+const REBIRTH_MONEY = 1e24;   // 환생하려면 지금 가지고 있는 돈이 1자원(10000해) 이상이어야 함
 const rebirthReq = () => [
   ['🐾 알바 전원 ' + MAX_CREW + '마리', CREW.filter(w => (S.crew[w.id] || 0) >= MAX_CREW).length, CREW.length],
   ['🏟️ 무대', S.venues.length, VENUES.length],
   ['👕 스킨', S.skins.length, SKINS.length],
   ['🎭 묘기', unlocked().length, DANCES.length],
   ['🌴 부동산(종류별 ' + MAX_ESTATE + '채)', ESTATES.filter(e => (S.estate[e.id] || 0) >= MAX_ESTATE).length, ESTATES.length],
+  ['💰 보유 금액 ' + fmt(REBIRTH_MONEY) + '원', Math.min(S.money, REBIRTH_MONEY), REBIRTH_MONEY, fmt],
 ];
 const canRebirth = () => rebirthReq().every(([, a, b]) => a >= b);
 const unlocked = () => DANCES.filter(d => S.totalEarned >= d.need);
@@ -942,9 +944,9 @@ function buildPanel() {
       <div class="note gray">${x.nm} 1주 가격은 ${note} 매수·매도할 때마다 수수료 ${(FEE * 100).toFixed(1)}%가 붙어요.</div>`;
   } else if (tab === 'rebirth') {
     const req = rebirthReq(), ok = canRebirth(), nx = S.run + 1;
-    h = `<div class="note gray" style="margin:0 0 8px">알바·무대·스킨·묘기·부동산을 모두 모으면 다시 태어날 수 있어요. 돈과 모은 것이 전부 처음으로 돌아가고, 이번 회차의 누적 수입은 기록으로 남아요. 대신 다음 회차부터는 모든 수입(터치·알바·부동산)이 회차 수만큼 곱해져요.</div>
+    h = `<div class="note gray" style="margin:0 0 8px">알바·무대·스킨·묘기·부동산을 모두 모으고 돈도 1자원 이상 들고 있으면 다시 태어날 수 있어요. 돈과 모은 것이 전부 처음으로 돌아가고, 이번 회차의 누적 수입은 기록으로 남아요. 대신 다음 회차부터는 모든 수입(터치·알바·부동산)이 회차 수만큼 곱해져요.</div>
       <div class="row on"><span class="ic">🔁</span><div class="tx"><b>지금 ${S.run}회차 (수입 ×${S.run})</b><small>이번 회차 누적 ${fmt(S.totalEarned)}원 · 전체 누적 ${fmt(lifeEarned())}원</small></div></div>`
-      + req.map(([nm, a, b]) => `<div class="row ${a >= b ? 'on' : ''}"><span class="ic">${a >= b ? '✅' : '⬜'}</span><div class="tx"><b>${nm}</b><small>${a} / ${b}</small></div></div>`).join('')
+      + req.map(([nm, a, b, f]) => `<div class="row ${a >= b ? 'on' : ''}"><span class="ic">${a >= b ? '✅' : '⬜'}</span><div class="tx"><b>${nm}</b><small>${f ? f(a) : a} / ${f ? f(b) : b}</small></div></div>`).join('')
       + `<button class="btn go" style="width:100%;margin:4px 0 12px;padding:12px" data-act="rebirth" ${ok ? '' : 'disabled'}>${ok ? '🔁 ' + nx + '회차로 다시 태어나기 (수입 ×' + nx + ')' : '아직 다 모으지 못했어요'}</button>
       <b>📜 지난 회차 기록</b>`
       + (S.history.length ? S.history.slice().reverse().map(x => `<div class="row"><span class="ic">🏅</span><div class="tx"><b>${x.run}회차 · ${fmt(x.earned)}원</b><small>${x.at ? new Date(x.at).toLocaleDateString('ko-KR') + ' 졸업 · ' : ''}수입 ×${x.run}</small></div></div>`).join('') : '<div class="note gray">아직 끝낸 회차가 없어요.</div>');
