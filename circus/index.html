@@ -13,7 +13,7 @@
 <style>
   :root { --bg:#fff4e0; --ink:#3b2a1a; --pink:#ff9eb5; --pink-d:#e0577d; --green:#3fbf6f; --blue:#3a9bdc; --yellow:#ffc933; --acc:#d9822b; --acc-l:#ffe6c7; --red:#e8504a; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin:0; min-height:100%; }
+  html, body { margin:0; min-height:100%; overscroll-behavior:none; }
   body { background: linear-gradient(#ffe9c2, #fff4e0 40%, #d9f2d0); color: var(--ink);
     font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
   .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
@@ -21,7 +21,7 @@
     text-decoration: none; border: 1px solid #fff6; }
   .home-btn:active { transform: translateY(2px); }
 
-  #app { max-width: 520px; margin: 0 auto; padding: 12px 14px 70px; }
+  #app { max-width: 520px; margin: 0 auto; padding: 12px 14px 46px; }
   header { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
   header h1 { margin:0; font-size:18px; white-space:nowrap; }
   header > div { display:flex; gap:6px; }
