@@ -1,0 +1,7 @@
+{
+  "appId": "com.cpisgod.circus",
+  "appName": "원숭이 서커스",
+  "webDir": "www",
+  "backgroundColor": "#fff4e0",
+  "android": { "allowMixedContent": false }
+}

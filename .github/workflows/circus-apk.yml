@@ -1,0 +1,42 @@
+name: circus-apk
+
+# 원숭이 서커스를 안드로이드 네이티브 앱(APK)으로 빌드한다. (Capacitor)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'circus/**'
+      - 'circus-app/**'
+      - '.github/workflows/circus-apk.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: circus-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: 의존성 설치
+        run: npm install
+      - name: 웹 파일 복사
+        run: mkdir -p www && cp -r ../circus/. www/ && rm -f www/sw.js
+      - name: 안드로이드 프로젝트 생성
+        run: |
+          npx cap add android
+          npx capacitor-assets generate --android
+          npx cap sync android
+      - name: APK 빌드
+        working-directory: circus-app/android
+        run: ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: circus-debug-apk
+          path: circus-app/android/app/build/outputs/apk/debug/app-debug.apk

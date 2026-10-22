@@ -1,0 +1,14 @@
+{
+  "name": "monkey-circus",
+  "version": "1.0.0",
+  "private": true,
+  "description": "원숭이 서커스 안드로이드 앱 (Capacitor)",
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5"
+  }
+}
