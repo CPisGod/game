@@ -1178,13 +1178,15 @@ setInterval(() => {
 }, 100);
 
 // ================= 저장 =================
+let saving = false;   // 서버 저장은 한 번에 하나만 (겹치면 내 저장끼리 충돌해서 '다른 기기' 오탐이 생김)
 async function save() {
   if (!ready) return;
   S.savedAt = Date.now();
   saveLocal();
   if (!online || !dirty) return;
-  if (stale) return;
-  dirty = false;
+  if (stale || saving) return;   // saving 중이면 dirty가 남아 있어 다음 저장(5초마다)에서 올라감
+  saving = true; dirty = false;
+  const ts = S.savedAt;
   try {
     // 다른 기기가 더 진행된 기록을 올려뒀다면 덮어쓰지 않는다 (오래된 기기가 기록을 날리는 것 방지)
     const ref = fb.doc(db, 'circus', uid);
@@ -1194,7 +1196,7 @@ async function save() {
       tx.set(ref, {
         nickname:S.nickname, money:S.money, totalEarned:lifeEarned(), runEarned:S.totalEarned, run:S.run, history:S.history, netWorth:netWorth(), taps:S.taps, dances:S.dances, crew:S.crew, estate:S.estate, skins:S.skins, skin:S.skin,
         tipLv:S.tipLv, wageLv:S.wageLv, stocks:S.stocks,
-        venues:S.venues, venue:S.venue, dance:S.dance, savedAt:S.savedAt, updatedAt:fb.serverTimestamp()
+        venues:S.venues, venue:S.venue, dance:S.dance, savedAt:ts, updatedAt:fb.serverTimestamp()
       });
       return 'ok';
     });
@@ -1202,8 +1204,9 @@ async function save() {
       stale = true;
       alert('다른 기기에서 더 진행된 기록이 있어요. 최신 기록을 불러올게요.');
       location.reload();
-    } else syncedAt = S.savedAt;
+    } else syncedAt = ts;
   } catch (e) { console.warn('저장 실패', e); dirty = true; }
+  finally { saving = false; }
 }
 setInterval(save, 5000);
 addEventListener('pagehide', save);
