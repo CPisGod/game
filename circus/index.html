@@ -104,7 +104,7 @@
 </style>
 </head>
 <body>
-<a class="home-btn" href="../">🏠 메인 메뉴</a>
+<a class="home-btn" id="homeBtn" href="../">🏠 메인 메뉴</a>
 
 <div id="app">
   <header>
@@ -1086,6 +1086,7 @@ const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
   for (const x of STOCKS) { tickStock(x.id); setInterval(() => tickStock(x.id), x.ivl); }
 })();
 </script>
-<script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
+<script>if (window.Capacitor) document.getElementById('homeBtn').style.display = 'none'; // 앱에서는 메인 메뉴 페이지가 없음
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
 </body>
 </html>
