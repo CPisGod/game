@@ -2,7 +2,13 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#d9822b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="원숭이 서커스">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>원숭이 서커스</title>
 <style>
   :root { --bg:#fff4e0; --ink:#3b2a1a; --pink:#ff9eb5; --pink-d:#e0577d; --green:#3fbf6f; --blue:#3a9bdc; --yellow:#ffc933; --acc:#d9822b; --acc-l:#ffe6c7; --red:#e8504a; }
@@ -1080,5 +1086,6 @@ const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
   for (const x of STOCKS) { tickStock(x.id); setInterval(() => tickStock(x.id), x.ivl); }
 })();
 </script>
+<script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
 </body>
 </html>
