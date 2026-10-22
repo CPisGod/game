@@ -18,7 +18,26 @@ service cloud.firestore {
     // 원숭이 서커스
     match /circus/{uid} {
       allow read: if true;
-      allow create, update: if request.auth != null && request.auth.uid == uid
+      // 누적 수입은 줄어들 수 없다 (예전 코드가 남은 기기가 오래된 기록으로 덮어쓰는 것 방지, 부동소수점 오차 1% 허용)
+      allow update: if resource.data.totalEarned is number
+        && request.resource.data.totalEarned >= resource.data.totalEarned * 0.99
+        && request.auth != null && request.auth.uid == uid
+        && request.resource.data.nickname is string
+        && request.resource.data.nickname.size() > 0
+        && request.resource.data.nickname.size() <= 10
+        && request.resource.data.totalEarned is number
+        && request.resource.data.netWorth is number
+        && request.resource.data.netWorth >= 0;
+      allow update: if !(resource.data.totalEarned is number)
+        && request.auth != null && request.auth.uid == uid
+        && request.resource.data.nickname is string
+        && request.resource.data.nickname.size() > 0
+        && request.resource.data.nickname.size() <= 10
+        && request.resource.data.totalEarned is number
+        && request.resource.data.totalEarned >= 0
+        && request.resource.data.netWorth is number
+        && request.resource.data.netWorth >= 0;
+      allow create: if request.auth != null && request.auth.uid == uid
         && request.resource.data.nickname is string
         && request.resource.data.nickname.size() > 0
         && request.resource.data.nickname.size() <= 10
