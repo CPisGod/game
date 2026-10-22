@@ -1155,7 +1155,7 @@ async function save() {
     const ref = fb.doc(db, 'circus', uid);
     const res = await fb.runTransaction(db, async tx => {
       const snap = await tx.get(ref), sv = snap.exists() ? snap.data() : null;
-      if (sv && num(sv.savedAt) !== syncedAt && num(sv.totalEarned) > lifeEarned()) return 'stale';
+      if (sv && num(sv.savedAt) !== syncedAt) return 'stale';
       tx.set(ref, {
         nickname:S.nickname, money:S.money, totalEarned:lifeEarned(), runEarned:S.totalEarned, run:S.run, history:S.history, netWorth:netWorth(), taps:S.taps, dances:S.dances, crew:S.crew, estate:S.estate, skins:S.skins, skin:S.skin,
         tipLv:S.tipLv, wageLv:S.wageLv, stocks:S.stocks,
