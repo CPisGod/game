@@ -103,7 +103,7 @@
   @keyframes plop { 0% { transform:translateY(-26px) scale(1.5); opacity:0; } 100% { transform:none; opacity:1; } }
   .bn { fill:var(--bone,#f1c6bd); stroke:#8a5a40; stroke-width:1.2; }
   .meat { fill:var(--meat,#d9606a); }
-  .pt { fill:var(--pot,#efe6c6); stroke:var(--potS,#b8a76a); stroke-width:1.2; }
+  .sr { fill:none; stroke:var(--sir,#6f9a38); stroke-width:4.5; stroke-linecap:round; stroke-linejoin:round; }
   .bubbles circle { transform-box:fill-box; transform-origin:center; animation:bub .7s infinite; }
   .bubbles circle:nth-child(2n) { animation-delay:-.25s; } .bubbles circle:nth-child(3n) { animation-delay:-.5s; }
   @keyframes bub { 0% { transform:scale(.2); opacity:.9; } 70% { transform:scale(1.3); opacity:.8; } 100% { transform:scale(1.6); opacity:0; } }
@@ -197,24 +197,25 @@
       <path d="M26 37L38 29M30 40L42 32" stroke="#f5b0b0" stroke-width="2" stroke-linecap="round"/>
       <circle cx="49" cy="18" r="2" fill="#fff" opacity=".7"/><circle cx="14" cy="38" r="2" fill="#fff" opacity=".7"/>
     </symbol>
-    <symbol id="i-potato" viewBox="0 0 64 64">
-      <g stroke="#7b5320" stroke-width="2.4" stroke-linejoin="round">
-        <ellipse cx="25" cy="40" rx="21" ry="17" fill="#d6a24f" transform="rotate(-12 25 40)"/>
-        <path d="M38 14C46 8 60 12 58 24C57 32 46 36 40 30C34 25 33 18 38 14Z" fill="#f8e8a8"/>
-      </g>
-      <g fill="#a8741f"><ellipse cx="17" cy="38" rx="2.4" ry="1.6"/><ellipse cx="29" cy="46" rx="2.4" ry="1.6"/><ellipse cx="31" cy="35" rx="2" ry="1.4"/><ellipse cx="13" cy="46" rx="1.8" ry="1.2"/></g>
-      <path d="M12 33C16 27 22 26 27 27" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none" opacity=".5"/>
-      <circle cx="46" cy="21" r="2" fill="#e8c860"/><circle cx="52" cy="25" r="1.6" fill="#e8c860"/>
+    <symbol id="i-sauce" viewBox="0 0 64 64">
+      <path d="M6 36H58C58 52 46 60 32 60C20 60 6 52 6 36Z" fill="#c9885a" stroke="#6b3a1a" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="M10 37C13 17 51 17 54 37Z" fill="#d6321a" stroke="#7a1a0c" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="M18 30C24 22 36 21 44 27" stroke="#ff8a6a" stroke-width="3" stroke-linecap="round" fill="none" opacity=".8"/>
+      <g fill="#8a1a0a"><circle cx="26" cy="33" r="1.5"/><circle cx="38" cy="31" r="1.5"/><circle cx="46" cy="35" r="1.3"/><circle cx="19" cy="35" r="1.3"/></g>
+      <path d="M18 46C26 54 40 54 48 46" stroke="#f8e2b8" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+      <path d="M44 14L56 4" stroke="#a0693f" stroke-width="4" stroke-linecap="round"/><ellipse cx="42" cy="16" rx="6" ry="4" fill="#d6321a" stroke="#7a1a0c" stroke-width="1.8" transform="rotate(-35 42 16)"/>
     </symbol>
-    <symbol id="i-perilla" viewBox="0 0 64 64">
-      <g stroke="#1f6a2a" stroke-width="2.2" stroke-linejoin="round">
-        <path d="M30 6C48 9 58 26 52 42C47 53 38 55 30 57C22 55 12 53 8 42C3 26 12 9 30 6Z" fill="#2f8a3a" transform="rotate(-22 32 34)"/>
-        <path d="M34 8C52 12 61 30 55 45C50 55 41 57 33 59C25 57 15 55 11 45C6 30 15 12 34 8Z" fill="#46b24f" transform="translate(2 1) rotate(14 34 34)"/>
+    <symbol id="i-siraegi" viewBox="0 0 64 64">
+      <g fill="none" stroke-linecap="round">
+        <path d="M16 58C10 44 22 36 16 22C14 16 18 10 22 8" stroke="#2f3a14" stroke-width="12"/>
+        <path d="M30 58C24 44 36 34 30 20C28 14 32 8 36 6" stroke="#2f3a14" stroke-width="12"/>
+        <path d="M46 58C40 46 52 36 46 24C44 18 48 12 52 10" stroke="#2f3a14" stroke-width="12"/>
+        <path d="M16 58C10 44 22 36 16 22C14 16 18 10 22 8" stroke="#7f9a3a" stroke-width="8"/>
+        <path d="M30 58C24 44 36 34 30 20C28 14 32 8 36 6" stroke="#6a8a30" stroke-width="8"/>
+        <path d="M46 58C40 46 52 36 46 24C44 18 48 12 52 10" stroke="#8aa844" stroke-width="8"/>
+        <path d="M18 44C20 36 24 32 20 24M33 40C34 32 38 28 34 20M48 42C50 36 54 32 50 26" stroke="#b9cf70" stroke-width="2"/>
       </g>
-      <g stroke="#b8f2b0" stroke-width="2" stroke-linecap="round" fill="none">
-        <path d="M34 57L38 14" transform="translate(2 1) rotate(14 34 34)"/>
-        <path d="M37 42L48 34M37 32L47 24M36 22L43 17M36 46L25 38M36 36L27 28" transform="translate(2 1) rotate(14 34 34)"/>
-      </g>
+      <rect x="10" y="40" width="46" height="6" rx="3" fill="#d9b672" stroke="#8a6a2a" stroke-width="1.6" transform="rotate(-4 33 43)"/>
     </symbol>
     <symbol id="i-sesame" viewBox="0 0 64 64">
       <path d="M6 36H58C58 52 46 60 32 60C18 60 6 52 6 36Z" fill="#fbf2e2" stroke="#8a6a3a" stroke-width="2.4" stroke-linejoin="round"/>
@@ -272,11 +273,11 @@
     <ol>
       <li><b>물</b> 붓고 팔팔 <b>끓으면</b></li>
       <li><b>등뼈</b> → 국물이 <b>뽀얘질 때</b>까지 (약 7초)</li>
-      <li><b>감자</b> → <b>노랗게</b> 익으면</li>
-      <li><b>깻잎·들깨가루·대파</b></li>
+      <li><b>양념장·시래기</b> 넣기</li>
+      <li><b>들깨가루·대파</b> → 시래기가 푹 익으면</li>
       <li>3초 뒤 <b>트레이</b>로 서빙!</li>
     </ol>
-    <div class="ex">±1.5초 밖이거나 순서가 틀리면 −1,000원</div>
+    <div class="ex">±1.5초 밖·순서 틀림 −1,000원</div>
   </div>
   <div class="cR"></div>
   <div class="drawers"><div></div><div></div><div></div><div></div></div>
@@ -301,7 +302,7 @@
     <canvas class="oc" id="startCv" width="48" height="48"></canvas>
     <h1>척추의 뼈해장국집</h1>
     <p>화구 <b>4개</b>로 <b>120초</b> 동안 최대한 많이, 정확하게!<br>
-    <b>물</b> → 끓으면 <b>등뼈</b> → 7초쯤 뽀얘지면 <b>감자</b> → 노랗게 익으면 <b>깻잎·들깨가루·대파</b> → 3초 뒤 <b>트레이</b>에 서빙<br>
+    <b>물</b> → 끓으면 <b>등뼈</b> → 7초쯤 뽀얘지면 <b>양념장·시래기</b> → 푹 익으면 <b>들깨가루·대파</b> → 3초 뒤 <b>트레이</b>에 서빙<br>
     주전자·재료·뚝배기 모두 <b>드래그</b>로 옮겨요. 한 그릇 최고 <b>10,000원</b>!<br>
     각 단계는 정해진 시점 <b>±1.5초(총 3초)</b> 안에! 벗어나거나 실수하면 <b>−1,000원</b>씩 깎여요.</p>
     <button class="big" id="startBtn">영업 시작</button>
@@ -328,7 +329,7 @@ const stage = $('#stage');
 const T = {
   gameTime: 120, heat: 3.5,            // 물 부은 뒤 끓기까지
   milk: 7,                             // 등뼈 넣고 뽀얘지는 시간
-  yellow: 6,                           // 감자 익는 시간
+  cook: 6,                             // 양념장·시래기 다 넣고 시래기가 푹 익는 시간
   finish: 3,                           // 마지막 양념 뒤 서빙까지
   win: 1.5,                            // 목표 시점 ±1.5초(총 3초) 안에 해야 함, 벗어나면 −1,000
   max: 10000, mistake: 1000, missing: 2000,
@@ -338,12 +339,12 @@ const KETTLE_HOME = { cx: 598 + 55, cy: 304 + 60 };
 const TRAY = { x: 742, y: 292, w: 196, h: 150 };
 const ING = [
   { id: 'bone',    name: '등뼈',     icon: 'i-bone' },
-  { id: 'potato',  name: '감자',     icon: 'i-potato' },
-  { id: 'perilla', name: '깻잎',     icon: 'i-perilla' },
+  { id: 'sauce',   name: '양념장',   icon: 'i-sauce' },
+  { id: 'siraegi', name: '시래기',   icon: 'i-siraegi' },
   { id: 'sesame',  name: '들깨가루', icon: 'i-sesame' },
   { id: 'leek',    name: '대파',     icon: 'i-leek' },
 ];
-const TOPS = ['perilla', 'sesame', 'leek'];
+const MID = ['sauce', 'siraegi'], TOPS = ['sesame', 'leek'];
 const NAME = Object.fromEntries(ING.map(i => [i.id, i.name]));
 const ICON = Object.fromEntries(ING.map(i => [i.id, i.icon]));
 
@@ -490,8 +491,8 @@ function potSVG(i) {
   <g clip-path="url(#cp${i})">
     <g class="itm bones"><g transform="translate(66 42) rotate(-14)"><rect x="-17" y="-3.6" width="34" height="7.2" rx="3.6" class="bn"/><circle cx="-17" cy="-3" r="4.2" class="bn"/><circle cx="-17" cy="3" r="4.2" class="bn"/><circle cx="17" cy="-3" r="4.2" class="bn"/><circle cx="17" cy="3" r="4.2" class="bn"/><ellipse rx="10" ry="3.2" class="meat"/></g>
       <g transform="translate(106 40) rotate(12)"><rect x="-16" y="-3.6" width="32" height="7.2" rx="3.6" class="bn"/><circle cx="-16" cy="-3" r="4.2" class="bn"/><circle cx="-16" cy="3" r="4.2" class="bn"/><circle cx="16" cy="-3" r="4.2" class="bn"/><circle cx="16" cy="3" r="4.2" class="bn"/><ellipse rx="9" ry="3.2" class="meat"/></g></g>
-    <g class="itm potatoes"><rect x="-6.5" y="-5" width="13" height="10" rx="3" class="pt" transform="translate(80 37) rotate(-10)"/><rect x="-6.5" y="-5" width="13" height="10" rx="3" class="pt" transform="translate(95 44) rotate(14)"/><rect x="-6.5" y="-5" width="13" height="10" rx="3" class="pt" transform="translate(62 44) rotate(6)"/><rect x="-6.5" y="-5" width="13" height="10" rx="3" class="pt" transform="translate(108 37) rotate(-6)"/></g>
-    <g class="itm perilla"><path d="M0-8C8-6 10 4 0 9C-10 4-8-6 0-8Z" fill="#3fa045" stroke="#1f6a2a" stroke-width="1" transform="translate(88 41) rotate(40)"/><path d="M0-8C8-6 10 4 0 9C-10 4-8-6 0-8Z" fill="#52b95a" stroke="#1f6a2a" stroke-width="1" transform="translate(70 36) rotate(-30)"/><path d="M0-6L0 7" stroke="#b8f2b0" stroke-width="1" transform="translate(88 41) rotate(40)"/><path d="M0-6L0 7" stroke="#b8f2b0" stroke-width="1" transform="translate(70 36) rotate(-30)"/></g>
+    <g class="itm sauce"><ellipse cx="80" cy="41" rx="30" ry="7" fill="#c8301a" opacity=".55"/><ellipse cx="70" cy="40" rx="11" ry="4.5" fill="#d6321a" stroke="#8a1a0c" stroke-width="1"/><ellipse cx="96" cy="43" rx="9" ry="3.8" fill="#e04024" stroke="#8a1a0c" stroke-width="1"/><circle cx="84" cy="38" r="1.4" fill="#ffb09a"/></g>
+    <g class="itm siraegi"><path d="M54 43q7-9 14-2t14-2t14 2t14-3" class="sr"/><path d="M58 38q7-6 13 0t13-1t14 2" class="sr"/><path d="M62 47q8-6 15 0t15-2t12 1" class="sr"/></g>
     <g class="itm sesame"><ellipse cx="85" cy="41" rx="42" ry="9" fill="#9a7440" opacity=".3"/>${SESAME.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.1" fill="#6b4a1e"/>`).join('')}</g>
     <g class="itm leek">${LEEK.map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="3.4" ry="2.2" fill="#6cc35a" stroke="#2f7a2a" stroke-width=".8"/><ellipse cx="${x}" cy="${y}" rx="1.5" ry=".9" fill="#eaf7c8"/>`).join('')}</g>
     <g class="bubbles">${[[60,42],[74,38],[90,44],[104,39],[116,43],[82,36]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3" fill="#fff" fill-opacity=".55" stroke="#fff" stroke-width="1"/>`).join('')}</g>
@@ -506,24 +507,25 @@ const pots = SLOTS.map((s, i) => {
   stage.appendChild(el);
   const p = { i, x: s.x, y: s.y, el, busy: false,
     broth: el.querySelector('.broth'), cue: el.querySelector('.cue'), stat: el.querySelector('.pstat span'),
-    g: { bones: el.querySelector('.bones'), potatoes: el.querySelector('.potatoes'), perilla: el.querySelector('.perilla'), sesame: el.querySelector('.sesame'), leek: el.querySelector('.leek') } };
+    g: { bones: el.querySelector('.bones'), sauce: el.querySelector('.sauce'), siraegi: el.querySelector('.siraegi'), sesame: el.querySelector('.sesame'), leek: el.querySelector('.leek') } };
   resetPot(p);
   el.addEventListener('pointerdown', e => startPotDrag(e, p));
   return p;
 });
 function resetPot(p) {
-  Object.assign(p, { water: false, tWater: 0, bone: false, tBone: 0, potato: false, tPotato: 0, tops: { perilla: false, sesame: false, leek: false }, tTop: 0, mistakes: 0 });
+  Object.assign(p, { water: false, tWater: 0, bone: false, tBone: 0, mid: { sauce: false, siraegi: false }, tMid: 0, tops: { sesame: false, leek: false }, tTop: 0, mistakes: 0 });
   for (const k in p.g) p.g[k].classList.remove('in');
   p.el.classList.remove('boil', 'hot');
   p.cueKey = null;
 }
+const allMid = p => MID.every(k => p.mid[k]);
 const allTops = p => TOPS.every(k => p.tops[k]);
 const boiling = p => p.water && p.tWater >= T.heat;
 function stageOf(p) {
   if (!p.water) return 'empty';
   if (!boiling(p)) return 'heating';
   if (!p.bone) return 'boiled';
-  if (!p.potato) return 'milky';
+  if (!allMid(p)) return 'milky';
   if (!allTops(p)) return 'cooking';
   return 'finishing';
 }
@@ -534,7 +536,7 @@ function tickPot(p, dt) {
   if (p.busy || !p.water) return;
   p.tWater += dt;
   if (p.bone) p.tBone += dt;
-  if (p.potato) p.tPotato += dt;
+  if (allMid(p)) p.tMid += dt;
   if (allTops(p)) p.tTop += dt;
 }
 function setCue(p, key, html, cls = '') {
@@ -551,35 +553,36 @@ function renderPot(p) {
   if (p.water) {
     let c = '#bfe6f5';
     if (p.bone) c = mix('#c4d6df', '#f8f2e2', ease(clamp(p.tBone / T.milk, 0, 1)));
-    if (p.potato) c = mix(c, '#f3e4b0', clamp(p.tPotato / T.yellow, 0, 1) * .55);
+    if (p.mid.sauce) c = mix(c, '#cf5a2c', .6);
+    if (p.mid.siraegi) c = mix(c, '#7a5a2a', clamp(p.tMid / T.cook, 0, 1) * .25 + .1);
     if (p.tops.sesame) c = mix(c, '#e4cf9c', .5);
     p.broth.style.display = ''; p.broth.setAttribute('fill', c);
   } else p.broth.style.display = 'none';
   // 재료
-  const flag = { bones: p.bone, potatoes: p.potato, perilla: p.tops.perilla, sesame: p.tops.sesame, leek: p.tops.leek };
+  const flag = { bones: p.bone, sauce: p.mid.sauce, siraegi: p.mid.siraegi, sesame: p.tops.sesame, leek: p.tops.leek };
   for (const k in flag) if (flag[k] && !p.g[k].classList.contains('in')) p.g[k].classList.add('in');
   if (p.bone) {
     const k = clamp(p.tBone / T.milk, 0, 1);
     p.g.bones.style.setProperty('--bone', mix('#f0c4ba', '#f8efdc', k)); p.g.bones.style.setProperty('--meat', mix('#d9606a', '#e9b0a8', k));
   }
-  if (p.potato) {
-    const k = clamp(p.tPotato / T.yellow, 0, 1);
-    p.g.potatoes.style.setProperty('--pot', mix('#efe8cc', '#f2c030', ease(k))); p.g.potatoes.style.setProperty('--potS', mix('#b8a76a', '#a8780e', k));
+  if (p.mid.siraegi) {
+    const k = allMid(p) ? clamp(p.tMid / T.cook, 0, 1) : 0;
+    p.g.siraegi.style.setProperty('--sir', mix('#74a03a', '#4a3a1c', ease(k)));
   }
   // 힌트: 다음에 해야 할 행동
   let key = '', html = '', cls = '', label = '';
   const readyBone = (st === 'heating' || st === 'boiled') && !p.bone && inWin(p.tWater, T.heat);
-  const readyPotato = st === 'milky' && inWin(p.tBone, T.milk);
-  const readyTop = st === 'cooking' && inWin(p.tPotato, T.yellow);
+  const readyMid = st === 'milky' && inWin(p.tBone, T.milk);
+  const readyTop = st === 'cooking' && inWin(p.tMid, T.cook);
   const readyServe = st === 'finishing' && inWin(p.tTop, T.finish);
   if (st === 'empty') { key = 'e'; html = svgUse('i-water'); label = '비어 있음'; }
   else if (st === 'heating') label = '물 데우는 중';
   else if (st === 'boiled') label = '팔팔 끓어요!';
   else if (st === 'milky') label = p.tBone >= T.milk ? '뽀얘졌어요!' : '국물 우리는 중';
-  else if (st === 'cooking') label = p.tPotato >= T.yellow ? '감자가 노랗다!' : '감자 익는 중';
+  else if (st === 'cooking') label = p.tMid >= T.cook ? '시래기가 푹 익었다!' : '시래기 익는 중';
   else if (st === 'finishing') label = p.tTop >= T.finish ? '서빙하세요!' : '마무리 끓이는 중';
   if (readyBone) { key = 'b'; html = svgUse('i-bone'); }
-  else if (readyPotato) { key = 'p'; html = svgUse('i-potato'); }
+  else if (readyMid) { const miss = MID.filter(k => !p.mid[k]); if (miss.length) { key = 'm' + miss.join(); html = miss.map(k => svgUse(ICON[k])).join(''); cls = 'mini'; } }
   else if (readyTop) { const miss = TOPS.filter(k => !p.tops[k]); if (miss.length) { key = 't' + miss.join(); html = miss.map(k => svgUse(ICON[k])).join(''); cls = 'mini'; } }
   else if (readyServe) { key = 's'; html = '서빙 OK!'; cls = 'ok'; }
   if (!hints) { key = ''; html = ''; }
@@ -607,15 +610,15 @@ function addIngredient(p, id) {
     if (p.bone) return mistake(p, T.mistake, '등뼈는 이미 있어!');
     timeMiss(p, p.tWater, T.heat);
     p.bone = true; p.tBone = 0;
-  } else if (id === 'potato') {
-    if (p.potato) return mistake(p, T.mistake, '감자는 이미 있어!');
+  } else if (MID.includes(id)) {
+    if (p.mid[id]) return mistake(p, T.mistake, `${NAME[id]} 또 넣었어!`);
     if (!p.bone) mistake(p, T.mistake, '등뼈가 먼저야!');
     else timeMiss(p, p.tBone, T.milk);
-    p.potato = true; p.tPotato = 0;
+    p.mid[id] = true; if (allMid(p)) p.tMid = 0;
   } else {
     if (p.tops[id]) return mistake(p, T.mistake, `${NAME[id]} 또 넣었어!`);
-    if (!p.potato) mistake(p, T.mistake, '감자가 먼저야!');
-    else timeMiss(p, p.tPotato, T.yellow);
+    if (!allMid(p)) mistake(p, T.mistake, '양념장·시래기가 먼저야!');
+    else timeMiss(p, p.tMid, T.cook);
     p.tops[id] = true; if (allTops(p)) p.tTop = 0;
   }
   renderPot(p);
@@ -624,7 +627,7 @@ function addIngredient(p, id) {
 /* ───────────── 서빙 ───────────── */
 function serve(p) {
   p.busy = true;
-  const missing = ['bone', 'potato', ...TOPS].filter(k => !(k === 'bone' ? p.bone : k === 'potato' ? p.potato : p.tops[k])).length;
+  const missing = ['bone', ...MID, ...TOPS].filter(k => !(k === 'bone' ? p.bone : p.mid[k] || p.tops[k])).length;
   const miss = allTops(p) && !inWin(p.tTop, T.finish) ? T.mistake : 0;
   const mp = missing * T.missing;
   const price = Math.max(0, T.max - p.mistakes - mp - miss);
