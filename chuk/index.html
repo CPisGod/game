@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>척추의 뼈해장국집</title>
 <style>
-  :root { --pink:#ff8fb8; --pink2:#ffc2d9; --pink3:#ffe3ee; --deep:#e0508a; --cream:#fff3d6; --gold:#ffd23f; --ink:#4a2a3a; --lcd:#3a1f4d; }
+  :root { --pink:#3fbfae; --pink2:#a8e6dc; --pink3:#def6f2; --deep:#14766b; --cream:#fff3d6; --gold:#ffd23f; --ink:#4a2a3a; --lcd:#123a3a; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin:0; height:100%; overflow:hidden; background:#f7b8d0; touch-action:none; user-select:none; -webkit-user-select:none; }
+  html, body { margin:0; height:100%; overflow:hidden; background:#9fdcd2; touch-action:none; user-select:none; -webkit-user-select:none; }
   body { font-family:"Jua","Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif; color:var(--ink); }
   #stage { position:absolute; left:0; top:0; width:960px; height:540px; transform-origin:0 0; overflow:hidden;
     background:
@@ -29,26 +29,26 @@
   /* ───── 시간 바 / 수입금 ───── */
   .timebox { left:205px; top:72px; width:420px; height:30px; z-index:3; display:flex; align-items:center; gap:8px; color:var(--deep); font-size:15px;
     background:#fff; border:3px solid var(--pink); border-radius:18px; padding:0 10px; box-shadow:0 3px 0 var(--pink2); }
-  .timebar { flex:1; height:14px; border-radius:8px; background:#ffe3ee; border:2px solid var(--pink); overflow:hidden; }
-  #timefill { height:100%; width:100%; background:linear-gradient(90deg,#ff6fa5,#ffb36f); transition:width .2s linear; }
+  .timebar { flex:1; height:14px; border-radius:8px; background:#def6f2; border:2px solid var(--pink); overflow:hidden; }
+  #timefill { height:100%; width:100%; background:linear-gradient(90deg,#2fc4a8,#ffd23f); transition:width .2s linear; }
   #timefill.low { background:linear-gradient(90deg,#ff3b3b,#ff7a5a); animation:blink .5s infinite alternate; }
   @keyframes blink { to { filter:brightness(1.3); } }
   #timenum { min-width:34px; text-align:right; font-size:18px; }
   .lcd { left:765px; top:68px; width:175px; height:88px; z-index:3; background:var(--lcd); border:4px solid var(--pink); border-radius:16px; padding:6px 10px;
     box-shadow:inset 0 0 12px #000a, 0 4px 0 var(--deep); text-align:right; }
   .lcd small { display:block; text-align:left; font-size:12px; color:var(--pink2); }
-  .lcd small::before { content:"♥ "; color:#ff5a8a; }
-  .lcd b { display:block; color:#ff7ac8; font-size:30px; font-weight:400; text-shadow:0 0 8px #ff7ac8; line-height:1.1; }
+  .lcd small::before { content:"♥ "; color:#ff7a59; }
+  .lcd b { display:block; color:#7ff0d8; font-size:30px; font-weight:400; text-shadow:0 0 8px #7ff0d8; line-height:1.1; }
   .lcd .sub { color:var(--pink2); font-size:12px; text-align:right; }
 
   /* ───── 재료 선반 ───── */
-  .shelf { left:205px; top:112px; width:545px; height:112px; z-index:3; background:linear-gradient(#ffd0e2,#ffb4d0); border:4px solid #fff; border-radius:14px;
+  .shelf { left:205px; top:112px; width:545px; height:112px; z-index:3; background:linear-gradient(#bdeee6,#8fd9cd); border:4px solid #fff; border-radius:14px;
     box-shadow:0 6px 0 var(--deep), 0 0 0 3px var(--pink); display:flex; gap:6px; padding:6px; }
-  .sl { flex:1; position:relative; background:#fff0f6; border:3px solid var(--pink2); border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; padding-bottom:3px; cursor:grab; touch-action:none; }
+  .sl { flex:1; position:relative; background:#effaf8; border:3px solid var(--pink2); border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; padding-bottom:3px; cursor:grab; touch-action:none; }
   .sl:hover { border-color:var(--deep); background:#fff7b8; }
   .sl svg { width:64px; height:64px; margin-bottom:2px; filter:drop-shadow(0 3px 0 #0002); pointer-events:none; }
   .sl .lb { font-size:13px; color:var(--deep); background:#fff; border:2px solid var(--pink); border-radius:10px; padding:0 8px; pointer-events:none; }
-  .sl::before { content:""; position:absolute; left:10px; right:10px; bottom:24px; height:12px; border-radius:50%; background:#e9a9c4; opacity:.7; }
+  .sl::before { content:""; position:absolute; left:10px; right:10px; bottom:24px; height:12px; border-radius:50%; background:#86c9bf; opacity:.7; }
 
   /* ───── 척추 + 말풍선 ───── */
   #chukWrap { left:2px; top:118px; width:192px; height:192px; z-index:5; pointer-events:none; }
@@ -60,17 +60,17 @@
   #bubble::after { content:""; position:absolute; left:46px; bottom:-14px; border:7px solid transparent; border-top:9px solid var(--pink); }
 
   /* ───── 카운터 ───── */
-  .cL { left:0; top:314px; width:196px; height:226px; z-index:7; background:linear-gradient(#ffb3d0,#ff9ac2); border-top:10px solid #ffd9e8; border-right:4px solid var(--deep); }
-  .cR { left:196px; top:232px; width:764px; height:308px; z-index:1; background:linear-gradient(#ffb3d0 0 10px, #ff9ac2 10px); border-top:10px solid #ffd9e8; }
+  .cL { left:0; top:314px; width:196px; height:226px; z-index:7; background:linear-gradient(#7fd6c8,#5cc4b4); border-top:10px solid #c9f2ea; border-right:4px solid var(--deep); }
+  .cR { left:196px; top:232px; width:764px; height:308px; z-index:1; background:linear-gradient(#7fd6c8 0 10px, #5cc4b4 10px); border-top:10px solid #c9f2ea; }
   .cR::before { content:""; position:absolute; left:0; right:0; top:2px; height:6px; background:repeating-linear-gradient(90deg, #ffffff66 0 14px, transparent 14px 28px); }
-  .drawers { left:196px; top:494px; width:764px; height:46px; z-index:2; display:flex; gap:8px; padding:0 10px; background:#ff86b4; border-top:4px solid #e0508a; align-items:center; }
+  .drawers { left:196px; top:494px; width:764px; height:46px; z-index:2; display:flex; gap:8px; padding:0 10px; background:#4fb9a9; border-top:4px solid #14766b; align-items:center; }
   .drawers div { flex:1; height:30px; background:var(--pink2); border:3px solid #fff; border-radius:7px; position:relative; }
-  .drawers div::before { content:""; position:absolute; left:50%; top:5px; width:34px; margin-left:-17px; height:5px; background:#c04a7a; border-radius:3px; }
+  .drawers div::before { content:""; position:absolute; left:50%; top:5px; width:34px; margin-left:-17px; height:5px; background:#1f8a7c; border-radius:3px; }
   .drawers div::after { content:"♥"; position:absolute; left:0; right:0; bottom:0; text-align:center; font-size:11px; color:var(--deep); }
 
   /* 레시피 카드 */
   .note { left:10px; top:334px; width:176px; z-index:8; background:#fffbe0; border:3px solid #f0c040; border-radius:10px; padding:8px 9px 8px; font-size:12px; line-height:1.4; transform:rotate(-1.5deg); box-shadow:0 3px 0 #c9a02a; }
-  .note::before { content:""; position:absolute; left:50%; top:-9px; width:44px; height:15px; margin-left:-22px; background:#ff8fb8cc; border-radius:3px; transform:rotate(2deg); }
+  .note::before { content:""; position:absolute; left:50%; top:-9px; width:44px; height:15px; margin-left:-22px; background:#3fbfaecc; border-radius:3px; transform:rotate(2deg); }
   .note h3 { margin:0 0 3px; font-size:14px; color:var(--deep); text-align:center; }
   .note ol { margin:0; padding:0; list-style:none; counter-reset:s; }
   .note li { counter-increment:s; position:relative; padding-left:19px; margin:1px 0; }
@@ -79,12 +79,12 @@
   .note .ex { margin-top:4px; padding-top:3px; border-top:2px dashed #f0c040; font-size:11px; color:#8a5a2a; }
 
   /* 걸린 도구 (장식) */
-  .rail { left:772px; top:168px; width:168px; height:6px; z-index:2; background:#c04a7a; border-radius:3px; }
+  .rail { left:772px; top:168px; width:168px; height:6px; z-index:2; background:#1f8a7c; border-radius:3px; }
   .hang { left:772px; top:170px; width:168px; height:110px; z-index:2; pointer-events:none; }
 
   /* ───── 뚝배기 ───── */
   .pot { width:170px; height:112px; z-index:10; cursor:grab; touch-action:none; transition:opacity .2s; }
-  .pot.drag { z-index:60; cursor:grabbing; filter:drop-shadow(0 12px 6px #6a1a3a66); }
+  .pot.drag { z-index:60; cursor:grabbing; filter:drop-shadow(0 12px 6px #0a3a3466); }
   .pot.back { transition:transform .28s cubic-bezier(.3,1.4,.5,1); }
   .pot.over .potsvg { filter:drop-shadow(0 0 7px #fff) drop-shadow(0 0 10px #ffe36b); }
   .pot.gone { opacity:0; pointer-events:none; }
@@ -115,13 +115,13 @@
   @keyframes rise { 0% { transform:translateY(8px) scale(.5); opacity:0; } 40% { opacity:.9; } 100% { transform:translateY(-34px) scale(1.5); opacity:0; } }
   .ptag { position:absolute; left:0; top:-14px; font-size:12px; line-height:1; background:#fff; border:2px solid var(--pink); border-radius:10px; padding:2px 7px; color:var(--deep); pointer-events:none; white-space:nowrap; }
   .ptag.lo { color:#d93a3a; border-color:#ff7a7a; }
-  .cue { position:absolute; right:-8px; top:-18px; display:flex; gap:3px; align-items:center; padding:3px 6px; background:#fff; border:3px solid var(--deep); border-radius:22px; pointer-events:none; animation:bob .8s infinite; box-shadow:0 3px 0 #a0306088; }
+  .cue { position:absolute; right:-8px; top:-18px; display:flex; gap:3px; align-items:center; padding:3px 6px; background:#fff; border:3px solid var(--deep); border-radius:22px; pointer-events:none; animation:bob .8s infinite; box-shadow:0 3px 0 #0e5a5088; }
   .cue svg { width:28px; height:28px; }
   .cue.mini svg { width:22px; height:22px; }
   .cue.ok { background:#c9f7c0; border-color:#2f9e44; font-size:14px; color:#1f7a30; padding:3px 10px; }
   @keyframes bob { 50% { transform:translateY(-5px); } }
   .pstat { position:absolute; left:0; right:0; bottom:-2px; text-align:center; pointer-events:none; }
-  .pstat span { display:inline-block; font-size:11px; line-height:1; padding:3px 9px; background:#3a1f4dcc; color:#ffe3f2; border-radius:9px; }
+  .pstat span { display:inline-block; font-size:11px; line-height:1; padding:3px 9px; background:#123a3acc; color:#e0fbf6; border-radius:9px; }
 
   /* ───── 주전자 ───── */
   #kettle { left:598px; top:304px; width:110px; height:120px; z-index:70; cursor:grab; touch-action:none; transition:none; }
@@ -134,27 +134,27 @@
   @keyframes flow { to { background-position:0 12px; } }
 
   /* ───── 트레이 ───── */
-  .tray { left:742px; top:292px; width:196px; height:150px; z-index:5; background:#c78cc9; border:5px solid #8a4f90; border-radius:12px;
-    box-shadow:0 6px 0 #64386a; transition:box-shadow .15s, transform .15s; }
-  .tray::before { content:""; position:absolute; inset:8px; border:3px dashed #e8c3ea; border-radius:8px; }
+  .tray { left:742px; top:292px; width:196px; height:150px; z-index:5; background:#d8b383; border:5px solid #8a6232; border-radius:12px;
+    box-shadow:0 6px 0 #5e4220; transition:box-shadow .15s, transform .15s; }
+  .tray::before { content:""; position:absolute; inset:8px; border:3px dashed #f0dcb8; border-radius:8px; }
   .tray.hot { box-shadow:0 0 0 5px #fff, 0 0 22px 8px #ffe36b; transform:scale(1.03); }
-  .tray .tl { position:absolute; left:50%; top:-16px; transform:translateX(-50%); font-size:13px; background:#4fc3c9; color:#fff; border:3px solid #fff; border-radius:12px; padding:1px 14px; white-space:nowrap; box-shadow:0 2px 0 #2a8a90; }
+  .tray .tl { position:absolute; left:50%; top:-16px; transform:translateX(-50%); font-size:13px; background:#f2a03a; color:#fff; border:3px solid #fff; border-radius:12px; padding:1px 14px; white-space:nowrap; box-shadow:0 2px 0 #b36a14; }
   #bowl { position:absolute; left:13px; top:20px; width:170px; height:112px; transform:scale(.84); transform-origin:50% 60%; pointer-events:none; }
   #bowl.in { animation:potpop .45s; }
   .chop { position:absolute; right:10px; top:6px; width:72px; height:6px; background:#c88b4a; border-radius:3px; transform:rotate(-8deg); z-index:2; box-shadow:0 10px 0 #b87a3a; pointer-events:none; }
   #pay { position:absolute; left:-10px; right:-10px; top:46px; text-align:center; pointer-events:none; z-index:6; opacity:0; }
-  #pay b { display:block; font-size:34px; font-weight:400; color:#fff; -webkit-text-stroke:2px #6a2a70; paint-order:stroke fill; text-shadow:0 3px 0 #6a2a70; }
-  #pay small { display:block; font-size:12px; color:#fff; text-shadow:0 1px 2px #5a2a60, 0 0 3px #5a2a60; }
+  #pay b { display:block; font-size:34px; font-weight:400; color:#fff; -webkit-text-stroke:2px #6a4010; paint-order:stroke fill; text-shadow:0 3px 0 #6a4010; }
+  #pay small { display:block; font-size:12px; color:#fff; text-shadow:0 1px 2px #5a3a10, 0 0 3px #5a3a10; }
   #pay.pop { animation:pay 1.8s forwards; }
   @keyframes pay { 0% { transform:scale(.3); opacity:0; } 15% { transform:scale(1.25); opacity:1; } 25% { transform:scale(1); } 80% { opacity:1; } 100% { opacity:0; transform:translateY(-14px); } }
-  .priceSign { left:746px; top:452px; width:188px; z-index:5; text-align:center; font-size:12px; line-height:1.2; white-space:nowrap; padding:6px 4px; background:#c8f2f4; border:3px solid #4fc3c9; border-radius:8px; color:#1f7480; box-shadow:0 3px 0 #2a8a90; transform:rotate(1deg); }
-  .priceSign b { font-weight:400; color:#e0508a; font-size:14px; }
+  .priceSign { left:746px; top:452px; width:188px; z-index:5; text-align:center; font-size:12px; line-height:1.2; white-space:nowrap; padding:6px 4px; background:#fff0d0; border:3px solid #f2a03a; border-radius:8px; color:#8a4a10; box-shadow:0 3px 0 #b36a14; transform:rotate(1deg); }
+  .priceSign b { font-weight:400; color:#14766b; font-size:14px; }
 
   /* 떠오르는 글씨 */
-  .fx { z-index:90; pointer-events:none; font-size:17px; color:#fff; white-space:nowrap; -webkit-text-stroke:3px #b0245a; paint-order:stroke fill; text-shadow:0 2px 0 #b0245a; animation:fx 1.4s forwards; transform:translateX(-50%); }
+  .fx { z-index:90; pointer-events:none; font-size:17px; color:#fff; white-space:nowrap; -webkit-text-stroke:3px #0e5a50; paint-order:stroke fill; text-shadow:0 2px 0 #0e5a50; animation:fx 1.4s forwards; transform:translateX(-50%); }
   .fx.good { -webkit-text-stroke-color:#1f7a30; text-shadow:0 2px 0 #1f7a30; }
   @keyframes fx { 0% { transform:translate(-50%,6px) scale(.5); opacity:0; } 15% { transform:translate(-50%,0) scale(1.15); opacity:1; } 100% { transform:translate(-50%,-44px); opacity:0; } }
-  .heart { z-index:90; pointer-events:none; color:#ff5a8a; font-size:22px; animation:hrt 1.4s forwards; }
+  .heart { z-index:90; pointer-events:none; color:#ff7a59; font-size:22px; animation:hrt 1.4s forwards; }
   @keyframes hrt { 0% { transform:translate(0,0) scale(.4); opacity:1; } 100% { transform:translate(var(--dx),-90px) scale(1.2); opacity:0; } }
 
   .ghost { z-index:95; pointer-events:none; width:64px; height:64px; margin:-32px 0 0 -32px; filter:drop-shadow(0 8px 4px #0004); transform:scale(1.15); }
@@ -162,7 +162,7 @@
   .ghost.fly { transition:left .25s ease-in, top .25s ease-in, opacity .25s, transform .25s; }
 
   /* ───── 오버레이 ───── */
-  .overlay { left:0; top:0; width:960px; height:540px; background:#ff8fb8f7; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; z-index:200; color:#fff; }
+  .overlay { left:0; top:0; width:960px; height:540px; background:#3fbfaef7; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; z-index:200; color:#fff; }
   .overlay.hidden { display:none; }
   .overlay h1 { margin:0 0 6px; font-size:44px; text-shadow:0 4px 0 var(--deep); }
   .overlay p { line-height:1.65; margin:6px 0 14px; font-size:17px; text-shadow:0 2px 0 var(--deep); }
@@ -175,7 +175,7 @@
   #end .rank { font-size:26px; color:#fff3a0; margin:2px 0; }
   #end .tot { font-size:50px; color:#fff; text-shadow:0 4px 0 var(--deep); margin:2px 0 6px; }
 
-  #rotate { position:fixed; inset:0; z-index:99999; background:#ff8fb8; color:#fff; display:none; align-items:center; justify-content:center; text-align:center; font-size:22px; line-height:1.6; padding:30px; text-shadow:0 2px 0 var(--deep); }
+  #rotate { position:fixed; inset:0; z-index:99999; background:#3fbfae; color:#fff; display:none; align-items:center; justify-content:center; text-align:center; font-size:22px; line-height:1.6; padding:30px; text-shadow:0 2px 0 var(--deep); }
   @media (orientation:portrait) and (max-width:700px) { #rotate { display:flex; } }
 
   .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
@@ -223,7 +223,7 @@
       <path d="M10 37C14 16 50 16 54 37Z" fill="#a47c44" stroke="#6b4a1e" stroke-width="2.4" stroke-linejoin="round"/>
       <g fill="#6b4a1e"><circle cx="24" cy="29" r="1.6"/><circle cx="32" cy="24" r="1.6"/><circle cx="40" cy="30" r="1.6"/><circle cx="30" cy="32" r="1.4"/><circle cx="46" cy="34" r="1.4"/><circle cx="17" cy="34" r="1.4"/></g>
       <g fill="#d6b27a"><circle cx="28" cy="27" r="1.2"/><circle cx="37" cy="26" r="1.2"/><circle cx="21" cy="32" r="1.1"/><circle cx="43" cy="31" r="1.1"/></g>
-      <path d="M16 45C24 53 40 53 48 45" stroke="#e0508a" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+      <path d="M16 45C24 53 40 53 48 45" stroke="#14766b" stroke-width="2.2" stroke-linecap="round" fill="none"/>
     </symbol>
     <symbol id="i-leek" viewBox="0 0 64 64">
       <g stroke-linecap="round" fill="none">
@@ -232,7 +232,7 @@
         <path d="M26 58L32 34" stroke="#f4f8e8" stroke-width="8"/><path d="M32 34L38 8" stroke="#5cc05c" stroke-width="8"/>
         <path d="M38 58L45 35" stroke="#f4f8e8" stroke-width="8"/><path d="M45 35L52 12" stroke="#52b552" stroke-width="8"/>
       </g>
-      <rect x="12" y="38" width="42" height="6" rx="3" fill="#e0508a" stroke="#a02a5a" stroke-width="1.5" transform="rotate(-8 33 41)"/>
+      <rect x="12" y="38" width="42" height="6" rx="3" fill="#14766b" stroke="#0e5a50" stroke-width="1.5" transform="rotate(-8 33 41)"/>
       <path d="M13 58L11 62M17 58L17 63M24 58L23 62M29 58L30 63M37 58L36 62M42 58L43 63" stroke="#c9b27a" stroke-width="1.6" stroke-linecap="round"/>
     </symbol>
     <symbol id="i-water" viewBox="0 0 64 64">
@@ -262,7 +262,7 @@
       <path d="M78 4V62" stroke="#7a8090"/><path d="M72 62H84V100H72Z" fill="#cfd4de" stroke="#7a8090" stroke-width="2.5"/><path d="M78 66V98" stroke="#8e94a4" stroke-width="2"/>
       <path d="M120 4V46L108 70V96M120 46L132 70V96" fill="none" stroke="#b87a3a" stroke-width="4"/>
     </g>
-    <g fill="#ff8fb8"><path d="M150 10c-5-6-12-1-7 4l7 6l7-6c5-5-2-10-7-4z"/><path d="M150 40c-5-6-12-1-7 4l7 6l7-6c5-5-2-10-7-4z" opacity=".7"/></g>
+    <g fill="#3fbfae"><path d="M150 10c-5-6-12-1-7 4l7 6l7-6c5-5-2-10-7-4z"/><path d="M150 40c-5-6-12-1-7 4l7 6l7-6c5-5-2-10-7-4z" opacity=".7"/></g>
   </svg>
 
   <div id="chukWrap"><canvas id="chukCv" width="48" height="48"></canvas></div>
@@ -294,9 +294,9 @@
     <path d="M22 78C8 66 6 48 12 36L22 38C20 52 26 62 36 68Z" fill="url(#kg)" stroke="#7a4a10" stroke-width="3.5" stroke-linejoin="round"/>
     <ellipse cx="55" cy="80" rx="43" ry="33" fill="url(#kg)" stroke="#7a4a10" stroke-width="3.5"/>
     <ellipse cx="55" cy="52" rx="26" ry="8" fill="#ffd23f" stroke="#7a4a10" stroke-width="3"/>
-    <circle cx="55" cy="42" r="6" fill="#ff8fb8" stroke="#a03060" stroke-width="2.5"/>
+    <circle cx="55" cy="42" r="6" fill="#3fbfae" stroke="#0e5a50" stroke-width="2.5"/>
     <path d="M30 70C32 86 42 96 54 98" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".6"/>
-    <path d="M55 92C45 84 49 78 55 82C61 78 65 84 55 92Z" fill="#ff8fb8" stroke="#a03060" stroke-width="1.8"/>
+    <path d="M55 92C45 84 49 78 55 82C61 78 65 84 55 92Z" fill="#3fbfae" stroke="#0e5a50" stroke-width="1.8"/>
   </svg><div class="kl"><span>물 주전자</span></div></div>
 
   <div id="start" class="overlay">
@@ -427,7 +427,7 @@ function drawChuk(cv, mood = 'idle') {
   // 요리사 모자
   ell(cx, 6, 7, 4, WH); ell(cx - 6, 8, 4, 4, WH); ell(cx + 6, 8, 4, 4, WH); ell(cx, 4, 5, 3, WH);
   rect(cx - 8, 11, 17, 4, WH); rect(cx - 8, 14, 17, 1, WS); px(cx - 5, 5, WS); px(cx + 5, 6, WS); px(cx - 8, 9, WS);
-  rect(cx - 3, 12, 7, 1, '#ff8fb8'); px(cx, 11, '#ff8fb8');
+  rect(cx - 3, 12, 7, 1, '#3fbfae'); px(cx, 11, '#3fbfae');
   // 국자 든 앞쪽 팔
   const hand = cheer ? [cx + 13, 26] : happy ? [cx + 14, 35] : [cx + 13, 44];
   line(cx + 8, 38, hand[0], hand[1], B, 3); rect(hand[0] - 1, hand[1] - 1, 3, 3, L);
@@ -478,14 +478,14 @@ function potSVG(i) {
     <linearGradient id="pb${i}" x1="0" x2="1"><stop offset="0" stop-color="#9a5a2e"/><stop offset=".5" stop-color="#6a3a1c"/><stop offset="1" stop-color="#3f2010"/></linearGradient>
     <clipPath id="cp${i}"><ellipse cx="85" cy="41" rx="52" ry="11.5"/></clipPath>
   </defs>
-  <g class="burner"><ellipse cx="85" cy="100" rx="64" ry="9" fill="#5a2a40" stroke="#3a1a28" stroke-width="3"/><ellipse cx="85" cy="99" rx="50" ry="5.5" fill="#2b1220"/></g>
+  <g class="burner"><ellipse cx="85" cy="100" rx="64" ry="9" fill="#2a3a3a" stroke="#1a2828" stroke-width="3"/><ellipse cx="85" cy="99" rx="50" ry="5.5" fill="#101c1c"/></g>
   <g class="flames">${flames}</g>
   <path d="M24 46C8 44 6 62 24 62" fill="none" stroke="#2f180c" stroke-width="10" stroke-linecap="round"/><path d="M24 46C8 44 6 62 24 62" fill="none" stroke="#8a5028" stroke-width="5" stroke-linecap="round"/>
   <path d="M146 46C162 44 164 62 146 62" fill="none" stroke="#2f180c" stroke-width="10" stroke-linecap="round"/><path d="M146 46C162 44 164 62 146 62" fill="none" stroke="#6a3a1c" stroke-width="5" stroke-linecap="round"/>
   <path d="M22 40C20 70 40 93 85 93C130 93 150 70 148 40Z" fill="url(#pb${i})" stroke="#2f180c" stroke-width="3" stroke-linejoin="round"/>
   <path d="M30 54C32 69 42 80 58 86" stroke="#d29a62" stroke-width="3.5" stroke-linecap="round" fill="none" opacity=".55"/>
   <path d="M24 58C60 70 110 70 146 58" stroke="#e0b078" stroke-width="2" fill="none" opacity=".6"/>
-  <path d="M85 84C70 75 76 67 85 73C94 67 100 75 85 84Z" fill="#ff8fb8" stroke="#b03a68" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M85 84C70 75 76 67 85 73C94 67 100 75 85 84Z" fill="#ffd23f" stroke="#8a5a10" stroke-width="1.6" stroke-linejoin="round"/>
   <ellipse cx="85" cy="40" rx="65" ry="17" fill="#a4693a" stroke="#2f180c" stroke-width="3"/>
   <ellipse cx="85" cy="40" rx="56" ry="13.5" fill="#2f1608"/>
   <ellipse class="broth" cx="85" cy="41" rx="52" ry="11.5" fill="#bfe6f5" style="display:none"/>
