@@ -76,7 +76,6 @@
   .note li { counter-increment:s; position:relative; padding-left:19px; margin:1px 0; }
   .note li::before { content:counter(s); position:absolute; left:0; top:1px; width:15px; height:15px; border-radius:50%; background:var(--deep); color:#fff; font-size:10px; text-align:center; line-height:15px; }
   .note b { color:var(--deep); font-weight:400; }
-  .note .ex { margin-top:4px; padding-top:3px; border-top:2px dashed #f0c040; font-size:11px; color:#8a5a2a; }
 
   /* 걸린 도구 (장식) */
   .rail { left:772px; top:168px; width:168px; height:6px; z-index:2; background:#1f8a7c; border-radius:3px; }
@@ -142,11 +141,24 @@
   .chop { position:absolute; right:10px; top:6px; width:72px; height:6px; background:#c88b4a; border-radius:3px; transform:rotate(-8deg); z-index:2; box-shadow:0 10px 0 #b87a3a; pointer-events:none; }
   #pay { position:absolute; left:-10px; right:-10px; top:46px; text-align:center; pointer-events:none; z-index:6; opacity:0; }
   #pay b { display:block; font-size:34px; font-weight:400; color:#fff; -webkit-text-stroke:2px #6a4010; paint-order:stroke fill; text-shadow:0 3px 0 #6a4010; }
-  #pay small { display:block; font-size:12px; color:#fff; text-shadow:0 1px 2px #5a3a10, 0 0 3px #5a3a10; }
   #pay.pop { animation:pay 1.8s forwards; }
   @keyframes pay { 0% { transform:scale(.3); opacity:0; } 15% { transform:scale(1.25); opacity:1; } 25% { transform:scale(1); } 80% { opacity:1; } 100% { opacity:0; transform:translateY(-14px); } }
   .priceSign { left:746px; top:452px; width:188px; z-index:5; text-align:center; font-size:12px; line-height:1.2; white-space:nowrap; padding:6px 4px; background:#fff0d0; border:3px solid #f2a03a; border-radius:8px; color:#8a4a10; box-shadow:0 3px 0 #b36a14; transform:rotate(1deg); }
   .priceSign b { font-weight:400; color:#14766b; font-size:14px; }
+
+  /* 오른쪽에서 말 거는 손님 */
+  #cust { left:716px; top:156px; width:244px; z-index:120; pointer-events:none; display:flex; align-items:flex-start; justify-content:flex-end; gap:0;
+    transform:translateX(280px); opacity:0; transition:transform .38s cubic-bezier(.2,1.3,.4,1), opacity .2s; }
+  #cust.show { transform:none; opacity:1; }
+  #cust .cb { position:relative; width:178px; background:#fff; border:3px solid #d93a3a; border-radius:16px; padding:8px 11px; font-size:13px; line-height:1.35; color:#4a2a2a; box-shadow:0 4px 0 #0003; margin-top:6px; }
+  #cust.good .cb { border-color:#2f9e44; }
+  #cust .cb::after { content:""; position:absolute; right:-13px; top:22px; border:7px solid transparent; border-left:11px solid #d93a3a; }
+  #cust.good .cb::after { border-left-color:#2f9e44; }
+  #cust .cb b { display:block; font-weight:400; font-size:11px; color:#d93a3a; margin-bottom:1px; }
+  #cust.good .cb b { color:#2f9e44; }
+  #cust .cb span { display:block; }
+  #cust .cb span + span { margin-top:3px; }
+  #cust svg { width:58px; height:70px; margin-left:12px; flex:none; filter:drop-shadow(0 3px 0 #0003); }
 
   /* 떠오르는 글씨 */
   .fx { z-index:90; pointer-events:none; font-size:17px; color:#fff; white-space:nowrap; -webkit-text-stroke:3px #0e5a50; paint-order:stroke fill; text-shadow:0 2px 0 #0e5a50; animation:fx 1.4s forwards; transform:translateX(-50%); }
@@ -277,14 +289,23 @@
       <li><b>들깨가루·대파</b> → 시래기가 푹 익으면</li>
       <li>3초 뒤 <b>트레이</b>로 서빙!</li>
     </ol>
-    <div class="ex">±1.5초 밖·순서 틀림 −1,000원</div>
   </div>
   <div class="cR"></div>
   <div class="drawers"><div></div><div></div><div></div><div></div></div>
 
-  <div class="tray" id="tray"><div class="tl">서빙 트레이</div><div class="chop"></div><div id="bowl"></div><div id="pay"><b></b><small></small></div></div>
+  <div class="tray" id="tray"><div class="tl">서빙 트레이</div><div class="chop"></div><div id="bowl"></div><div id="pay"><b></b></div></div>
   <div class="priceSign">뼈해장국 · <b>최고 10,000원</b></div>
 
+  <div id="cust"><div class="cb"><b>손님</b><div id="custTxt"></div></div>
+    <svg viewBox="0 0 58 70"><path d="M6 70C6 52 18 46 29 46C40 46 52 52 52 70Z" fill="#4a6fb8" stroke="#1a2a50" stroke-width="2.5"/>
+      <rect x="23" y="40" width="12" height="9" fill="#f2c29a"/>
+      <ellipse cx="29" cy="26" rx="19" ry="20" fill="#f6cfa6" stroke="#6a4020" stroke-width="2.5"/>
+      <path d="M9 24C8 8 22 2 31 4C44 6 51 14 49 26C44 18 36 14 28 15C20 15 13 18 9 24Z" fill="#2a2030" stroke="#150f1a" stroke-width="2"/>
+      <path id="cBrowL" d="M14 19L24 21" stroke="#2a2030" stroke-width="3" stroke-linecap="round"/><path id="cBrowR" d="M44 19L34 21" stroke="#2a2030" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="20" cy="26" r="2.6" fill="#1a1020"/><circle cx="38" cy="26" r="2.6" fill="#1a1020"/>
+      <path id="cMouth" d="M21 38Q29 33 37 38" fill="none" stroke="#7a2a2a" stroke-width="3" stroke-linecap="round"/>
+      <g id="cAnger" stroke="#e02a2a" stroke-width="2.5" stroke-linecap="round" fill="none"><path d="M46 8l6 -3M49 14l6 1M43 4l2 -5"/></g>
+    </svg></div>
   <div id="stream"></div>
   <div id="kettle"><svg viewBox="0 0 110 120">
     <defs><linearGradient id="kg" x1="0" x2="1"><stop offset="0" stop-color="#fff0a0"/><stop offset=".45" stop-color="#ffd23f"/><stop offset="1" stop-color="#d9981a"/></linearGradient></defs>
@@ -304,7 +325,7 @@
     <p>화구 <b>4개</b>로 <b>120초</b> 동안 최대한 많이, 정확하게!<br>
     <b>물</b> → 끓으면 <b>등뼈</b> → 7초쯤 뽀얘지면 <b>양념장·시래기</b> → 푹 익으면 <b>들깨가루·대파</b> → 3초 뒤 <b>트레이</b>에 서빙<br>
     주전자·재료·뚝배기 모두 <b>드래그</b>로 옮겨요. 한 그릇 최고 <b>10,000원</b>!<br>
-    각 단계는 정해진 시점 <b>±1.5초(총 3초)</b> 안에! 벗어나거나 실수하면 <b>−1,000원</b>씩 깎여요.</p>
+    손님 입맛은 까다로워요. 서빙하면 오른쪽에서 <b>한마디</b> 해요.</p>
     <button class="big" id="startBtn">영업 시작</button>
     <label class="opt"><input type="checkbox" id="hintOpt" checked> 힌트 아이콘 / 상태 표시 켜기</label>
     <div id="best" style="margin-top:10px;font-size:14px"></div>
@@ -513,7 +534,7 @@ const pots = SLOTS.map((s, i) => {
   return p;
 });
 function resetPot(p) {
-  Object.assign(p, { water: false, tWater: 0, bone: false, tBone: 0, mid: { sauce: false, siraegi: false }, tMid: 0, tops: { sesame: false, leek: false }, tTop: 0, mistakes: 0 });
+  Object.assign(p, { water: false, tWater: 0, bone: false, tBone: 0, mid: { sauce: false, siraegi: false }, tMid: 0, tops: { sesame: false, leek: false }, tTop: 0, mistakes: 0, issues: [] });
   for (const k in p.g) p.g[k].classList.remove('in');
   p.el.classList.remove('boil', 'hot');
   p.cueKey = null;
@@ -591,34 +612,44 @@ function renderPot(p) {
 }
 
 /* ───────────── 재료 / 물 넣기 ───────────── */
-function mistake(p, amount, msg) {
-  p.mistakes += amount; mood('sad', 1500); say(msg, 2400); beep(150, .18, 'sawtooth', .05);
-  fx(p.x + 85, p.y + 10, `−${fmt(amount)}  ${msg}`);
+function mistake(p, amount, msg, complaint) {
+  p.mistakes += amount; if (complaint) p.issues.push(complaint); mood('sad', 1500); say(msg, 2400); beep(150, .18, 'sawtooth', .05);
+  fx(p.x + 85, p.y + 10, `✖ ${msg}`);
   p.el.classList.remove('shake'); void p.el.offsetWidth; p.el.classList.add('shake');
 }
-function timeMiss(p, t, target) {
-  if (!inWin(t, target)) mistake(p, T.mistake, t < target ? '너무 일찍 넣었어!' : '너무 늦게 넣었어!');
+const eul = w => { const c = w.charCodeAt(w.length - 1) - 0xAC00; return c >= 0 && c % 28 ? '을' : '를'; };
+const ga = w => { const c = w.charCodeAt(w.length - 1) - 0xAC00; return c >= 0 && c % 28 ? '이' : '가'; };
+// 손님이 하는 말 (재료를 너무 일찍/늦게 넣었을 때)
+const TIME_COMPLAINT = {
+  bone:    ['물이 팔팔 끓기도 전에 뼈를 넣었죠? 잡내가 나요!', '뼈를 너무 늦게 넣었나 봐요. 국물이 싱거워요.'],
+  sauce:   ['양념장을 너무 일찍 풀었어요. 국물이 텁텁해요.', '양념이 겉도네요. 너무 늦게 풀었죠?'],
+  siraegi: ['국물이 우러나기도 전에 시래기부터 넣었죠?', '시래기에 국물이 안 뱄어요. 너무 늦게 넣었죠?'],
+  sesame:  ['들깨가루가 다 풀어져서 텁텁해요. 너무 일찍 넣었죠?', '들깨 향이 하나도 안 나요. 너무 늦게 넣었죠?'],
+  leek:    ['대파가 푹 퍼져서 흐물흐물해요!', '대파가 덜 익어서 맵고 아려요.'],
+};
+function timeMiss(p, t, target, id) {
+  if (!inWin(t, target)) mistake(p, T.mistake, t < target ? '너무 일찍 넣었어!' : '너무 늦게 넣었어!', TIME_COMPLAINT[id][t < target ? 0 : 1]);
 }
 function addWater(p) {
-  if (p.water) return mistake(p, T.mistake, '물을 또 부었어!');
+  if (p.water) return mistake(p, T.mistake, '물을 또 부었어!', '물을 또 부었죠? 국물이 밍밍해요.');
   p.water = true; p.tWater = 0; beep(520, .1, 'sine', .05); say('물 넣었다! 끓을 때까지 기다리자.');
 }
 function addIngredient(p, id) {
-  if (!p.water) return mistake(p, T.mistake, '물부터 부어야지!');
+  if (!p.water) return mistake(p, T.mistake, '물부터 부어야지!', '물도 없이 뭘 넣은 거예요?!');
   beep(660, .06, 'triangle', .05); beep(880, .06, 'triangle', .04, .06);
   if (id === 'bone') {
-    if (p.bone) return mistake(p, T.mistake, '등뼈는 이미 있어!');
-    timeMiss(p, p.tWater, T.heat);
+    if (p.bone) return mistake(p, T.mistake, '등뼈는 이미 있어!', '뼈가 너무 많아서 먹을 게 없어요, 기름져요!');
+    timeMiss(p, p.tWater, T.heat, 'bone');
     p.bone = true; p.tBone = 0;
   } else if (MID.includes(id)) {
-    if (p.mid[id]) return mistake(p, T.mistake, `${NAME[id]} 또 넣었어!`);
-    if (!p.bone) mistake(p, T.mistake, '등뼈가 먼저야!');
-    else timeMiss(p, p.tBone, T.milk);
+    if (p.mid[id]) return mistake(p, T.mistake, `${NAME[id]} 또 넣었어!`, `${NAME[id]}${eul(NAME[id])} 너무 많이 넣었어요! 맛이 이상해요.`);
+    if (!p.bone) mistake(p, T.mistake, '등뼈가 먼저야!', '뼈도 없이 양념부터 넣으셨어요?');
+    else timeMiss(p, p.tBone, T.milk, id);
     p.mid[id] = true; if (allMid(p)) p.tMid = 0;
   } else {
-    if (p.tops[id]) return mistake(p, T.mistake, `${NAME[id]} 또 넣었어!`);
-    if (!allMid(p)) mistake(p, T.mistake, '양념장·시래기가 먼저야!');
-    else timeMiss(p, p.tMid, T.cook);
+    if (p.tops[id]) return mistake(p, T.mistake, `${NAME[id]} 또 넣었어!`, `${NAME[id]}${eul(NAME[id])} 너무 많이 넣었어요! 맛이 이상해요.`);
+    if (!allMid(p)) mistake(p, T.mistake, '양념장·시래기가 먼저야!', '양념이랑 시래기도 없이 고명부터 올렸어요?');
+    else timeMiss(p, p.tMid, T.cook, id);
     p.tops[id] = true; if (allTops(p)) p.tTop = 0;
   }
   renderPot(p);
@@ -627,8 +658,13 @@ function addIngredient(p, id) {
 /* ───────────── 서빙 ───────────── */
 function serve(p) {
   p.busy = true;
-  const missing = ['bone', ...MID, ...TOPS].filter(k => !(k === 'bone' ? p.bone : p.mid[k] || p.tops[k])).length;
+  const lack = ['bone', ...MID, ...TOPS].filter(k => !(k === 'bone' ? p.bone : p.mid[k] || p.tops[k]));
+  const missing = lack.length;
   const miss = allTops(p) && !inWin(p.tTop, T.finish) ? T.mistake : 0;
+  if (!p.water) p.issues.push('이게 뭐예요? 빈 뚝배기잖아요!');
+  else if (missing === 5) p.issues.push('이건 그냥 맹물이잖아요!');
+  else lack.forEach(k => p.issues.push(k === 'bone' ? '뼈가 없는데요? 이게 뼈해장국 맞아요?!' : `${NAME[k]}${ga(NAME[k])} 빠졌어요!`));
+  if (miss) p.issues.push(p.tTop < T.finish ? '아직 덜 끓었어요! 너무 급하게 내셨네요.' : '다 식었잖아요… 너무 오래 둔 거 아니에요?');
   const mp = missing * T.missing;
   const price = Math.max(0, T.max - p.mistakes - mp - miss);
   money += price; dishes++; bestPrice = Math.max(bestPrice, price);
@@ -637,10 +673,8 @@ function serve(p) {
   const clone = p.el.querySelector('.potsvg').cloneNode(true);
   clone.querySelectorAll('.flames,.burner').forEach(n => n.remove());
   bowl.appendChild(clone); bowl.classList.remove('in'); void bowl.offsetWidth; bowl.classList.add('in');
-  const bits = [];
-  if (p.mistakes) bits.push(`실수 −${fmt(p.mistakes)}`);
-  if (miss) bits.push(`서빙 타이밍 −${fmt(miss)}`); if (mp) bits.push(`빠진 재료 ${missing}개 −${fmt(mp)}`);
-  const pay = $('#pay'); pay.querySelector('b').textContent = '+' + fmt(price) + '원'; pay.querySelector('small').textContent = bits.join(' · ') || '완벽한 한 그릇!';
+  const pay = $('#pay'); pay.querySelector('b').textContent = '+' + fmt(price) + '원';
+  setTimeout(() => customerSay(p.issues, price), 350);
   pay.classList.remove('pop'); void pay.offsetWidth; pay.classList.add('pop');
   if (price >= 9000) { mood('cheer', 2000); say('완벽해! 최고의 뼈해장국이야!'); hearts(); beep(784, .1, 'square', .04); beep(988, .1, 'square', .04, .1); beep(1318, .2, 'square', .04, .2); }
   else if (price >= 6000) { mood('happy'); say('좋아, 맛있게 됐다!'); beep(784, .1, 'square', .04); beep(988, .14, 'square', .04, .1); }
@@ -651,6 +685,25 @@ function serve(p) {
   p.el.classList.add('gone'); p.el.style.transform = '';
   setTimeout(() => { resetPot(p); p.busy = false; renderPot(p); p.el.classList.remove('gone'); p.el.classList.remove('pop'); void p.el.offsetWidth; p.el.classList.add('pop'); }, 700);
 }
+
+/* ───────────── 손님 한마디 ───────────── */
+const cust = $('#cust');
+let custTimer = 0;
+function customerSay(issues, price) {
+  const good = !issues.length;
+  const lines = good ? [price >= 10000 ? '캬~ 국물이 끝내줘요! 또 올게요!' : '맛있네요!'] : issues.slice(0, 2);
+  if (issues.length > 2) lines.push('…그 외에도 말하자면 끝이 없네요.');
+  $('#custTxt').innerHTML = lines.map(t => `<span>${t}</span>`).join('');
+  cust.querySelector('b').textContent = good ? '손님' : price < 3000 ? '화난 손님' : '손님';
+  const mad = !good && price < 6000;
+  $('#cAnger').style.display = mad ? '' : 'none';
+  $('#cBrowL').setAttribute('d', good ? 'M14 20L24 20' : mad ? 'M14 18L24 22' : 'M14 21L24 19');
+  $('#cBrowR').setAttribute('d', good ? 'M44 20L34 20' : mad ? 'M44 18L34 22' : 'M44 21L34 19');
+  $('#cMouth').setAttribute('d', good ? 'M20 35Q29 44 38 35' : mad ? 'M21 40Q29 33 37 40' : 'M22 38L36 38');
+  cust.classList.toggle('good', good); cust.classList.add('show');
+  clearTimeout(custTimer); custTimer = setTimeout(() => cust.classList.remove('show'), 3000 + lines.join('').length * 55);
+}
+function hideCustomer() { clearTimeout(custTimer); cust.classList.remove('show'); }
 
 /* ───────────── 떠오르는 효과 ───────────── */
 function fx(x, y, text, good) {
@@ -751,12 +804,12 @@ function startGame() {
   pots.forEach(p => { p.busy = false; p.el.classList.remove('gone', 'drag'); p.el.style.transform = ''; resetPot(p); renderPot(p); });
   kettle.style.transition = 'none'; kettle.style.transform = ''; stream.style.display = 'none';
   document.querySelectorAll('.ghost').forEach(g => g.remove());
-  $('#bowl').innerHTML = ''; $('#pay').classList.remove('pop');
+  $('#bowl').innerHTML = ''; $('#pay').classList.remove('pop'); hideCustomer();
   $('#start').classList.add('hidden'); $('#end').classList.add('hidden');
   mood('idle'); say('영업 시작! 뚝배기에 물부터!'); beep(660, .1, 'square', .04); beep(990, .15, 'square', .04, .1);
 }
 function finish() {
-  running = false; if (drag) { drag.ghost && drag.ghost.remove(); drag.p && drag.p.el.classList.remove('drag'); drag.p && (drag.p.el.style.transform = ''); kettle.classList.remove('drag'); kettleHome(); drag = null; } setOver(null); trayEl.classList.remove('hot');
+  running = false; hideCustomer(); if (drag) { drag.ghost && drag.ghost.remove(); drag.p && drag.p.el.classList.remove('drag'); drag.p && (drag.p.el.style.transform = ''); kettle.classList.remove('drag'); kettleHome(); drag = null; } setOver(null); trayEl.classList.remove('hot');
   const rank = money >= 110000 ? ['🏆 전설의 척추', '이 맛은 전국구예요!'] : money >= 80000 ? ['👑 뼈해장국 장인', '손님들이 줄을 서겠어요!'] : money >= 50000 ? ['🍲 베테랑 주방장', '꽤 하는데요?'] : money >= 20000 ? ['🥄 수습 요리사', '조금만 더 연습하면 돼요.'] : ['🥣 초보 알바', '뼈해장국의 길은 멀고도 험해요…'];
   $('#rank').textContent = rank[0]; $('#tot').textContent = fmt(money) + '원';
   $('#endText').innerHTML = `${dishes}그릇 서빙 · 한 그릇 최고 ${fmt(bestPrice)}원${dishes ? ` · 평균 ${fmt(money / dishes)}원` : ''}<br>${rank[1]}`;
