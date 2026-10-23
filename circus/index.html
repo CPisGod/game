@@ -307,7 +307,7 @@ const netWorth = () => S.money + STOCKS.reduce((a, x) => a + S.stocks[x.id].shar
 // ---------- 상태 ----------
 let uid = 'local', db = null, fb = null, online = false;
 const newState = () => ({ nickname:'', money:0, totalEarned:0, taps:0, dances:{}, crew:{}, estate:{}, skins:['basic'], skin:'basic', run:1, history:[], tipLv:0, wageLv:0,
-  stocks:newStocks(), venues:[0], venue:0, dance:'sway', savedAt:0 });
+  stocks:newStocks(), venues:[0], venue:0, dance:'sway', savedAt:0, acts:0 });
 let S = newState();
 let dirty = false, ready = false, stale = false, syncedAt = 0;   // syncedAt: 이 기기가 마지막으로 확인한 서버 기록의 savedAt
 let tab = null, bulkMode = '1', knownUnlocked = 1;
@@ -1010,7 +1010,7 @@ $('panel').addEventListener('click', e => {
     case 'estBuy': { const e = ESTATES.find(x => x.id === arg), n = S.estate[arg] || 0; if (!e || n >= MAX_ESTATE) return; const c = estateCost(e, n);
       if (S.money < c) return; S.money -= c; S.estate[arg] = n + 1; toast('🎉 ' + e.nm + ' ' + (n + 1) + '번째 채를 지었어요!'); break; }
   }
-  dirty = true; save(); render(); buildPanel();
+  S.acts++; dirty = true; save(); render(); buildPanel();
 });
 
 // ================= 주식 시세 =================
@@ -1130,7 +1130,7 @@ function trade(buy, pct) {
     st.shares = full ? 0 : st.shares - sh; st.basis = full ? 0 : st.basis - cost;
     toast(ic + ' 매도 ' + fmt(val) + '원 받음 (수수료 ' + fmt(fee) + '원) · 손익 ' + (val - cost >= 0 ? '+' : '-') + fmt(Math.abs(val - cost)) + '원');
   }
-  dirty = true; save(); render(); renderStock(); refreshDyn();
+  S.acts++; dirty = true; save(); render(); renderStock(); refreshDyn();
 }
 
 
@@ -1192,11 +1192,13 @@ async function save() {
     const ref = fb.doc(db, 'circus', uid);
     const res = await fb.runTransaction(db, async tx => {
       const snap = await tx.get(ref), sv = snap.exists() ? snap.data() : null;
-      if (sv && num(sv.savedAt) !== syncedAt) return 'stale';
+      // 마지막으로 본 뒤 서버가 바뀌었을 때, 서버 쪽이 더 진행된 기록일 때만 막는다.
+      // 진행도 = (구매·환생 등 직접 한 행동 수, 누적 수입). 오래된 화면이 서버를 되돌리는 것도, 더 진행된 내 기록이 버려지는 것도 막기 위함
+      if (sv && num(sv.savedAt) !== syncedAt && (num(sv.acts) > S.acts || (num(sv.acts) === S.acts && num(sv.totalEarned) > lifeEarned()))) return 'stale';
       tx.set(ref, {
         nickname:S.nickname, money:S.money, totalEarned:lifeEarned(), runEarned:S.totalEarned, run:S.run, history:S.history, netWorth:netWorth(), taps:S.taps, dances:S.dances, crew:S.crew, estate:S.estate, skins:S.skins, skin:S.skin,
         tipLv:S.tipLv, wageLv:S.wageLv, stocks:S.stocks,
-        venues:S.venues, venue:S.venue, dance:S.dance, savedAt:ts, updatedAt:fb.serverTimestamp()
+        venues:S.venues, venue:S.venue, dance:S.dance, acts:S.acts, savedAt:ts, updatedAt:fb.serverTimestamp()
       });
       return 'ok';
     });
@@ -1321,7 +1323,7 @@ const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
         return [x.id, { shares:num(o.shares), basis:num(o.basis), realized:num(o.realized), price:num(o.price), conv:!!o.conv }];
       })),
       venues:Array.isArray(loaded.venues) && loaded.venues.length ? loaded.venues : [0],
-      venue:num(loaded.venue), dance:loaded.dance || 'sway', savedAt:num(loaded.savedAt) };
+      venue:num(loaded.venue), dance:loaded.dance || 'sway', savedAt:num(loaded.savedAt), acts:num(loaded.acts) };
     S.skins = ['basic', ...(Array.isArray(loaded.skins) ? loaded.skins.filter(k => k !== 'basic' && SKINS.some(x => x.id === k)) : [])];
     S.skin = S.skins.includes(loaded.skin) ? loaded.skin : 'basic';
     for (const k of ['grape', 'cucumber']) {   // 예전 종목(테슬라·SK하이닉스) 보유분은 마지막 평가액만큼 돈으로 돌려줌
