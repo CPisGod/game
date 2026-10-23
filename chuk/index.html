@@ -113,8 +113,6 @@
   .steam i { position:absolute; bottom:0; width:16px; height:16px; border-radius:50%; background:#fffd; filter:blur(3px); animation:rise 1.3s infinite; }
   .steam i:nth-child(1) { left:10px; } .steam i:nth-child(2) { left:48px; animation-delay:-.45s; } .steam i:nth-child(3) { left:84px; animation-delay:-.9s; }
   @keyframes rise { 0% { transform:translateY(8px) scale(.5); opacity:0; } 40% { opacity:.9; } 100% { transform:translateY(-34px) scale(1.5); opacity:0; } }
-  .ptag { position:absolute; left:0; top:-14px; font-size:12px; line-height:1; background:#fff; border:2px solid var(--pink); border-radius:10px; padding:2px 7px; color:var(--deep); pointer-events:none; white-space:nowrap; }
-  .ptag.lo { color:#d93a3a; border-color:#ff7a7a; }
   .cue { position:absolute; right:-8px; top:-18px; display:flex; gap:3px; align-items:center; padding:3px 6px; background:#fff; border:3px solid var(--deep); border-radius:22px; pointer-events:none; animation:bob .8s infinite; box-shadow:0 3px 0 #0e5a5088; }
   .cue svg { width:28px; height:28px; }
   .cue.mini svg { width:22px; height:22px; }
@@ -278,7 +276,7 @@
       <li><b>깻잎·들깨가루·대파</b></li>
       <li>3초 뒤 <b>트레이</b>로 서빙!</li>
     </ol>
-    <div class="ex">늦을수록 가격↓ · 순서 틀리면 −1,000원</div>
+    <div class="ex">±1.5초 밖이거나 순서가 틀리면 −1,000원</div>
   </div>
   <div class="cR"></div>
   <div class="drawers"><div></div><div></div><div></div><div></div></div>
@@ -305,7 +303,7 @@
     <p>화구 <b>4개</b>로 <b>120초</b> 동안 최대한 많이, 정확하게!<br>
     <b>물</b> → 끓으면 <b>등뼈</b> → 7초쯤 뽀얘지면 <b>감자</b> → 노랗게 익으면 <b>깻잎·들깨가루·대파</b> → 3초 뒤 <b>트레이</b>에 서빙<br>
     주전자·재료·뚝배기 모두 <b>드래그</b>로 옮겨요. 한 그릇 최고 <b>10,000원</b>!<br>
-    늦거나 실수하면 가격이 점점 내려가요.</p>
+    각 단계는 정해진 시점 <b>±1.5초(총 3초)</b> 안에! 벗어나거나 실수하면 <b>−1,000원</b>씩 깎여요.</p>
     <button class="big" id="startBtn">영업 시작</button>
     <label class="opt"><input type="checkbox" id="hintOpt" checked> 힌트 아이콘 / 상태 표시 켜기</label>
     <div id="best" style="margin-top:10px;font-size:14px"></div>
@@ -329,11 +327,11 @@ const stage = $('#stage');
 /* ───────────── 튜닝 값 ───────────── */
 const T = {
   gameTime: 120, heat: 3.5,            // 물 부은 뒤 끓기까지
-  milk: 7, milkTol: .5,                // 등뼈 넣고 뽀얘지는 시간 (+허용)
-  yellow: 6, yellowTol: .5,            // 감자 익는 시간
+  milk: 7,                             // 등뼈 넣고 뽀얘지는 시간
+  yellow: 6,                           // 감자 익는 시간
   finish: 3,                           // 마지막 양념 뒤 서빙까지
-  grace: { boil: 2, milk: 1.5, cook: 1.5, finish: 1.5 },
-  max: 10000, latePerSec: 250, mistake: 1000, missing: 2000, early: 1000,
+  win: 1.5,                            // 목표 시점 ±1.5초(총 3초) 안에 해야 함, 벗어나면 −1,000
+  max: 10000, mistake: 1000, missing: 2000,
 };
 const SLOTS = [{ x: 205, y: 244 }, { x: 395, y: 244 }, { x: 205, y: 366 }, { x: 395, y: 366 }];
 const KETTLE_HOME = { cx: 598 + 55, cy: 304 + 60 };
@@ -504,17 +502,17 @@ function potSVG(i) {
 
 const pots = SLOTS.map((s, i) => {
   const el = document.createElement('div'); el.className = 'pot'; el.style.left = s.x + 'px'; el.style.top = s.y + 'px';
-  el.innerHTML = `<div class="steam"><i></i><i></i><i></i></div>${potSVG(i)}<div class="ptag" style="display:none"></div><div class="cue" style="display:none"></div><div class="pstat"><span></span></div>`;
+  el.innerHTML = `<div class="steam"><i></i><i></i><i></i></div>${potSVG(i)}<div class="cue" style="display:none"></div><div class="pstat"><span></span></div>`;
   stage.appendChild(el);
   const p = { i, x: s.x, y: s.y, el, busy: false,
-    broth: el.querySelector('.broth'), tag: el.querySelector('.ptag'), cue: el.querySelector('.cue'), stat: el.querySelector('.pstat span'),
+    broth: el.querySelector('.broth'), cue: el.querySelector('.cue'), stat: el.querySelector('.pstat span'),
     g: { bones: el.querySelector('.bones'), potatoes: el.querySelector('.potatoes'), perilla: el.querySelector('.perilla'), sesame: el.querySelector('.sesame'), leek: el.querySelector('.leek') } };
   resetPot(p);
   el.addEventListener('pointerdown', e => startPotDrag(e, p));
   return p;
 });
 function resetPot(p) {
-  Object.assign(p, { water: false, tWater: 0, bone: false, tBone: 0, potato: false, tPotato: 0, tops: { perilla: false, sesame: false, leek: false }, tTop: 0, mistakes: 0, late: 0 });
+  Object.assign(p, { water: false, tWater: 0, bone: false, tBone: 0, potato: false, tPotato: 0, tops: { perilla: false, sesame: false, leek: false }, tTop: 0, mistakes: 0 });
   for (const k in p.g) p.g[k].classList.remove('in');
   p.el.classList.remove('boil', 'hot');
   p.cueKey = null;
@@ -529,8 +527,7 @@ function stageOf(p) {
   if (!allTops(p)) return 'cooking';
   return 'finishing';
 }
-function latePen(p) { return Math.min(T.max - 1000, Math.round(p.late * T.latePerSec / 10) * 10); }
-function liveValue(p) { return Math.max(0, T.max - p.mistakes - latePen(p)); }
+const inWin = (t, target) => Math.abs(t - target) <= T.win;
 
 /* ───────────── 상태 갱신 ───────────── */
 function tickPot(p, dt) {
@@ -539,13 +536,6 @@ function tickPot(p, dt) {
   if (p.bone) p.tBone += dt;
   if (p.potato) p.tPotato += dt;
   if (allTops(p)) p.tTop += dt;
-  // 가격 감쇠: 해야 할 타이밍을 넘긴 시간만큼 누적
-  const st = stageOf(p); let wait = false;
-  if (st === 'boiled') wait = p.tWater - T.heat > T.grace.boil;
-  else if (st === 'milky') wait = p.tBone > T.milk + T.grace.milk;
-  else if (st === 'cooking') wait = p.tPotato > T.yellow + T.grace.cook;
-  else if (st === 'finishing') wait = p.tTop > T.finish + T.grace.finish;
-  if (wait) p.late += dt;
 }
 function setCue(p, key, html, cls = '') {
   if (p.cueKey === key) return; p.cueKey = key;
@@ -576,24 +566,22 @@ function renderPot(p) {
     const k = clamp(p.tPotato / T.yellow, 0, 1);
     p.g.potatoes.style.setProperty('--pot', mix('#efe8cc', '#f2c030', ease(k))); p.g.potatoes.style.setProperty('--potS', mix('#b8a76a', '#a8780e', k));
   }
-  // 예상 가격표
-  if (p.water) {
-    const v = liveValue(p); p.tag.style.display = ''; p.tag.textContent = fmt(v) + '원'; p.tag.classList.toggle('lo', v < 6000);
-  } else p.tag.style.display = 'none';
   // 힌트: 다음에 해야 할 행동
   let key = '', html = '', cls = '', label = '';
-  const readyBone = st === 'boiled', readyPotato = st === 'milky' && p.tBone >= T.milk - T.milkTol;
-  const readyTop = st === 'cooking' && p.tPotato >= T.yellow - T.yellowTol;
-  const readyServe = st === 'finishing' && p.tTop >= T.finish;
+  const readyBone = (st === 'heating' || st === 'boiled') && !p.bone && inWin(p.tWater, T.heat);
+  const readyPotato = st === 'milky' && inWin(p.tBone, T.milk);
+  const readyTop = st === 'cooking' && inWin(p.tPotato, T.yellow);
+  const readyServe = st === 'finishing' && inWin(p.tTop, T.finish);
   if (st === 'empty') { key = 'e'; html = svgUse('i-water'); label = '비어 있음'; }
   else if (st === 'heating') label = '물 데우는 중';
-  else if (readyBone) { key = 'b'; html = svgUse('i-bone'); label = '팔팔 끓어요!'; }
-  else if (st === 'milky') { label = readyPotato ? '뽀얘졌어요!' : '국물 우리는 중'; if (readyPotato) { key = 'p'; html = svgUse('i-potato'); } }
-  else if (st === 'cooking') {
-    const miss = TOPS.filter(k => !p.tops[k]);
-    label = readyTop ? '감자가 노랗다!' : '감자 익는 중';
-    if (readyTop || miss.length < 3) { key = 't' + miss.join(); html = miss.map(k => svgUse(ICON[k])).join(''); cls = 'mini'; }
-  } else if (st === 'finishing') { label = readyServe ? '서빙하세요!' : '마무리 끓이는 중'; if (readyServe) { key = 's'; html = '서빙 OK!'; cls = 'ok'; } }
+  else if (st === 'boiled') label = '팔팔 끓어요!';
+  else if (st === 'milky') label = p.tBone >= T.milk ? '뽀얘졌어요!' : '국물 우리는 중';
+  else if (st === 'cooking') label = p.tPotato >= T.yellow ? '감자가 노랗다!' : '감자 익는 중';
+  else if (st === 'finishing') label = p.tTop >= T.finish ? '서빙하세요!' : '마무리 끓이는 중';
+  if (readyBone) { key = 'b'; html = svgUse('i-bone'); }
+  else if (readyPotato) { key = 'p'; html = svgUse('i-potato'); }
+  else if (readyTop) { const miss = TOPS.filter(k => !p.tops[k]); if (miss.length) { key = 't' + miss.join(); html = miss.map(k => svgUse(ICON[k])).join(''); cls = 'mini'; } }
+  else if (readyServe) { key = 's'; html = '서빙 OK!'; cls = 'ok'; }
   if (!hints) { key = ''; html = ''; }
   setCue(p, key, html, cls);
   p.stat.textContent = label; p.stat.parentNode.style.display = hints ? '' : 'none';
@@ -605,6 +593,9 @@ function mistake(p, amount, msg) {
   fx(p.x + 85, p.y + 10, `−${fmt(amount)}  ${msg}`);
   p.el.classList.remove('shake'); void p.el.offsetWidth; p.el.classList.add('shake');
 }
+function timeMiss(p, t, target) {
+  if (!inWin(t, target)) mistake(p, T.mistake, t < target ? '너무 일찍 넣었어!' : '너무 늦게 넣었어!');
+}
 function addWater(p) {
   if (p.water) return mistake(p, T.mistake, '물을 또 부었어!');
   p.water = true; p.tWater = 0; beep(520, .1, 'sine', .05); say('물 넣었다! 끓을 때까지 기다리자.');
@@ -614,17 +605,17 @@ function addIngredient(p, id) {
   beep(660, .06, 'triangle', .05); beep(880, .06, 'triangle', .04, .06);
   if (id === 'bone') {
     if (p.bone) return mistake(p, T.mistake, '등뼈는 이미 있어!');
-    if (!boiling(p)) mistake(p, T.mistake, '아직 안 끓었어!');
+    timeMiss(p, p.tWater, T.heat);
     p.bone = true; p.tBone = 0;
   } else if (id === 'potato') {
     if (p.potato) return mistake(p, T.mistake, '감자는 이미 있어!');
     if (!p.bone) mistake(p, T.mistake, '등뼈가 먼저야!');
-    else if (p.tBone < T.milk - T.milkTol) mistake(p, T.mistake, '국물이 덜 뽀얘!');
+    else timeMiss(p, p.tBone, T.milk);
     p.potato = true; p.tPotato = 0;
   } else {
     if (p.tops[id]) return mistake(p, T.mistake, `${NAME[id]} 또 넣었어!`);
     if (!p.potato) mistake(p, T.mistake, '감자가 먼저야!');
-    else if (p.tPotato < T.yellow - T.yellowTol) mistake(p, T.mistake, '감자가 아직 안 익었어!');
+    else timeMiss(p, p.tPotato, T.yellow);
     p.tops[id] = true; if (allTops(p)) p.tTop = 0;
   }
   renderPot(p);
@@ -634,9 +625,9 @@ function addIngredient(p, id) {
 function serve(p) {
   p.busy = true;
   const missing = ['bone', 'potato', ...TOPS].filter(k => !(k === 'bone' ? p.bone : k === 'potato' ? p.potato : p.tops[k])).length;
-  const early = allTops(p) && p.tTop < T.finish ? T.early : 0;
-  const lp = latePen(p), mp = missing * T.missing;
-  const price = Math.max(0, T.max - p.mistakes - lp - mp - early);
+  const miss = allTops(p) && !inWin(p.tTop, T.finish) ? T.mistake : 0;
+  const mp = missing * T.missing;
+  const price = Math.max(0, T.max - p.mistakes - mp - miss);
   money += price; dishes++; bestPrice = Math.max(bestPrice, price);
   // 트레이에 올리기
   const bowl = $('#bowl'); bowl.innerHTML = '';
@@ -644,8 +635,8 @@ function serve(p) {
   clone.querySelectorAll('.flames,.burner').forEach(n => n.remove());
   bowl.appendChild(clone); bowl.classList.remove('in'); void bowl.offsetWidth; bowl.classList.add('in');
   const bits = [];
-  if (lp) bits.push(`지연 −${fmt(lp)}`); if (p.mistakes) bits.push(`실수 −${fmt(p.mistakes)}`);
-  if (mp) bits.push(`빠진 재료 ${missing}개 −${fmt(mp)}`); if (early) bits.push(`너무 일찍 −${fmt(early)}`);
+  if (p.mistakes) bits.push(`실수 −${fmt(p.mistakes)}`);
+  if (miss) bits.push(`서빙 타이밍 −${fmt(miss)}`); if (mp) bits.push(`빠진 재료 ${missing}개 −${fmt(mp)}`);
   const pay = $('#pay'); pay.querySelector('b').textContent = '+' + fmt(price) + '원'; pay.querySelector('small').textContent = bits.join(' · ') || '완벽한 한 그릇!';
   pay.classList.remove('pop'); void pay.offsetWidth; pay.classList.add('pop');
   if (price >= 9000) { mood('cheer', 2000); say('완벽해! 최고의 뼈해장국이야!'); hearts(); beep(784, .1, 'square', .04); beep(988, .1, 'square', .04, .1); beep(1318, .2, 'square', .04, .2); }
