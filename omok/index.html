@@ -46,7 +46,7 @@
   <input id="nick" class="nick" maxlength="10" placeholder="닉네임" autocomplete="off">
   <button id="createBtn">방 만들기</button>
   <div class="rooms">
-    <h3><span>대기 중인 방</span><span id="roomCount"></span></h3>
+    <h3><span>열린 방</span><span id="roomCount"></span></h3>
     <div id="roomList"><div class="empty">방 목록 불러오는 중…</div></div>
   </div>
   <input id="codeIn" maxlength="4" placeholder="코드로 입장 (선택)" autocapitalize="characters" autocomplete="off">
@@ -76,7 +76,7 @@
   const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
   let peer, conn, myColor = 0, isHost = false;   // 1 = 흑(선공), 2 = 백
-  let board, turn, last, winner, winLine, started = false;
+  let board, turn, last, winner, winLine, started = false, moves = [];
 
   function show(id) {
     ['lobby', 'wait'].forEach(x => $(x).style.display = x === id ? 'block' : 'none');
@@ -97,7 +97,7 @@
     appId: "1:217133907611:web:a62de72fc5c909390bd03e"
   };
   const ROOM_TTL = 25000, HB_MS = 8000;
-  let db = null, fs = null, rooms = [], myCode = null, hbTimer = null;
+  let db = null, fs = null, rooms = [], myCode = null, hbTimer = null, myName = '', playing = false;
   const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   try { $('nick').value = localStorage.getItem('omokNick') || ''; } catch (e) {}
@@ -125,21 +125,24 @@
                       .sort((a, b) => b.hb - a.hb);
     $('roomCount').textContent = live.length ? live.length + '개' : '';
     $('roomList').innerHTML = live.length ? live.map(r =>
-      `<div class="room"><b>${esc(r.name)}</b><small>${esc(r.code)}</small><button data-c="${esc(r.code)}">입장</button></div>`).join('')
+      `<div class="room"><b>${esc(r.name)}</b><small>${r.playing ? '대결 중' : esc(r.code)}</small>` +
+      (r.playing ? `<button class="sub" data-c="${esc(r.code)}" data-spec="1">관전</button>` : `<button data-c="${esc(r.code)}">입장</button>`) + `</div>`).join('')
       : '<div class="empty">열린 방이 없어요. 방을 만들어 보세요!</div>';
   }
   $('roomList').addEventListener('click', e => {
     const c = e.target.dataset && e.target.dataset.c;
-    if (c) joinRoom(c);
+    if (c) joinRoom(c, !!e.target.dataset.spec);
   });
   setInterval(renderRooms, 5000);
 
   const roomRef = () => fs.doc(db, 'omok_rooms', myCode);
+  const putRoom = () => { if (db && myCode) fs.setDoc(roomRef(), {name: myName, hb: Date.now(), playing}).catch(() => {}); };
   function publishRoom(name) {
+    myName = name; playing = false;
     if (!db) return;
-    const put = () => fs.setDoc(roomRef(), {name, hb: Date.now()}).catch(() => {});
-    put(); hbTimer = setInterval(put, HB_MS);
+    putRoom(); hbTimer = setInterval(putRoom, HB_MS);
   }
+  function setPlaying() { playing = true; putRoom(); }
   function unpublishRoom() {
     clearInterval(hbTimer); hbTimer = null;
     if (db && myCode) fs.deleteDoc(roomRef()).catch(() => {});
@@ -161,8 +164,15 @@
         else { lobbyMsg('오류: ' + e.type); unpublishRoom(); show('lobby'); }
       });
       peer.on('connection', c => {
+        if (c.metadata && c.metadata.spec) {   // 관전자
+          if (!started) { c.close(); return; }
+          wire(c, true);
+          c.on('open', () => { specs.push(c); c.send({t: 'spec', moves, n: specs.length}); broadcastCount(); });
+          return;
+        }
         if (conn) { c.close(); return; }
-        conn = c; wire(); c.on('open', () => { unpublishRoom(); startGame(true); });
+        conn = c; wire(c);
+        c.on('open', () => { setPlaying(); startGame(); });
       });
     };
     tryCreate();
@@ -171,18 +181,18 @@
   $('cancelBtn').onclick = () => {
     unpublishRoom(); myCode = null;
     if (peer) peer.destroy();
-    peer = conn = null; isHost = false;
+    peer = conn = null; isHost = false; started = false; specs = []; specCount = 0;
     lobbyMsg('렌주룰: 흑 3-3·4-4·장목 금지'); show('lobby'); renderRooms();
   };
 
-  function joinRoom(code) {
+  function joinRoom(code, spec) {
     isHost = false; lobbyMsg('접속 중…');
     if (peer) peer.destroy();
     peer = new Peer();
     peer.on('error', e => { lobbyMsg(e.type === 'peer-unavailable' ? '방이 사라졌어요' : '오류: ' + e.type); });
     peer.on('open', () => {
-      conn = peer.connect(PREFIX + code, {reliable: true});
-      wire();
+      conn = peer.connect(PREFIX + code, {reliable: true, metadata: {spec: !!spec}});
+      wire(conn, spec);
       setTimeout(() => { if (!started) lobbyMsg('연결 시간 초과. 다른 방을 시도하세요'); }, 10000);
     });
   }
@@ -193,18 +203,32 @@
   };
   initLobby();
 
-  function wire() {
-    conn.on('data', onData);
-    conn.on('close', () => { if (started) { winner = winner || -1; setStatus('상대 연결이 끊겼어요'); $('again').style.display = 'none'; } });
+  // 호스트: conn = 상대 플레이어, specs = 관전자들
+  let specs = [], specCount = 0;
+  function wire(c, spec) {
+    c.on('data', onData);
+    c.on('close', () => {
+      if (isHost && spec) { specs = specs.filter(x => x !== c); broadcastCount(); return; }
+      if (started) { winner = winner || -1; setStatus(spec || myColor === 0 ? '방장 연결이 끊겼어요' : '상대 연결이 끊겼어요'); $('again').style.display = 'none'; }
+    });
   }
   const send = m => conn && conn.open && conn.send(m);
+  const sendSpecs = m => specs.forEach(c => c.open && c.send(m));
+  function broadcastCount() { specCount = specs.length; send({t: 'cnt', n: specCount}); sendSpecs({t: 'cnt', n: specCount}); updateStatus(); }
 
   function onData(m) {
     if (m.t === 'start') { myColor = m.color; reset(); started = true; show('game'); draw(); updateStatus(); }
     else if (m.t === 'move') place(m.x, m.y, false);
     else if (m.t === 'again') { // 호스트가 색을 바꿔 재시작
-      myColor = m.color; reset(); draw(); updateStatus();
+      if (m.color) myColor = m.color; reset(); draw(); updateStatus();
     }
+    else if (m.t === 'spec') { // 관전 입장: 지금까지의 수를 재생
+      myColor = 0; reset(); started = true; show('game');
+      specCount = m.n || 0;
+      m.moves.forEach(([x, y]) => place(x, y, false));
+      draw(); updateStatus();
+    }
+    else if (m.t === 'cnt') { specCount = m.n; updateStatus(); }
   }
 
   function startGame() {
@@ -217,6 +241,7 @@
     if (isHost) {
       myColor = 3 - myColor;
       send({t: 'again', color: 3 - myColor});
+      sendSpecs({t: 'again'});
       reset(); draw(); updateStatus();
     }
   };
@@ -224,7 +249,7 @@
   // ---------- 게임 ----------
   function reset() {
     board = Array.from({length: N}, () => Array(N).fill(0));
-    turn = 1; last = null; winner = 0; winLine = null;
+    turn = 1; last = null; winner = 0; winLine = null; moves = [];
     $('again').style.display = 'none';
   }
 
@@ -315,12 +340,13 @@
   function place(x, y, mine) {
     if (winner || board[y][x]) return;
     const c = turn;
-    board[y][x] = c; last = [x, y];
+    board[y][x] = c; last = [x, y]; moves.push([x, y]);
     const line = checkWin(x, y, c);
     if (line) { winner = c; winLine = line; }
     else if (board.every(r => r.every(v => v))) winner = 3;
     else turn = 3 - turn;
     if (mine) send({t: 'move', x, y});
+    if (isHost) sendSpecs({t: 'move', x, y});
     draw(); updateStatus();
     if (winner && isHost) $('again').style.display = 'inline-block';
   }
@@ -345,10 +371,17 @@
   const dot = c => `<span class="dot" style="background:${c === 1 ? '#000' : '#fff'};border:1px solid #888"></span>`;
   function setStatus(t) { $('status').innerHTML = t; }
   function updateStatus() {
+    const eye = specCount ? ` · 👀 ${specCount}` : '';
+    if (myColor === 0) {   // 관전자
+      if (winner === 3) setStatus('무승부!' + eye);
+      else if (winner > 0) setStatus(`${dot(winner)}${winner === 1 ? '흑' : '백'} 승리!${eye}`);
+      else setStatus(`👀 관전 중 · ${dot(turn)}${turn === 1 ? '흑' : '백'} 차례${eye}`);
+      return;
+    }
     const me = `나: ${dot(myColor)}${myColor === 1 ? '흑(선공)' : '백'}`;
-    if (winner === 3) setStatus('무승부!' + (isHost ? '' : ' (방장이 다시 시작)'));
-    else if (winner) setStatus(winner === myColor ? '🎉 승리!' : '😢 패배' + (isHost ? '' : ' (방장이 다시 시작)'));
-    else setStatus(`${me} · ${turn === myColor ? '내 차례' : '상대 차례'}`);
+    if (winner === 3) setStatus('무승부!' + (isHost ? '' : ' (방장이 다시 시작)') + eye);
+    else if (winner) setStatus((winner === myColor ? '🎉 승리!' : '😢 패배') + (isHost ? '' : ' (방장이 다시 시작)') + eye);
+    else setStatus(`${me} · ${turn === myColor ? '내 차례' : '상대 차례'}${eye}`);
   }
 
   function draw() {
