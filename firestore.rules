@@ -47,5 +47,15 @@ service cloud.firestore {
         && request.resource.data.netWorth >= 0;
       allow delete: if false;
     }
+    // 온라인 오목 로비 (대기 중인 방 목록, 방장이 8초마다 hb 갱신)
+    match /omok_rooms/{code} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['name', 'hb'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 10
+        && request.resource.data.hb is number;
+      allow delete: if true;
+    }
   }
 }
