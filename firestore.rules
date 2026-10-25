@@ -58,5 +58,16 @@ service cloud.firestore {
         && request.resource.data.playing is bool;
       allow delete: if true;
     }
+    // 사과 뒤집기 대결 로비 (오목과 동일한 구조)
+    match /apple_rooms/{code} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['name', 'hb', 'playing'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 10
+        && request.resource.data.hb is number
+        && request.resource.data.playing is bool;
+      allow delete: if true;
+    }
   }
 }
