@@ -57,9 +57,7 @@
   #msg { margin: 8px 0; min-height: 26px; font-size: 17px; font-weight: 700; text-align: center; line-height: 1.4; }
   #boardWrap { position: relative; width: min(94vw, 62vh, 520px); }
   #board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
-  .card { aspect-ratio: 1; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 8%; }
-  .card.c1 { background: #ffd9d4; }
-  .card.c2 { background: #dcf1c4; }
+  .card { aspect-ratio: 1; border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; }
   .card svg { width: 100%; height: 100%; pointer-events: none; }
   #board.off .card { cursor: default; }
   #cd { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; font-size: 120px; font-weight: 800;
@@ -137,11 +135,12 @@
   let hostConn = null;
 
   // ---------- 사과 ----------
-  const apple = (body, leaf) => `<svg viewBox="0 0 100 100"><path d="M50 30C40 22 18 24 16 50c-2 26 14 44 28 44 4 0 4-3 6-3s2 3 6 3c14 0 30-18 28-44-2-26-24-28-34-20z" fill="${body}"/>` +
-    `<path d="M50 30c0-10 2-16 8-22" stroke="#5d4037" stroke-width="5" fill="none" stroke-linecap="round"/>` +
-    `<path d="M54 18c8-8 20-6 24-2-4 8-16 10-24 2z" fill="${leaf}"/>` +
-    `<ellipse cx="34" cy="46" rx="6" ry="12" fill="#fff" opacity=".4" transform="rotate(20 34 46)"/></svg>`;
-  const APPLE = {1: apple('#e53935', '#43a047'), 2: apple('#7cb342', '#2e7d32')};
+  // 흰 사과 실루엣 + 가운데 M 무늬(타일 색으로 파냄) + 잎
+  const apple = bg => `<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="14" fill="${bg}"/>` +
+    `<path d="M20 54C20 38 34 32 45 39c3 2 7 2 10 0 11-7 25-1 25 15 0 16-10 30-19 33-4 1-6-1-9-1s-5 2-9 1C30 84 20 70 20 54z" fill="#fff"/>` +
+    `<path d="M32 70V55q0-6 5-2l9 9 9-9q5-4 5 2v15" stroke="${bg}" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="M42 33c-2-9 3-16 11-19 2 9-2 16-11 19z" fill="#fff"/></svg>`;
+  const APPLE = {1: apple('#e8362f'), 2: apple('#a6dc1f')};
 
   const SCREENS = ['nameScr', 'lobby', 'room'];
   function show(id) {
