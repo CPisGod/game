@@ -86,6 +86,10 @@
   #msg { position: absolute; left: 0; right: 0; top: 28%; text-align: center; font-size: 90px; font-style: italic; font-weight: 900;
     color: #ffe14a; text-shadow: 4px 4px 0 #e8382e, 0 0 24px #000; }
   #toast { position: absolute; left: 0; right: 0; top: 190px; text-align: center; font-size: 22px; font-weight: 900; color: #fff; text-shadow: 2px 2px 0 #000; }
+  #warn { left: 0; right: 0; top: 150px; text-align: center; font-size: 30px; line-height: 1.25; color: #ff4a3a; animation: wpulse .35s infinite alternate; }
+  #warn .hz { display: block; font-size: 20px; color: #ffd23d; animation: none; }
+  #warnEdge { position: absolute; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 90px 24px #ff1a1a; transition: opacity .12s; }
+  @keyframes wpulse { from { opacity: 1; transform: scale(1); } to { opacity: .55; transform: scale(1.08); } }
   #wrong { position: absolute; left: 0; right: 0; top: 40%; text-align: center; font-size: 34px; color: #ff5a4a; display: none; font-weight: 900; text-shadow: 2px 2px 0 #000; }
   #result { pointer-events: auto; }
 
@@ -220,6 +224,8 @@
   <canvas id="mapc" width="300" height="300"></canvas>
   <div class="hp" id="msg"></div>
   <div class="hp" id="toast"></div>
+  <div id="warnEdge"></div>
+  <div class="hp" id="warn"></div>
   <div class="hp" id="wrong">⚠ 역주행!</div>
 </div>
 <div id="flash"></div>
@@ -1387,6 +1393,32 @@ function updateRace(dt) {
   if (net.host || !net.online) for (const k of karts) if (k.bot && k.finished && !k.reported) { k.reported = true; sendAll({ t: 'fin', r: 1, id: k.id, time: k.finT, lap: k.bestLap }); }
 }
 
+const ARROWS = { 0: '▲', 1: '◤', 2: '◀', 3: '◣', 4: '▼', '-4': '▼', '-3': '◢', '-2': '▶', '-1': '◥' };   // +h 방향이 화면 왼쪽
+let lastWarn = 0;
+function updateWarn(k) {
+  const el = $('warn'), edge = $('warnEdge'); let html = '', danger = 0;
+  if (race.phase !== 'count' && !k.finished && !spec) {
+    let best = null, bd = 1e9;
+    for (const m of missiles) {
+      if (m.o === k.id) continue;
+      const d = Math.hypot(m.x - k.x, m.z - k.z);
+      if ((m.to === k.id || (!m.to && d < 60)) && d < 150 && d < bd) { bd = d; best = m; }
+    }
+    if (best) {
+      const rel = angDiff(k.h, Math.atan2(best.x - k.x, best.z - k.z)), arrow = ARROWS[Math.round(rel / (Math.PI / 4))] || '▲';
+      html += '⚠ 미사일 접근! ' + arrow + ' ' + Math.round(bd) + 'm'; danger = bd < 60 ? 1 : .6;
+      const now = performance.now(); if (now - lastWarn > Math.max(180, bd * 4)) { lastWarn = now; beep(bd < 60 ? 1100 : 800, .09, 'square', .07); }
+    }
+    const sf = Math.sin(k.h), cf = Math.cos(k.h);
+    for (const b of bananas) {
+      if (b.o === k.id && b.age < 1.5) continue;
+      const dx = b.x - k.x, dz = b.z - k.z, f = dx * sf + dz * cf, l = dx * cf - dz * sf;
+      if (f > 4 && f < 55 && Math.abs(l) < 7.5) { html += '<span class="hz">' + (b.kind === 'oil' ? '🛢️ 전방 오일' : '🍌 전방 바나나') + ' ' + Math.round(f) + 'm</span>'; break; }
+    }
+  }
+  if (el._v !== html) { el._v = html; el.innerHTML = html; }
+  const eo = danger ? (Math.floor(performance.now() / 150) % 2 ? danger : danger * .35) : 0; if (edge._o !== eo) { edge._o = eo; edge.style.opacity = eo; }
+}
 const hudSet = (id, v, html) => { const e = $(id); if (e._v !== v) { e._v = v; if (html) e.innerHTML = v; else e.textContent = v; } };
 let hudN = 0;
 function updateHud() {
@@ -1404,6 +1436,7 @@ function updateHud() {
   if (g._c !== gc) { g._c = gc; g.style.background = gc; }
   const nw = Math.round(k.n2o / 2) * 2 + '%', nb = $('n2oBar'); if (nb._w !== nw) { nb._w = nw; nb.style.width = nw; nb.classList.toggle('full', k.n2o >= 99); }
   const wr = k.wrong > .8 && !k.finished ? 'block' : 'none'; if ($('wrong')._d !== wr) { $('wrong')._d = wr; $('wrong').style.display = wr; }
+  updateWarn(k);
   if (k.itemRoll > 0) updateItemHud();
   if ((hudN++ & 1) === 0) drawMinimap();
 }
@@ -1532,7 +1565,7 @@ $('btnAgain').addEventListener('click', () => {});
 initMenu(); initLobbyDb(); requestAnimationFrame(loop);
 
 // 테스트/디버깅용 훅
-window.__kart = { sim: n => { race.t0 = performance.now() - 1; for (let i = 0; i < n; i++) updateRace(1 / 60); }, track: () => track, get spec() { return spec; }, setSpec, applyThunder, hitKart, dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
+window.__kart = { spawn: (t, x, z, h, to) => { if (t === 'mis') missiles.push(makeMissile('t' + Math.random(), 'x', to, x, z, h)); else bananas.push(makeBanana('t' + Math.random(), x, z, 'x', t)); }, sim: n => { race.t0 = performance.now() - 1; for (let i = 0; i < n; i++) updateRace(1 / 60); }, track: () => track, get spec() { return spec; }, setSpec, applyThunder, hitKart, dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
 </script>
 </body>
 </html>
