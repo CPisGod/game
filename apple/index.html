@@ -58,10 +58,12 @@
   #boardWrap { position: relative; width: min(94vw, 62vh, 520px); }
   #board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
   .card { aspect-ratio: 1; border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-  .card svg { width: 100%; height: 100%; pointer-events: none; }
+  .card img { width: 100%; height: 100%; pointer-events: none; display: block; }
   #board.off .card { cursor: default; }
   #cd { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; font-size: 120px; font-weight: 800;
     color: #fff; background: #000a; border-radius: 12px; text-shadow: 0 4px 16px #000; }
+  .ic { display: inline-block; width: 1.25em; height: 1.25em; vertical-align: -.25em; }
+  .ic img { width: 100%; height: 100%; display: block; border-radius: 22%; }
   .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
     background: #000a; color: #fff; font: 700 14px/1 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
     text-decoration: none; border: 1px solid #fff6; }
@@ -71,7 +73,7 @@
 <body>
 <a class="home-btn" href="../">🏠 메인 메뉴</a>
 
-<h1>🍎🍏 사과 뒤집기 대결</h1>
+<h1 id="title">사과 뒤집기 대결</h1>
 
 <div id="nameScr" class="panel">
   <div style="font-size:18px;margin-bottom:6px">닉네임을 정하세요</div>
@@ -135,12 +137,10 @@
   let hostConn = null;
 
   // ---------- 사과 ----------
-  // 흰 사과 실루엣 + 가운데 M 무늬(타일 색으로 파냄) + 잎
-  const apple = bg => `<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="14" fill="${bg}"/>` +
-    `<path d="M20 54C20 38 34 32 45 39c3 2 7 2 10 0 11-7 25-1 25 15 0 16-10 30-19 33-4 1-6-1-9-1s-5 2-9 1C30 84 20 70 20 54z" fill="#fff"/>` +
-    `<path d="M32 70V55q0-6 5-2l9 9 9-9q5-4 5 2v15" stroke="${bg}" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` +
-    `<path d="M42 33c-2-9 3-16 11-19 2 9-2 16-11 19z" fill="#fff"/></svg>`;
-  const APPLE = {1: apple('#e8362f'), 2: apple('#a6dc1f')};
+  // 사과 이미지 (1 빨강, 2 초록)
+  const APPLE = {1: '<img src="red.png" alt="" draggable="false">', 2: '<img src="green.png" alt="" draggable="false">'};
+  const ic = c => `<span class="ic">${APPLE[c]}</span>`;
+  $('title').innerHTML = ic(1) + ic(2) + ' 사과 뒤집기 대결';
 
   const SCREENS = ['nameScr', 'lobby', 'room'];
   function show(id) {
@@ -325,11 +325,11 @@
     const specs = r.members.filter(m => m.id !== r.red && m.id !== r.green);
     const sp = specs.length
       ? specs.map(m => `<div class="sline"><span>👀 ${esc(m.name)}${m.id === 'h' ? ' 👑' : ''}</span>` +
-          (isHost ? `<span class="bs"><button data-act="put" data-s="red" data-id="${esc(m.id)}">🍎</button>` +
-                    `<button data-act="put" data-s="green" data-id="${esc(m.id)}">🍏</button></span>` : '') + `</div>`).join('')
+          (isHost ? `<span class="bs"><button data-act="put" data-s="red" data-id="${esc(m.id)}">${ic(1)}</button>` +
+                    `<button data-act="put" data-s="green" data-id="${esc(m.id)}">${ic(2)}</button></span>` : '') + `</div>`).join('')
       : '<div class="slot-empty">아직 없어요</div>';
     $('members').innerHTML =
-      seatRow('red', '🍎 빨간 사과', 'r') + seatRow('green', '🍏 초록 사과', 'g') +
+      seatRow('red', ic(1) + ' 빨간 사과', 'r') + seatRow('green', ic(2) + ' 초록 사과', 'g') +
       `<div class="row">관전자 (${specs.length})<div style="margin-top:4px">${sp}</div></div>`;
     const ready = !!(r.red && r.green);
     $('startBtn').style.display = isHost ? 'block' : 'none';
@@ -489,18 +489,18 @@
     else if (gs === 'play') tm = String(Math.max(0, Math.ceil((END_MS - el) / 1000)));
     else tm = '0';
     $('hud').innerHTML =
-      `<div class="sc r${me === 1 ? ' mine' : ''}"><span>🍎 ${esc(rn)}</span><b>${r}</b></div>` +
+      `<div class="sc r${me === 1 ? ' mine' : ''}"><span>${ic(1)} ${esc(rn)}</span><b>${r}</b></div>` +
       `<div class="tm${gs === 'play' && tm <= 10 ? ' low' : ''}">${tm}</div>` +
-      `<div class="sc g${me === 2 ? ' mine' : ''}"><span>${esc(gn)} 🍏</span><b>${g}</b></div>`;
+      `<div class="sc g${me === 2 ? ' mine' : ''}"><span>${esc(gn)} ${ic(2)}</span><b>${g}</b></div>`;
     $('cd').style.display = cd ? 'flex' : 'none'; $('cd').textContent = cd;
-    const mine = me === 1 ? '🍎 빨간 사과' : '🍏 초록 사과';
+    const mine = me === 1 ? ic(1) + ' 빨간 사과' : ic(2) + ' 초록 사과';
     let t;
     if (gs === 'count') t = me ? `나는 ${mine}! 곧 시작해요` : '👀 관전 중 · 곧 시작해요';
-    else if (gs === 'play') t = me ? `눌러서 ${me === 1 ? '🍎' : '🍏'} 내 색으로 뒤집기!` : '👀 관전 중';
+    else if (gs === 'play') t = me ? `눌러서 ${ic(me)} 내 색으로 뒤집기!` : '👀 관전 중';
     else if (gs === 'wait') t = '결과 집계 중…';
     else if (left) t = '플레이어가 나가서 게임이 끝났어요';
     else {
-      const w = r > g ? 1 : 2, name = w === 1 ? rn : gn, icon = w === 1 ? '🍎' : '🍏';
+      const w = r > g ? 1 : 2, name = w === 1 ? rn : gn, icon = ic(w);
       t = me ? (me === w ? '🎉 승리!' : '😢 패배') + ` (${r} : ${g})` : `${icon} ${esc(name)} 승리! (${r} : ${g})`;
     }
     $('msg').innerHTML = t;
