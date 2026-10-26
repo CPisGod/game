@@ -855,6 +855,20 @@ function aiInput(k, dt) {
 }
 
 /* ============================== 아이템 ============================== */
+function botUseItem(k, dt) {
+  if (!k.item || k.itemRoll > 0 || k.spin > 0 || k.finished || race.phase === 'count') return;
+  k.itemAge = (k.itemAge || 0) + dt;
+  if (k.itemAge < (k.useDelay || 1.5)) return;
+  const N = track.N, seg = track.seg;
+  const gapM = o => (o.prog - k.prog) * seg;              // 양수: o가 앞
+  let go = k.itemAge > 12;                                // 너무 오래 들고 있으면 사용
+  if (k.item === 'boost') go = go || Math.abs(track.pts[k.idx].curv) < .004 && !k.offroad;
+  else if (k.item === 'missile') go = go || karts.some(o => o !== k && !o.gone && !o.finished && gapM(o) > 8 && gapM(o) < 160);
+  else if (k.item === 'banana') go = go || karts.some(o => o !== k && !o.gone && !o.finished && gapM(o) < -4 && gapM(o) > -35);
+  else if (k.item === 'shield') go = go || missiles.some(m => m.to === k.id && (m.x - k.x) ** 2 + (m.z - k.z) ** 2 < 120 * 120) ||
+    bananas.some(b => b.o !== k.id && (b.x - k.x) ** 2 + (b.z - k.z) ** 2 < 30 * 30);
+  if (go) { useItem(k); k.itemAge = 0; }
+}
 function rollItem(k) {
   const r = karts.filter(o => !o.gone).sort((a, b) => b.prog - a.prog).indexOf(k), n = Math.max(1, karts.length - 1), f = r / n;   // 0=1등
   const w = { banana: lerp(4, 1, f), shield: lerp(3, 1, f), boost: lerp(2, 4, f), missile: lerp(0, 4.5, f) };
@@ -936,7 +950,7 @@ function updateItems(dt) {
   }
   for (const k of locals) {
     for (const p of track.pads) if ((k.x - p.x) ** 2 + (k.z - p.z) ** 2 < 4.5 * 4.5 && k.boost < 1.2) { k.boost = 1.2; if (!k.bot) { sfx.boost(); camKick = 1; } }
-    if (k.itemRoll > 0) { k.itemRoll -= dt; if (k.itemRoll <= 0) { k.item = k.pendItem; if (k.bot) k.item = null; if (k === myKart) updateItemHud(); } }
+    if (k.itemRoll > 0) { k.itemRoll -= dt; if (k.itemRoll <= 0) { k.item = k.pendItem; k.itemAge = 0; k.useDelay = rnd(.8, 3); if (k === myKart) updateItemHud(); } }
   }
 }
 function updateItemHud() {
@@ -1030,15 +1044,32 @@ function updateRace(dt) {
       stepKart(k, inp, dt);
     } else stepRemote(k, dt);
   }
-  // 카트끼리 충돌 (로컬 카트만 밀려남)
+  // 카트끼리 충돌: 겹침 해소 + 탄성 충격량 (각자 자기 카트만 처리, 양쪽이 대칭으로 계산)
   for (const a of karts) {
-    if (!a.local || a.gone) continue;
+    if (!a.local || a.gone || a.spin > 0 && false) continue;
     for (const b of karts) {
       if (a === b || b.gone) continue;
-      const dx = a.x - b.x, dz = a.z - b.z, d2 = dx * dx + dz * dz;
-      if (d2 < 3.4 * 3.4 && d2 > .0001) { const d = Math.sqrt(d2), o = (3.4 - d) * .5; a.x += dx / d * o; a.z += dz / d * o; a.vx += dx / d * o * 4; a.vz += dz / d * o * 4; }
+      const dx = a.x - b.x, dz = a.z - b.z, d2 = dx * dx + dz * dz, R2 = 3.4 * 3.4;
+      if (d2 >= R2 || d2 < .0001) continue;
+      const d = Math.sqrt(d2), nx = dx / d, nz = dz / d, o = (3.4 - d) * .5;
+      a.x += nx * o; a.z += nz * o;
+      const vn = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;      // 음수면 서로 접근 중
+      if (vn < 0) {
+        const j = -(1 + .7) * vn * .5, boostEdge = (a.boost > 0 ? .85 : 1) * (b.boost > 0 ? 1.15 : 1);   // 부스트 중이면 덜 밀림
+        a.vx += nx * j * boostEdge; a.vz += nz * j * boostEdge;
+        a.vx *= .985; a.vz *= .985;
+        if (-vn > 6) {
+          a.bumpT = a.bumpT || 0;
+          if (performance.now() - a.bumpT > 300) {
+            a.bumpT = performance.now();
+            for (let q = 0; q < 6; q++) spawnParticle(a.x - nx * 1.7, 1, a.z - nz * 1.7, 0xffd23d, .3, 3);
+            if (!a.bot) { sfx.hit(); camShake = Math.min(1, -vn / 20); }
+          }
+        }
+      }
     }
   }
+  for (const k of karts) if (k.local && k.bot && !k.gone) botUseItem(k, dt);
   if (canDrive) updateItems(dt);
   // 랭크
   const sorted = karts.filter(k => !k.gone).slice().sort((a, b) => (b.finished - a.finished) || (a.finished && b.finished ? a.finT - b.finT : b.prog - a.prog));
