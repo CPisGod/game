@@ -649,7 +649,16 @@ function enterLobby() {
   show('scrLobby'); renderLobby();
 }
 function setPlayer(p) { const i = lobby.players.findIndex(q => q.id === p.id); if (i >= 0) lobby.players[i] = p; else lobby.players.push(p); }
-function dropPlayer(id) { if (!id) return; lobby.players = lobby.players.filter(p => p.id !== id); if (state === 'lobby') { broadcastLobby(); renderLobby(); } else { const k = karts.find(k => k.id === id); if (k) { k.gone = true; k.mesh.visible = false; } } }
+function dropPlayer(id) { if (!id) return; lobby.players = lobby.players.filter(p => p.id !== id); if (state === 'lobby') { broadcastLobby(); renderLobby(); } else { const k = karts.find(k => k.id === id); if (k) botify(k); broadcastLobby(); } }
+// 레이스 중 나간 사람의 카트를 방장이 AI로 이어받음
+function botify(k) {
+  if (k.finished) { k.bot = true; sendAll({ t: 'botify', id: k.id }); return; }
+  k.local = true; k.bot = true; k.auto = false; k.gone = false;
+  k.vx = k.tvx || 0; k.vz = k.tvz || 0; k.spin = k.spinR || 0; k.boost = k.boostR ? 1 : 0; k.shield = k.shieldR ? 3 : 0; k.drift = 0; k.charge = 0;
+  k.idx = nearest(k.x, k.z, null).i; k.prevIdx = k.idx; k.lapStart = race ? performance.now() - race.t0 : 0;
+  k.fwd = k.vx * Math.sin(k.h) + k.vz * Math.cos(k.h); k.aiOff = rnd(-.5, .5); k.aiSkill = rnd(.9, 1.0); k.item = null; k.itemRoll = 0;
+  sendAll({ t: 'botify', id: k.id });
+}
 function broadcastLobby() { if (net.host && net.online) sendAll({ t: 'lobby', players: lobby.players, map: lobby.map, laps: lobby.laps, bots: lobby.bots }); }
 function seg(el, items, sel, cb, disabled) {
   el.innerHTML = ''; items.forEach((it, i) => { const b = document.createElement('button'); b.textContent = it; if (i === sel) b.className = 'sel'; b.disabled = !!disabled; b.onclick = () => cb(i); el.appendChild(b); });
@@ -689,6 +698,7 @@ function handleMsg(m, from) {
     case 'misrm': { const i = missiles.findIndex(b => b.id === m.id); if (i >= 0) removeMissile(i); } break;
     case 'box': if (track && track.boxes[m.i]) { track.boxes[m.i].t = 5; track.boxes[m.i].mesh.visible = false; } break;
     case 'fin': if (race) { race.finished[m.id] = m.time; race.order.includes(m.id) || race.order.push(m.id); if (m.lap) race.bestLap[m.id] = m.lap; renderResult(); } break;
+    case 'botify': { const k = karts.find(k => k.id === m.id); if (k && !k.local) k.bot = true; } break;
     case 'tolobby': if (!net.host) enterLobby(); break;
   }
 }
@@ -1191,7 +1201,7 @@ $('btnAgain').addEventListener('click', () => {});
 initMenu(); initLobbyDb(); requestAnimationFrame(loop);
 
 // 테스트/디버깅용 훅
-window.__kart = { buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
+window.__kart = { dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
 </script>
 </body>
 </html>
