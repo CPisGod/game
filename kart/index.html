@@ -41,9 +41,16 @@
   .col { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
   .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
   .sw { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #0000; cursor: pointer; flex: none; }
+  .sw.none { background: #1b1d3a; display: flex; align-items: center; justify-content: center; color: #9aa4ff; font-size: 14px; }
+  .cpick { width: 30px; height: 30px; padding: 0; border: 2px solid #fff6; border-radius: 50%; background: none; cursor: pointer; flex: none; }
   .sw.sel { border-color: #fff; box-shadow: 0 0 10px #fff; }
   .seg { display: flex; gap: 6px; }
   .seg button { flex: 1; padding: 9px 4px; font-size: 14px; background: #2a2d4d; box-shadow: 0 3px 0 #14162b; }
+  .mapgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .mapgrid.lock { opacity: .75; pointer-events: none; }
+  .mcard { background: #2a2d4d; border-radius: 10px; padding: 4px 4px 6px; cursor: pointer; text-align: center; border: 2px solid transparent; font-size: 12px; font-weight: 800; }
+  .mcard img { width: 100%; aspect-ratio: 3 / 2; display: block; border-radius: 6px; background: #0a0c20; object-fit: contain; }
+  .mcard.sel { border-color: #ffd23d; background: #3b3a22; }
   .seg.grid { flex-wrap: wrap; } .seg.grid button { flex: 1 1 30%; }
   .seg button.sel { background: linear-gradient(#ffd23d, #ff9f1a); color: #321; box-shadow: 0 3px 0 #8a5200; }
   .rooms { max-height: 150px; overflow: auto; background: #060814; border-radius: 8px; padding: 6px; }
@@ -91,12 +98,29 @@
   .tb { position: absolute; pointer-events: auto; border-radius: 50%; background: #ffffff26; border: 2px solid #fff6; color: #fff;
     display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px; text-align: center; line-height: 1.1; }
   .tb.on { background: #ffffff66; }
-  #tL { left: 14px; bottom: 28px; width: 84px; height: 84px; font-size: 34px; }
-  #tR { left: 112px; bottom: 28px; width: 84px; height: 84px; font-size: 34px; }
-  #tD { right: 14px; bottom: 70px; width: 96px; height: 96px; background: #ff6a3d66; }
-  #tI { right: 120px; bottom: 76px; width: 74px; height: 74px; font-size: 30px; background: #ffe14a55; }
-  #tB { right: 16px; bottom: 176px; width: 62px; height: 62px; font-size: 13px; }
-  #tG { right: 100px; bottom: 160px; width: 62px; height: 62px; font-size: 13px; }
+  #tPad { position: absolute; left: 16px; bottom: 24px; width: 236px; height: 108px; border-radius: 54px; background: #ffffff1c; border: 2px solid #fff5;
+    display: flex; pointer-events: auto; touch-action: none; overflow: hidden; }
+  #tPad .ar { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 38px; color: #fffa; transition: background .06s; }
+  #tPad .ar.on { background: #ffffff55; color: #fff; }
+  #tD { right: 18px; bottom: 66px; width: 108px; height: 108px; background: #ff6a3d77; border-color: #ffb08c; font-size: 17px; letter-spacing: 1px; }
+  #tI { right: 140px; bottom: 80px; width: 84px; height: 84px; font-size: 36px; background: #ffe14a55; border-color: #ffe14a; }
+  #tB { right: 236px; bottom: 66px; width: 58px; height: 58px; font-size: 11px; background: #22222299; }
+  #rotHint { display: none; position: fixed; top: 6px; left: 50%; transform: translateX(-50%); z-index: 30; background: #000c; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; pointer-events: none; }
+  @media (orientation: portrait) and (pointer: coarse) { body.racing #rotHint { display: block; } }
+  .scr { align-items: flex-start; } .panel { margin: auto; }
+  @media (pointer: coarse) {
+    #rank { font-size: 40px; top: 6px; } #rank small { font-size: 16px; }
+    #lap { top: 52px; font-size: 16px; } #time { top: 76px; font-size: 14px; } #best { top: 96px; font-size: 11px; }
+    #item { width: 62px; height: 62px; font-size: 34px; top: 8px; border-width: 2px; }
+    #mapc { width: 100px; height: 100px; top: 6px; right: 8px; }
+    #speed { bottom: auto; top: 110px; right: 12px; font-size: 22px; } #speed small { font-size: 11px; }
+    #gaugeBox { bottom: 14px; width: min(220px, 34vw); height: 10px; }
+    #msg { font-size: 64px; top: 22%; } #toast { top: 118px; font-size: 16px; } #wrong { font-size: 24px; }
+  }
+  @media (max-height: 520px) {
+    .panel { padding: 12px 14px; } h1 { font-size: 28px; } h2 { font-size: 18px; } label { margin: 6px 0 3px; font-size: 12px; }
+    button, .btn { padding: 9px 12px; font-size: 14px; } .col { gap: 6px; margin-top: 8px; } .rooms { max-height: 80px; } .sub { margin-bottom: 6px; }
+  }
 </style>
 </head>
 <body>
@@ -110,13 +134,9 @@
     <div class="sub">드리프트 → 부스터! 아이템을 써서 1등을 차지하세요</div>
     <label>닉네임</label>
     <input type="text" id="nick" maxlength="10" placeholder="닉네임 (최대 10자)">
-    <label>카트 색상</label>
-    <div class="swatches" id="swatches"></div>
-    <label>차종</label>
-    <div class="seg" id="bodySeg"></div>
     <div class="col">
       <button id="btnSolo">🏁 혼자 하기 (AI 대전)</button>
-      <button class="dim" id="btnShop">🛠 카트 꾸미기 · 🪙 <span id="coinN">0</span></button>
+      <button class="dim" id="btnShop">🛠 카트 꾸미기</button>
       <button class="alt" id="btnCreate">🌐 방 만들기 (멀티플레이)</button>
       <div class="row"><input type="text" id="codeIn" maxlength="4" placeholder="방 코드 4자리" style="flex:2;text-transform:uppercase"><button class="alt" id="btnJoin" style="flex:1">입장</button></div>
     </div>
@@ -124,7 +144,7 @@
     <div class="rooms" id="roomList"><div class="empty">불러오는 중…</div></div>
     <div class="sub" style="margin-top:12px;line-height:1.6">
       ↑/W 가속 · ←→/AD 조향 · ↓/S 브레이크<br>
-      <b>Shift</b> 드리프트 (놓으면 부스터) · <b>Space</b> 아이템 · 모바일은 화면 버튼
+      <b>Shift</b> 드리프트 (놓으면 부스터) · <b>Space</b> 아이템 · 모바일은 가속 자동 · 왼쪽 패드로 조향
     </div>
   </div>
 </div>
@@ -137,7 +157,8 @@
     <label>참가자</label>
     <div class="plist" id="plist"></div>
     <label>맵 <span id="mapNote" class="tag" style="display:none">방장이 선택</span></label>
-    <div class="seg grid" id="mapSeg"></div>
+    <div class="mapgrid" id="mapSeg"></div>
+    <div class="rec" id="mapInfo" style="margin-top:6px"></div>
     <label>랩 수 / AI 카트 수</label>
     <div class="row">
       <div class="seg" id="lapSeg" style="flex:1"></div>
@@ -159,12 +180,14 @@
 <!-- 꾸미기 -->
 <div class="scr" id="scrShop">
   <div class="panel">
-    <h2>🛠 카트 꾸미기 <span style="float:right;font-size:16px">🪙 <b id="shopCoin"></b></span></h2>
-    <div class="sub">레이스를 완주하면 코인을 받아요 (1등 120 · 2등 80 · 3등 60 · 4등 40 · 그 외 25)</div>
-    <label>휠</label><div class="seg grid" id="shWheel"></div>
-    <label>스트라이프</label><div class="seg grid" id="shStripe"></div>
-    <label>부스터 불꽃</label><div class="seg grid" id="shFlame"></div>
-    <div class="col"><button id="btnShopBack">← 돌아가기</button></div>
+    <h2>🛠 카트 꾸미기</h2>
+    <div class="sub">마음대로 골라 보세요. 다른 참가자에게도 그대로 보여요.</div>
+    <label>차종</label><div class="seg" id="edBodyType"></div>
+    <label>카트 색</label><div class="swatches" id="edBody"></div>
+    <label>휠</label><div class="swatches" id="edWheel"></div>
+    <label>스트라이프</label><div class="swatches" id="edStripe"></div>
+    <label>부스터 불꽃</label><div class="swatches" id="edFlame"></div>
+    <div class="col"><button class="dim" id="btnReset">기본값으로</button><button id="btnShopBack">← 돌아가기</button></div>
   </div>
 </div>
 
@@ -194,9 +217,10 @@
 <div id="flash"></div>
 <div id="specbar"><button class="dim" id="spPrev">◀</button><span id="spName"></span><button class="dim" id="spNext">▶</button><button class="alt" id="spRes">결과표</button></div>
 <div id="touch">
-  <div class="tb" id="tL">◀</div><div class="tb" id="tR">▶</div>
-  <div class="tb" id="tD">DRIFT</div><div class="tb" id="tI">🎁</div>
-  <div class="tb" id="tB">BRAKE</div><div class="tb" id="tG">GAS</div>
+  <div id="tPad"><div class="ar" id="tpL">◀</div><div class="ar" id="tpR">▶</div></div>
+  <div class="tb" id="tD">DRIFT</div><div class="tb" id="tI">🎁</div><div class="tb" id="tB">BRAKE</div>
+</div>
+<div id="rotHint">📱 가로로 돌리면 더 편해요</div>
 </div>
 
 <script type="module">
@@ -234,12 +258,10 @@ const NSAMP = 700;
 const MAXSPD = 40, ACC = 22;
 const ITEMS = { banana: '🍌', missile: '🚀', boost: '⚡', shield: '🛡️', oil: '🛢️', thunder: '🌩️', magnet: '🧲' };
 const ITEM_ICONS = ['❓', '🍌', '🚀', '⚡', '🛡️', '🛢️', '🌩️', '🧲'];
-const COS = {   // 꾸미기: n 이름, c 색, p 가격
-  wheel: [{ n: '기본', c: 0xcfd6e6, p: 0 }, { n: '골드', c: 0xffc93d, p: 300 }, { n: '핑크', c: 0xff3fb4, p: 300 }, { n: '네온블루', c: 0x22e5ff, p: 300 }],
-  stripe: [{ n: '없음', c: null, p: 0 }, { n: '화이트', c: 0xffffff, p: 200 }, { n: '블랙', c: 0x111111, p: 200 }, { n: '골드', c: 0xffc93d, p: 400 }],
-  flame: [{ n: '파랑', c: 0x5fd0ff, p: 0 }, { n: '보라', c: 0xb04dff, p: 300 }, { n: '초록', c: 0x3dff7a, p: 300 }, { n: '핑크', c: 0xff5fb7, p: 500 }],
-};
-const cleanCos = c => [0, 1, 2].map(i => { const v = Array.isArray(c) ? c[i] | 0 : 0; return v >= 0 && v < 4 ? v : 0; });
+const HEX = /^#[0-9a-f]{6}$/i;
+const colorOf = c => typeof c === 'string' && HEX.test(c) ? c : COLORS[(c | 0) % COLORS.length];
+const COS_DEF = ['#cfd6e6', '', '#5fd0ff'];   // 휠, 스트라이프('' = 없음), 부스터 불꽃
+const cleanCos = c => COS_DEF.map((d, i) => { const v = Array.isArray(c) ? c[i] : null; return typeof v === 'string' && (HEX.test(v) || (i === 1 && v === '')) ? v : d; });
 
 /* ============================== 오디오 ============================== */
 let actx = null, engOsc = null, engGain = null;
@@ -295,7 +317,7 @@ function nameSprite(text) {
   s.scale.set(6, 1.5, 1); s.renderOrder = 10; return s;
 }
 function buildKart(color, body, cos) {
-  cos = cleanCos(cos); const cw = COS.wheel[cos[0]], cs = COS.stripe[cos[1]], cf = COS.flame[cos[2]], hubM = mat(cw.c, { metalness: .9, roughness: .2 });
+  cos = cleanCos(cos); const hubM = mat(cos[0], { metalness: .9, roughness: .2 });
   const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
   const col = new THREE.Color(color);
   const paint = mat(col), dark = mat(0x222230, { roughness: .7 }), chrome = mat(0xcfd6e6, { metalness: .9, roughness: .2 });
@@ -321,8 +343,8 @@ function buildKart(color, body, cos) {
     add(new THREE.CylinderGeometry(.18, .18, .4, 8), chrome, .5, .7, -1.7);
     add(new THREE.CylinderGeometry(.18, .18, .4, 8), chrome, -.5, .7, -1.7);
   }
-  if (cs.c != null) {   // 스트라이프
-    const sy = [.91, .83, 1.08][body], sl = [2.7, 3.5, 2.55][body], sm = mat(cs.c, { roughness: .3 });
+  if (cos[1] !== '') {   // 스트라이프
+    const sy = [.91, .83, 1.08][body], sl = [2.7, 3.5, 2.55][body], sm = mat(cos[1], { roughness: .3 });
     for (const sx of [-.4, .4]) add(new THREE.BoxGeometry(.2, .05, sl), sm, sx, sy, 0);
   }
   // 운전자
@@ -343,7 +365,7 @@ function buildKart(color, body, cos) {
   // 부스터 불꽃
   const flames = [];
   for (const sx of [-.5, .5]) {
-    const f = new THREE.Mesh(new THREE.ConeGeometry(.28, 2, 8), new THREE.MeshBasicMaterial({ color: cf.c, transparent: true, opacity: .9 }));
+    const f = new THREE.Mesh(new THREE.ConeGeometry(.28, 2, 8), new THREE.MeshBasicMaterial({ color: cos[2], transparent: true, opacity: .9 }));
     f.rotation.x = -Math.PI / 2; f.position.set(sx, .7, -2.7); f.visible = false; inner.add(f); flames.push(f);
   }
   // 방어막
@@ -358,7 +380,8 @@ function buildKart(color, body, cos) {
 
 /* ============================== 트랙 ============================== */
 let track = null;
-function buildTrack(map) {
+function genTrack(map) {
+  if (map._g) return map._g;
   // 제어점 → 폐곡선 Catmull-Rom → 호 길이 재샘플링. 도로끼리 너무 가까우면 전체를 키움
   const cp = map.cp, nc = cp.length, base = [];
   for (let i = 0; i < nc; i++) {
@@ -406,11 +429,7 @@ function buildTrack(map) {
   // 곡률 (AI 속도 제어용)
   for (let i = 0; i < NSAMP; i++) { const a = pts[i], b = pts[(i + 8) % NSAMP]; pts[i].curv = Math.abs(angDiff(a.h, b.h)) / (seg * 8); }
 
-  const grp = new THREE.Group(), half = map.w / 2;
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(map.sky); scene.fog = new THREE.Fog(map.fog, map.fogN, map.fogF);
-  scene.add(grp);
-
+  const half = map.w / 2;
   // 지름길 자동 탐색: 커브 안쪽을 가로지르는 직선 (다른 도로와 충분히 떨어진 후보 중 절약 거리가 큰 순)
   const shortcuts = [], cand = [], SIDE = [-1, 1];
   {
@@ -436,6 +455,15 @@ function buildTrack(map) {
       if (shortcuts.every(o => Math.min(dist(c.i0, o.i0), dist(c.i1, o.i1), dist(c.i0, o.i1), dist(c.i1, o.i0)) > 60 && ptSeg(c.ax, c.az, o) > 40 && ptSeg(c.bx, c.bz, o) > 40)) shortcuts.push(c);
     }
   }
+  return (map._g = { pts, total, minGap, minR, ext, seg, shortcuts });
+}
+function buildTrack(map) {
+  const G = genTrack(map), { pts, total, minGap, minR, ext, seg, shortcuts } = G, half = map.w / 2;
+  const grp = new THREE.Group();
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(map.sky); scene.fog = new THREE.Fog(map.fog, map.fogN, map.fogF);
+  scene.add(grp);
+
   const wallGap = (side, x, z) => shortcuts.some(s => s.side === side && Math.hypot(s.ax + s.dx * clamp(((x - s.ax) * s.dx + (z - s.az) * s.dz) / s.l2, 0, 1) - x, s.az + s.dz * clamp(((x - s.ax) * s.dx + (z - s.az) * s.dz) / s.l2, 0, 1) - z) < 12);
   scene.add(new THREE.HemisphereLight(map.night ? 0x6a6cff : 0xffffff, map.night ? 0x120a30 : 0x556b3a, map.night ? .9 : 1.0));
   const sun = new THREE.DirectionalLight(map.night ? 0x8a8aff : 0xfff2d0, map.night ? .8 : 1.7); sun.position.set(200, 300, 100); scene.add(sun);
@@ -717,9 +745,9 @@ function toast0(t) { alert(t); }
 
 /* ============================== 상태 ============================== */
 const jget = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
-const me = { name: localStorage.getItem('kart_nick') || '', color: +localStorage.getItem('kart_color') || 0, body: +localStorage.getItem('kart_body') || 0,
-  cos: cleanCos(jget('kart_equip', [0, 0, 0])), coins: +localStorage.getItem('kart_coins') || 0, own: jget('kart_own', []) };
-function addCoins(n) { me.coins += n; try { localStorage.setItem('kart_coins', me.coins); } catch (e) {} }
+const me = { name: localStorage.getItem('kart_nick') || '', color: colorOf(localStorage.getItem('kart_hex') || (+localStorage.getItem('kart_color') || 0)), body: +localStorage.getItem('kart_body') || 0,
+  cos: cleanCos(jget('kart_cos2', null)) };
+const saveLook = () => { try { localStorage.setItem('kart_hex', me.color); localStorage.setItem('kart_body', me.body); localStorage.setItem('kart_cos2', JSON.stringify(me.cos)); } catch (e) {} };
 const lobby = { map: 0, laps: 2, bots: 3, diff: 1, items: true, uniq: false, players: [] };   // players: {id,name,color,body}
 let state = 'menu';       // menu | lobby | race
 let karts = [], myKart = null, bananas = [], missiles = [], particles = [], skid = null, spec = null;
@@ -760,20 +788,58 @@ function botify(k) {
 }
 function fixColors() {
   if (!lobby.uniq) return; const used = new Set();
-  for (const p of humans()) { if (used.has(p.color)) { const f = COLORS.findIndex((c, i) => !used.has(i)); if (f >= 0) p.color = f; } used.add(p.color); }
+  for (const p of humans()) {
+    let c = colorOf(p.color).toLowerCase();
+    if (used.has(c)) { const f = COLORS.find(x => !used.has(x)); if (f) { p.color = f; c = f; } }
+    used.add(c);
+  }
 }
 function broadcastLobby() { fixColors(); if (net.host && net.online) sendAll({ t: 'lobby', players: lobby.players, map: lobby.map, laps: lobby.laps, bots: lobby.bots, diff: lobby.diff, items: lobby.items, uniq: lobby.uniq }); }
 function seg(el, items, sel, cb, disabled) {
   el.innerHTML = ''; items.forEach((it, i) => { const b = document.createElement('button'); b.textContent = it; if (i === sel) b.className = 'sel'; b.disabled = !!disabled; b.onclick = () => cb(i); el.appendChild(b); });
 }
+const THEME_NAME = { meadow: '초원', desert: '사막', neon: '야간 도심' };
+function thumbOf(m) {
+  if (m._thumb) return m._thumb;
+  const G = genTrack(m), c = document.createElement('canvas'); c.width = 240; c.height = 160; const x = c.getContext('2d'), P = G.pts;
+  let mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9; for (const p of P) { mnx = Math.min(mnx, p.x); mxx = Math.max(mxx, p.x); mnz = Math.min(mnz, p.z); mxz = Math.max(mxz, p.z); }
+  const sc = Math.min(210 / (mxx - mnx), 130 / (mxz - mnz)), ox = 120 - (mxx + mnx) / 2 * sc, oz = 80 - (mxz + mnz) / 2 * sc;
+  const path = pts => { x.beginPath(); pts.forEach((p, i) => i ? x.lineTo(p.x * sc + ox, p.z * sc + oz) : x.moveTo(p.x * sc + ox, p.z * sc + oz)); x.closePath(); };
+  x.lineJoin = 'round'; x.lineWidth = 11; x.strokeStyle = '#000'; path(P); x.stroke();
+  x.lineWidth = 7; x.strokeStyle = '#e8ecff'; path(P); x.stroke();
+  x.lineWidth = 3; x.strokeStyle = '#ffb347'; x.setLineDash([6, 4]);
+  for (const s2 of G.shortcuts) { x.beginPath(); x.moveTo(s2.ax * sc + ox, s2.az * sc + oz); x.lineTo(s2.bx * sc + ox, s2.bz * sc + oz); x.stroke(); }
+  x.setLineDash([]); x.fillStyle = '#e8382e'; x.beginPath(); x.arc(P[0].x * sc + ox, P[0].z * sc + oz, 6, 0, 7); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 2; x.stroke();
+  return (m._thumb = c.toDataURL());
+}
+let thumbBusy = false;
+function fillThumbs() {
+  if (thumbBusy) return; thumbBusy = true;
+  const next = () => {
+    const i = MAPS.findIndex(m => !m._thumb); if (i < 0) { thumbBusy = false; updateMapInfo(); return; }
+    thumbOf(MAPS[i]); const im = document.querySelector('img[data-m="' + i + '"]'); if (im) im.src = MAPS[i]._thumb; updateMapInfo(); setTimeout(next, 20);
+  };
+  setTimeout(next, 30);
+}
+function updateMapInfo() {
+  const m = MAPS[lobby.map], el = $('mapInfo'); if (!el) return;
+  if (!m._g) { el.textContent = m.name + ' 불러오는 중…'; return; }
+  const G = m._g; el.innerHTML = `<b>${m.name}</b> · 1랩 ${(G.total / 1000).toFixed(1)}km · ${lobby.laps}랩 = ${(G.total * lobby.laps / 1000).toFixed(1)}km<br>배경 ${THEME_NAME[m.th]} · 지름길 ${G.shortcuts.length}개 · 점프대 2개 <span style="color:#ffb347">(점선 = 지름길)</span>`;
+}
+function renderMapCards(host) {
+  const el = $('mapSeg'); el.className = 'mapgrid' + (host ? '' : ' lock');
+  el.innerHTML = MAPS.map((m, i) => `<div class="mcard${i === lobby.map ? ' sel' : ''}" data-i="${i}"><img data-m="${i}" alt="" ${m._thumb ? 'src="' + m._thumb + '"' : ''}>${m.name}</div>`).join('');
+  el.onclick = e => { const c = e.target.closest('.mcard'); if (!c || !host) return; lobby.map = +c.dataset.i; broadcastLobby(); renderLobby(); };
+  updateMapInfo(); fillThumbs();
+}
 function renderLobby() {
   const host = net.host || !net.online;
   $('lobTitle').textContent = net.online ? (host ? '대기실 (방장)' : '대기실') : '혼자 하기';
   $('codeBox').style.display = net.online && net.code ? 'block' : 'none'; $('roomCode').textContent = net.code;
-  $('plist').innerHTML = humans().map(p => `<div class="pl"><span class="dot" style="background:${COLORS[p.color]}"></span>${esc(p.name)}${p.id === net.myId ? ' <span class="tag">나</span>' : ''}${p.id === 'p0' && net.online ? ' <span class="tag">방장</span>' : ''}</div>`).join('') +
+  $('plist').innerHTML = humans().map(p => `<div class="pl"><span class="dot" style="background:${colorOf(p.color)}"></span>${esc(p.name)}${p.id === net.myId ? ' <span class="tag">나</span>' : ''}${p.id === 'p0' && net.online ? ' <span class="tag">방장</span>' : ''}</div>`).join('') +
     (lobby.bots ? `<div class="pl" style="color:#9aa4ff"><span class="dot" style="background:#667"></span>🤖 AI 카트 ${lobby.bots}대</div>` : '');
   $('mapNote').style.display = host ? 'none' : 'inline-block';
-  seg($('mapSeg'), MAPS.map(m => m.name), lobby.map, i => { lobby.map = i; broadcastLobby(); renderLobby(); }, !host);
+  renderMapCards(host);
   seg($('lapSeg'), [1, 2, 3].map(n => n + '랩'), [1, 2, 3].indexOf(lobby.laps), i => { lobby.laps = [1, 2, 3][i]; broadcastLobby(); renderLobby(); }, !host);
   seg($('botSeg'), [0, 1, 3, 5, 7].map(n => 'AI ' + n), [0, 1, 3, 5, 7].indexOf(lobby.bots), i => { lobby.bots = [0, 1, 3, 5, 7][i]; broadcastLobby(); renderLobby(); }, !host);
   seg($('diffSeg'), ['AI 쉬움', 'AI 보통', 'AI 어려움'], lobby.diff, i => { lobby.diff = i; broadcastLobby(); renderLobby(); }, !host);
@@ -791,7 +857,7 @@ function handleMsg(m, from) {
   switch (m.t) {
     case 'welcome': net.myId = m.id; sendAll({ t: 'hello', name: me.name, color: me.color, body: me.body, cos: me.cos }); enterLobby(); break;
     case 'full': toMenu(m.why); break;
-    case 'hello': if (net.host && from) { const pid = from.metadata.pid; setPlayer({ id: pid, name: String(m.name).slice(0, 10), color: m.color | 0, body: m.body | 0, cos: cleanCos(m.cos) }); broadcastLobby(); renderLobby(); } break;
+    case 'hello': if (net.host && from) { const pid = from.metadata.pid; setPlayer({ id: pid, name: String(m.name).slice(0, 10), color: colorOf(m.color), body: m.body | 0, cos: cleanCos(m.cos) }); broadcastLobby(); renderLobby(); } break;
     case 'lobby': if (!net.host) {
       lobby.players = m.players; lobby.map = m.map; lobby.laps = m.laps; lobby.bots = m.bots; lobby.diff = m.diff | 0; lobby.items = m.items !== false; lobby.uniq = !!m.uniq;
       if (state === 'lobby') renderLobby(); else if (state === 'menu') { /* ignore */ }
@@ -812,7 +878,7 @@ function handleMsg(m, from) {
 
 /* ============================== 카트 상태 ============================== */
 function makeKart(id, name, color, body, local, bot, cos) {
-  const mesh = buildKart(COLORS[color % COLORS.length], body, cos); scene.add(mesh);
+  const mesh = buildKart(colorOf(color), body, cos); scene.add(mesh);
   const tag = nameSprite(name); tag.position.y = 4.4; mesh.add(tag); if (local && !bot) tag.visible = false;
   return { id, name, color, body, local, bot, mesh, tag,
     x: 0, z: 0, h: 0, vx: 0, vz: 0, spd: 0, drift: 0, charge: 0, boost: 0, shield: 0, spin: 0, inv: 0, item: null, itemRoll: 0,
@@ -820,6 +886,7 @@ function makeKart(id, name, color, body, local, bot, cos) {
     tx: 0, tz: 0, th: 0, tvx: 0, tvz: 0, lastRecv: 0, lat: 0, offroad: false, wrong: 0, yaw: 0, sparkT: 0, auto: false, aiOff: rnd(-.5, .5), aiSkill: rnd(.9, 1.0), gone: false };
 }
 function clearRace() {
+  document.body.classList.remove('racing');
   for (const k of karts) scene.remove(k.mesh);
   for (const b of bananas) scene.remove(b.mesh); for (const m of missiles) scene.remove(m.mesh); for (const p of particles) scene.remove(p.mesh);
   karts = []; bananas = []; missiles = []; particles = []; myKart = null; race = null; skid = null; spec = null; $('specbar').style.display = 'none';
@@ -838,14 +905,14 @@ const BOTNAMES = ['쌩쌩이', '번개', '드리프트왕', '초보', '로켓', 
 function startRace(grid, nBots) {
   clearRace(); state = 'race';
   const map = MAPS[lobby.map]; track = buildTrack(map);
-  show(''); $('hud').classList.add('on');
-  if (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window) $('touch').classList.add('on');
+  show(''); $('hud').classList.add('on'); document.body.classList.add('racing');
+  if (isTouch) $('touch').classList.add('on');
   grid.forEach((id, slot) => {
     let k;
     if (id[0] === 'b') {
-      const bn = +id.slice(1), free = COLORS.map((c, i) => i).filter(i => !humans().some(h => h.color === i));
+      const bn = +id.slice(1), free = COLORS.filter(c => !humans().some(h => colorOf(h.color).toLowerCase() === c));
       const bc = lobby.uniq && free.length ? free[(bn - 1) % free.length] : (bn * 3 + 1) % 8;
-      k = makeKart(id, BOTNAMES[(bn - 1) % BOTNAMES.length], bc, bn % 3, net.host || !net.online, true, [bn % 4, (bn + 1) % 4, (bn * 2) % 4]);
+      k = makeKart(id, BOTNAMES[(bn - 1) % BOTNAMES.length], bc, bn % 3, net.host || !net.online, true, [['#cfd6e6', '#ffc93d', '#ff3fb4', '#22e5ff'][bn % 4], bn % 3 === 0 ? '#ffffff' : '', ['#5fd0ff', '#b04dff', '#3dff7a', '#ff5fb7'][bn % 4]]);
       k.aiSkill = [.84, .94, 1.03][lobby.diff | 0] * rnd(.96, 1);
     } else { const p = lobby.players.find(q => q.id === id) || { name: '?', color: 0, body: 0 }; k = makeKart(id, p.name, p.color, p.body, id === net.myId, false, p.cos); }
     // 출발 그리드 (2열)
@@ -870,7 +937,7 @@ function startRace(grid, nBots) {
 
 /* ============================== 입력 ============================== */
 const keys = {};
-const touch = { l: 0, r: 0, d: 0, b: 0, g: 0 };
+const touch = { sx: 0, d: 0, b: 0, i: 0 };
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   keys[e.code] = true;
@@ -885,14 +952,21 @@ function bindTouch(id, key, fn) {
   const off = e => { e.preventDefault(); touch[key] = 0; el.classList.remove('on'); };
   el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('pointerleave', off);
 }
-bindTouch('tL', 'l'); bindTouch('tR', 'r'); bindTouch('tD', 'd'); bindTouch('tB', 'b'); bindTouch('tG', 'g');
+bindTouch('tD', 'd'); bindTouch('tB', 'b');
 bindTouch('tI', 'i', () => { if (state === 'race') useItem(myKart); });
-let touchUsed = false;
-addEventListener('pointerdown', e => { if (e.pointerType === 'touch') touchUsed = true; });
+(function () {   // 조향 패드: 손가락 위치로 좌/우 (슬라이드 가능)
+  const pad = $('tPad'), L = $('tpL'), R = $('tpR');
+  const set = e => { const r = pad.getBoundingClientRect(), v = clamp(((e.clientX - r.left) / r.width - .5) / .32, -1, 1); touch.sx = Math.abs(v) < .12 ? 0 : v; L.classList.toggle('on', touch.sx < 0); R.classList.toggle('on', touch.sx > 0); };
+  const end = () => { touch.sx = 0; L.classList.remove('on'); R.classList.remove('on'); };
+  pad.addEventListener('pointerdown', e => { e.preventDefault(); audioInit(); pad.setPointerCapture(e.pointerId); set(e); });
+  pad.addEventListener('pointermove', e => { if (pad.hasPointerCapture(e.pointerId)) set(e); });
+  pad.addEventListener('pointerup', end); pad.addEventListener('pointercancel', end); pad.addEventListener('lostpointercapture', end);
+})();
+const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 function readInput() {
-  const L = keys.ArrowLeft || keys.KeyA || touch.l, Rr = keys.ArrowRight || keys.KeyD || touch.r;
-  const gas = keys.ArrowUp || keys.KeyW || touch.g || (touchUsed && !touch.b);
-  return { steer: (Rr ? 1 : 0) - (L ? 1 : 0), gas: gas ? 1 : 0, brake: (keys.ArrowDown || keys.KeyS || touch.b) ? 1 : 0, drift: (keys.ShiftLeft || keys.ShiftRight || keys.KeyZ || touch.d) ? 1 : 0 };
+  const L = keys.ArrowLeft || keys.KeyA, Rr = keys.ArrowRight || keys.KeyD;
+  const gas = keys.ArrowUp || keys.KeyW || (isTouch && !touch.b);
+  return { steer: ((L ? 1 : 0) - (Rr ? 1 : 0)) || -touch.sx, gas: gas ? 1 : 0, brake: (keys.ArrowDown || keys.KeyS || touch.b) ? 1 : 0, drift: (keys.ShiftLeft || keys.ShiftRight || keys.KeyZ || touch.d) ? 1 : 0 };
 }
 
 /* ============================== 물리 ============================== */
@@ -969,7 +1043,7 @@ function onLap(k) {
   if (k.lap > lobby.laps && !k.finished) {
     k.finished = true; k.finT = now; k.auto = true;
     race.finished[k.id] = now; race.order.push(k.id); race.bestLap[k.id] = k.bestLap;
-    if (k.local && !k.bot) { const gain = [120, 80, 60, 40][k.rank - 1] || 25; addCoins(gain); race.coinGain = gain; toast('FINISH! ' + fmtT(now) + '  +' + gain + '🪙'); if (k.bestLap) submitRecord(MAPS[lobby.map].id, k.bestLap); }
+    if (k.local && !k.bot) { toast('FINISH! ' + fmtT(now)); if (k.bestLap) submitRecord(MAPS[lobby.map].id, k.bestLap); }
     if (k.local) sendAll({ t: 'fin', r: 1, id: k.id, time: now, lap: k.bestLap });
     renderResult();
   }
@@ -1114,7 +1188,7 @@ function updateItems(dt) {
     }
     for (const r of track.ramps) if (k.y < .2 && k.vy <= 0 && (k.x - r.x) ** 2 + (k.z - r.z) ** 2 < 5.5 * 5.5 && k.fwd > 8) { k.vy = 13; k.y = .1; k.boost = Math.max(k.boost, .6); if (!k.bot) { sfx.boost(); camKick = 1; } }
     for (const p of track.pads) if ((k.x - p.x) ** 2 + (k.z - p.z) ** 2 < 4.5 * 4.5 && k.boost < 1.2) { k.boost = 1.2; if (!k.bot) { sfx.boost(); camKick = 1; } }
-    if (k.itemRoll > 0) { k.itemRoll -= dt; if (k.itemRoll <= 0) { k.item = k.pendItem; k.itemAge = 0; k.useDelay = rnd(.8, 3); if (k === myKart) updateItemHud(); } }
+    if (k.itemRoll > 0) { k.itemRoll -= dt; if (k.itemRoll <= 0) { k.itemRoll = 0; k.item = k.pendItem; k.itemAge = 0; k.useDelay = rnd(.8, 3); if (k === myKart) updateItemHud(); } }
   }
 }
 function updateItemHud() {
@@ -1148,8 +1222,8 @@ function visualKart(k, dt) {
   k.yaw = k.spin > 0 ? target : k.h;
   m.rotation.y = k.yaw;
   const lv = k.drift ? (k.charge >= 3 ? 3 : k.charge >= 1.9 ? 2 : k.charge >= .9 ? 1 : 0) : 0;
-  u.inner.rotation.y = k.drift ? lerp(u.inner.rotation.y, -k.drift * .45, Math.min(1, dt * 10)) : lerp(u.inner.rotation.y, 0, Math.min(1, dt * 10));
-  u.inner.rotation.z = lerp(u.inner.rotation.z, k.drift ? k.drift * .08 : 0, Math.min(1, dt * 8));
+  u.inner.rotation.y = k.drift ? lerp(u.inner.rotation.y, k.drift * .45, Math.min(1, dt * 10)) : lerp(u.inner.rotation.y, 0, Math.min(1, dt * 10));
+  u.inner.rotation.z = lerp(u.inner.rotation.z, k.drift ? -k.drift * .08 : 0, Math.min(1, dt * 8));
   u.wheelRot += (k.spd || 0) * dt / .5; for (const w of u.wheels) w.rotation.x = u.wheelRot;
   u.shield.visible = k.shield > 0 && (k.shield > 1.5 || Math.floor(performance.now() / 100) % 2 === 0);
   const bs = k.boost > 0; for (const f of u.flames) { f.visible = bs; if (bs) f.scale.set(1, 1 + Math.random() * .5, 1); }
@@ -1296,7 +1370,7 @@ function drawMinimap() {
   const cv = $('mapc'), x = cv.getContext('2d'); x.clearRect(0, 0, 300, 300); if (!mmBase) return;
   x.drawImage(mmBase.c, 0, 0);
   for (const k of karts) { if (k.gone) continue; const px = k.x * mmBase.s + mmBase.ox, pz = k.z * mmBase.s + mmBase.oz;
-    x.fillStyle = COLORS[k.color % 8]; x.beginPath(); x.arc(px, pz, k === myKart ? 11 : 8, 0, 7); x.fill();
+    x.fillStyle = colorOf(k.color); x.beginPath(); x.arc(px, pz, k === myKart ? 11 : 8, 0, 7); x.fill();
     x.lineWidth = 3; x.strokeStyle = k === myKart ? '#fff' : '#000'; x.stroke(); }
 }
 /* 결과 */
@@ -1306,11 +1380,10 @@ function renderResult(final) {
   const rows = karts.filter(k => !k.gone).slice().sort((a, b) => (race.finished[a.id] != null ? 0 : 1) - (race.finished[b.id] != null ? 0 : 1) || (race.finished[a.id] != null ? race.finished[a.id] - race.finished[b.id] : b.prog - a.prog));
   tbl.innerHTML = '<tr><th>#</th><th>이름</th><th>기록</th><th>베스트 랩</th></tr>' + rows.map((k, i) => {
     const t = race.finished[k.id], bl = race.bestLap[k.id] || k.bestLap;
-    return `<tr class="${k === me2 ? 'me' : ''}"><td>${i + 1}</td><td><span class="dot" style="display:inline-block;background:${COLORS[k.color % 8]};vertical-align:middle"></span> ${esc(k.name)}${k.bot ? ' 🤖' : ''}</td><td>${t != null ? fmtT(t) : '주행 중'}</td><td>${bl ? fmtT(bl) : '-'}</td></tr>`;
+    return `<tr class="${k === me2 ? 'me' : ''}"><td>${i + 1}</td><td><span class="dot" style="display:inline-block;background:${colorOf(k.color)};vertical-align:middle"></span> ${esc(k.name)}${k.bot ? ' 🤖' : ''}</td><td>${t != null ? fmtT(t) : '주행 중'}</td><td>${bl ? fmtT(bl) : '-'}</td></tr>`;
   }).join('');
   const mine = race.finished[me2.id];
   $('resTitle').textContent = mine != null ? (rows.indexOf(me2) === 0 ? '🏆 1등!' : (rows.indexOf(me2) + 1) + '등으로 골인!') : '레이스 결과';
-  if (race.coinGain) $('resTitle').textContent += '  (+' + race.coinGain + '🪙)';
   if (final) { show('scrResult'); $('specbar').style.display = 'none'; spec = null; }
   $('btnAgain').textContent = net.online && !net.host ? '대기실로 (방장 대기)' : '대기실로';
   if (mine != null) { $('hud').classList.add('on'); if (!$('scrResult').classList.contains('on')) setTimeout(() => { if (race && state === 'race' && race.finished[me2.id] != null) show('scrResult'); }, 1500); }
@@ -1355,8 +1428,8 @@ function loop(now) {
   if (state === 'race' && race) {
     updateRace(dt); updateCamera(dt); updateHud(); renderer.render(scene, camera);
   } else {
-    const key = me.color + '_' + me.body + '_' + me.cos.join('');
-    if (key !== garageKey) { garageKey = key; if (garageKart) garage.remove(garageKart); garageKart = buildKart(COLORS[me.color], me.body, me.cos); garageKart.userData.blob.visible = false; garage.add(garageKart); }
+    const key = me.color + '_' + me.body + '_' + me.cos.join('_');
+    if (key !== garageKey) { garageKey = key; if (garageKart) garage.remove(garageKart); garageKart = buildKart(me.color, me.body, me.cos); garageKart.userData.blob.visible = false; garage.add(garageKart); }
     garageRot += dt * .6; garageKart.rotation.y = garageRot;
     garageKart.userData.wheels.forEach(w => w.rotation.x = garageRot * 3);
     const mobile = innerWidth < 700;
@@ -1367,30 +1440,29 @@ function loop(now) {
 }
 
 /* ============================== 메뉴 UI ============================== */
-function renderShop() {
-  $('shopCoin').textContent = me.coins; $('coinN').textContent = me.coins;
-  [['wheel', 'shWheel', 0], ['stripe', 'shStripe', 1], ['flame', 'shFlame', 2]].forEach(([cat, id, ci]) => {
-    const el = $(id); el.innerHTML = '';
-    COS[cat].forEach((o, i) => {
-      const owned = !o.p || me.own.includes(cat + i), b = document.createElement('button');
-      b.textContent = o.n + (owned ? '' : ' 🪙' + o.p); if (me.cos[ci] === i) b.className = 'sel';
-      b.onclick = () => {
-        if (!owned) { if (me.coins < o.p) return alert('코인이 부족해요'); addCoins(-o.p); me.own.push(cat + i); localStorage.setItem('kart_own', JSON.stringify(me.own)); }
-        me.cos[ci] = i; localStorage.setItem('kart_equip', JSON.stringify(me.cos)); renderShop();
-      };
-      el.appendChild(b);
-    });
-  });
+const PRESETS = {
+  body: COLORS, wheel: ['#cfd6e6', '#ffc93d', '#ff3fb4', '#22e5ff', '#222230', '#ffffff'],
+  stripe: ['#ffffff', '#111111', '#ffc93d', '#ff3fb4', '#22e5ff'], flame: ['#5fd0ff', '#b04dff', '#3dff7a', '#ff5fb7', '#ffb02e', '#ffffff'],
+};
+function colorRow(id, presets, get, set, allowNone) {
+  const el = $(id), cur = (get() || '').toLowerCase(); el.innerHTML = '';
+  if (allowNone) { const n = document.createElement('div'); n.className = 'sw none' + (cur === '' ? ' sel' : ''); n.title = '없음'; n.textContent = '✕'; n.onclick = () => { set(''); saveLook(); renderEditor(); }; el.appendChild(n); }
+  presets.forEach(c => { const d = document.createElement('div'); d.className = 'sw' + (cur === c ? ' sel' : ''); d.style.background = c; d.onclick = () => { set(c); saveLook(); renderEditor(); }; el.appendChild(d); });
+  const inp = document.createElement('input'); inp.type = 'color'; inp.className = 'cpick'; inp.value = HEX.test(cur) ? cur : '#ffffff'; inp.title = '직접 고르기';
+  inp.oninput = () => { set(inp.value); saveLook(); };   // 드래그 중에는 다시 그리지 않음
+  el.appendChild(inp);
 }
-$('btnShop').onclick = () => { renderShop(); show('scrShop'); };
-$('btnShopBack').onclick = () => { initMenu(); show('scrMenu'); };
-function initMenu() {
-  $('coinN').textContent = me.coins;
-  $('nick').value = me.name;
-  $('swatches').innerHTML = COLORS.map((c, i) => `<div class="sw ${i === me.color ? 'sel' : ''}" data-i="${i}" style="background:${c}"></div>`).join('');
-  $('swatches').onclick = e => { const i = e.target.dataset && e.target.dataset.i; if (i == null) return; me.color = +i; localStorage.setItem('kart_color', i); initMenu(); };
-  seg($('bodySeg'), BODIES, me.body, i => { me.body = i; localStorage.setItem('kart_body', i); initMenu(); });
+function renderEditor() {
+  seg($('edBodyType'), BODIES, me.body, i => { me.body = i; saveLook(); renderEditor(); });
+  colorRow('edBody', PRESETS.body, () => colorOf(me.color), c => { me.color = c; });
+  colorRow('edWheel', PRESETS.wheel, () => me.cos[0], c => { me.cos[0] = c; });
+  colorRow('edStripe', PRESETS.stripe, () => me.cos[1], c => { me.cos[1] = c; }, true);
+  colorRow('edFlame', PRESETS.flame, () => me.cos[2], c => { me.cos[2] = c; });
 }
+$('btnShop').onclick = () => { renderEditor(); show('scrShop'); };
+$('btnReset').onclick = () => { me.color = COLORS[0]; me.body = 0; me.cos = COS_DEF.slice(); saveLook(); renderEditor(); };
+$('btnShopBack').onclick = () => { show('scrMenu'); };
+function initMenu() { $('nick').value = me.name; }
 function commitNick() {
   let n = $('nick').value.trim().slice(0, 10); if (!n) n = '레이서' + Math.floor(Math.random() * 900 + 100);
   me.name = n; $('nick').value = n; localStorage.setItem('kart_nick', n); audioInit(); return true;
