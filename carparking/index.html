@@ -457,7 +457,7 @@ scene.add(model.car);
    - 앞쪽이 +Z, 모델 길이는 5.03m로 자동 스케일, 바닥은 지면에 맞춤
    - 이름에 wheel/tire/tyre 가 들어간 최상위 노드가 정확히 4개면 휠로 인식해 조향·회전에 연결
    - 앞뒤가 반대로 보이면 GLB_FLIP = true */
-const GLB_URL = 'models/grandeur.glb';
+const GLB_URLS = ['models/grandeur.glb', 'models/ferrari.glb'];   // 앞에서부터 먼저 있는 파일 사용
 const GLB_FLIP = false;
 const glbPaint = [];
 
@@ -467,8 +467,10 @@ async function loadGLB() {
   draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
   loader.setDRACOLoader(draco);
   let gltf;
-  try { gltf = await loader.loadAsync(GLB_URL); }
-  catch (e) { console.info('GLB 없음 → 코드 모델 사용'); return; }
+  for (const url of GLB_URLS) {
+    try { gltf = await loader.loadAsync(url); break; } catch (e) { /* 다음 후보 */ }
+  }
+  if (!gltf) { console.info('GLB 없음 → 코드 모델 사용'); return; }
 
   const holder = new THREE.Group();
   holder.add(gltf.scene);
