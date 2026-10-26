@@ -89,13 +89,14 @@
 </div>
 
 <script type="module">
-let THREE, CANNON, RoomEnvironment, GLTFLoader, DRACOLoader;
+let THREE, CANNON, RoomEnvironment, GLTFLoader, DRACOLoader, MeshoptDecoder;
 try {
   THREE = await import('three');
   CANNON = await import('cannon-es');
   ({ RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js'));
   ({ GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'));
   ({ DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js'));
+  ({ MeshoptDecoder } = await import('three/addons/libs/meshopt_decoder.module.js'));
 } catch (e) {
   document.getElementById('loading').innerHTML = '3D 라이브러리를 불러오지 못했어요.<br>인터넷 연결을 확인하고 새로고침 해주세요.';
   throw e;
@@ -599,6 +600,7 @@ async function loadCar(idx) {
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
   loader.setDRACOLoader(draco);
+  loader.setMeshoptDecoder(MeshoptDecoder);
   let gltf;
   try { gltf = await loader.loadAsync(car.url); }
   catch (e) { console.info('GLB 없음 → 코드 모델 사용: ' + car.url); if (token === loadToken) { resetToProcedural(); toast(car.name + ' 파일이 없어 코드 모델 사용'); } return; }
