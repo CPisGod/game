@@ -33,6 +33,11 @@
   .tools button { padding: 9px 12px; border-radius: 10px; border: 1px solid #fff5; background: #000a; color: #fff; font: 700 13px "Malgun Gothic", sans-serif; cursor: pointer; }
   .tools button:active { background: #000d; transform: translateY(1px); }
 
+  #carMenu { position: fixed; right: 12px; top: 58px; z-index: 21; display: none; flex-direction: column; gap: 6px; padding: 8px; border-radius: 12px; background: #000d; border: 1px solid #fff4; }
+  #carMenu.on { display: flex; }
+  #carMenu button { min-width: 200px; padding: 10px 12px; border-radius: 8px; border: 1px solid #fff3; background: #222c; color: #fff; text-align: left; font: 700 14px "Malgun Gothic", sans-serif; cursor: pointer; }
+  #carMenu button.cur { background: #ffd54a; color: #000; }
+
   /* 터치 조작 버튼 */
   #touch { display: none; }
   body.touch #touch { display: block; }
@@ -61,17 +66,20 @@
 <div id="help" class="hud">
   <b>W / ↑</b> 가속 &nbsp; <b>S / ↓</b> 브레이크·후진<br>
   <b>A D / ← →</b> 조향 &nbsp; <b>Space</b> 핸드브레이크<br>
-  <b>C</b> 1·3인칭 &nbsp; <b>V</b> 색상 &nbsp; <b>R</b> 복구<br>
+  <b>C</b> 1·3인칭 &nbsp; <b>V</b> 색상 &nbsp; <b>R</b> 복구 &nbsp; <b>N</b> 차량<br>
   <b>드래그</b> 화면 회전 &nbsp; <b>휠</b> 줌
 </div>
 <div id="speedo" class="hud"><span id="speed">0</span> <small>km/h</small><span id="gear">D</span></div>
 <div id="msg" class="hud"></div>
 
 <div class="tools">
+  <button id="btnCar">🚗 차량</button>
   <button id="btnCam">📷 시점</button>
   <button id="btnColor">🎨 색상</button>
   <button id="btnReset">↺ 복구</button>
 </div>
+
+<div id="carMenu"></div>
 
 <div id="touch">
   <button id="tL">◀</button><button id="tR">▶</button>
@@ -401,6 +409,7 @@ function buildGrandeur() {
   box(1.0, 0.035, 0.02, mats.trim, shell, 0, 0.84, -2.58);   // 트렁크 크롬
 
   /* --- 실내 --- */
+  const interiorStart = shell.children.length;
   box(1.45, 0.2, 0.42, mats.dash, shell, 0, 0.93, 0.74);
   box(0.5, 0.05, 0.1, mats.dash, shell, 0.37, 1.04, 0.62);                 // 계기판 후드
   for (const sx of [0.37, -0.37]) {
@@ -418,6 +427,10 @@ function buildGrandeur() {
     const sp = box(0.015, 0.16, 0.012, mats.dash, wheelMesh, 0, 0, 0);
     sp.position.set(Math.sin(a) * 0.08, Math.cos(a) * 0.08, 0); sp.rotation.z = -a;
   }
+
+  const interior = new THREE.Group();   // 1인칭에서만 보이게 할 수 있도록 묶음
+  [...shell.children].slice(interiorStart).forEach(c => interior.add(c));
+  shell.add(interior);
 
   /* --- 휠 --- */
   const wheels = [];
@@ -438,7 +451,7 @@ function buildGrandeur() {
     mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 20).rotateZ(Math.PI / 2), mats.trim, face).position.x = side * 0.018;
     pivot.position.set(side * TRACK_X, CP_Y - REST_LEN, i < 2 ? ZF : ZR);
     car.add(pivot);
-    wheels.push({ pivot, spin, baseY: pivot.position.y });
+    wheels.push({ pivot, spin, procSpin: spin, baseY: pivot.position.y });
   }
 
   // 코드로 만든 차체는 한 그룹으로 묶어 둔다 (GLB가 로드되면 숨김)
@@ -446,42 +459,162 @@ function buildGrandeur() {
   [...shell.children].forEach(c => proc.add(c));
   shell.add(proc);
 
-  return { car, shell, proc, wheels, taillights, headlights: hl, steerWheel: wheelMesh };
+  return { car, shell, proc, interior, wheels, taillights, headlights: hl, steerWheel: wheelMesh };
 }
 
 const model = buildGrandeur();
 scene.add(model.car);
 
-/* ================= GLB 모델 로드 (선택) =================
-   carparking/models/grandeur.glb 파일이 있으면 코드 모델 대신 사용한다. 없으면 코드 모델 유지.
-   - 앞쪽이 +Z, 모델 길이는 5.03m로 자동 스케일, 바닥은 지면에 맞춤
-   - 이름에 wheel/tire/tyre 가 들어간 최상위 노드가 정확히 4개면 휠로 인식해 조향·회전에 연결
-   - 앞뒤가 반대로 보이면 GLB_FLIP = true */
-const GLB_URLS = ['models/grandeur.glb', 'models/ferrari.glb'];   // 앞에서부터 먼저 있는 파일 사용
-const GLB_FLIP = false;
-const glbPaint = [];
+/* ================= 차량 목록 / GLB 모델 로드 =================
+   models/*.glb 를 불러와 차량으로 쓴다. 파일이 없으면 코드로 만든 그랜저로 대체.
+   - 앞쪽이 +Z가 되도록 자동 회전(가로로 긴 모델은 +X가 앞), 길이는 length(m)로 스케일, 바닥은 지면에 맞춤
+   - 이름에 wheel/tire/tyre 가 들어간 최상위 노드 4개, 또는 타이어(rubber) 위치 기준으로 휠을 찾아 조향·회전에 연결
+   - 휠 위치/반지름은 물리(서스펜션)에도 반영 */
+const CARS = [
+  { id: 'grandeur', name: '현대 그랜저 GN7', url: 'models/grandeur.glb', length: 5.03, mass: 1650 },
+  { id: 'avante',   name: '현대 아반떼 N',   url: 'models/avante_n.glb', length: 4.89, mass: 1450 },
+  { id: 'suv',      name: 'SUV 컨셉',        url: 'models/suv.glb',      length: 4.78, mass: 1900 },
+  { id: 'ferrari',  name: '페라리 458 (참고용)', url: 'models/ferrari.glb', length: 4.53, mass: 1400 },
+  { id: 'code',     name: '코드 모델 그랜저', url: null,                  length: 5.03, mass: 1650 },
+];
+let glbPaint = [];
+let curR = WHEEL_R;
+let currentHolder = null, loadToken = 0, carIdx = 0;
 
-async function loadGLB() {
+// 휠 위치/반지름을 시각 + 물리에 동시에 반영 (지면 높이가 항상 SHELL_Y가 되도록 연결점 높이를 R에 맞춤)
+function setWheelGeo(i, x, z, R) {
+  const wi = vehicle.wheelInfos[i], cpy = R - 0.2;
+  wi.radius = R;
+  wi.chassisConnectionPointLocal.set(x, cpy, z);
+  const w = model.wheels[i];
+  w.baseY = cpy - REST_LEN;
+  w.pivot.position.set(x, w.baseY, z);
+}
+
+// 휠이 재질별 단일 메시에 합쳐진 GLB: 타이어(rubber/tire) 정점으로 휠 4개의 위치를 찾고,
+// 휠 범위 안에 든 삼각형(타이어·림·캘리퍼 등 모든 재질)을 떼어 휠별 메시로 만든다.
+function splitWheelsByTire(root, holder) {
+  const meshes = [];
+  root.updateMatrixWorld(true); holder.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(holder.matrixWorld).invert();
+  root.traverse(o => { if (o.isMesh) meshes.push(o); });
+  // 모든 메시를 holder 좌표계로 굽고 holder 직속으로 이동
+  for (const m of meshes) {
+    m.geometry = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+    m.geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
+    holder.add(m); m.matrix.identity(); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.set(1, 1, 1);
+  }
+  const tires = meshes.filter(m => /rubber|tire|tyre/i.test([].concat(m.material).map(x => x.name).join(' ') + m.name) && !/tread/i.test(m.name + [].concat(m.material).map(x => x.name).join(' ')));
+  if (!tires.length) return false;
+  const all = new THREE.Box3(); tires.forEach(m => { m.geometry.computeBoundingBox(); all.union(m.geometry.boundingBox); });
+  const mid = all.getCenter(new THREE.Vector3());
+  const quads = [0, 1, 2, 3].map(() => new THREE.Box3());   // 0:앞+X 1:앞-X 2:뒤+X 3:뒤-X
+  const qOf = (x, z) => (z > mid.z ? 0 : 2) + (x > mid.x ? 0 : 1);
+  const v = new THREE.Vector3();
+  for (const m of tires) {
+    const pos = m.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i); quads[qOf(v.x, v.z)].expandByPoint(v); }
+  }
+  if (quads.some(b => b.isEmpty())) return false;
+  const wh = quads.map(b => {
+    const c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3());
+    return { c, R: Math.max(sz.y, sz.z) / 2, hw: sz.x / 2, parts: [] };
+  });
+  // 삼각형 분배
+  const tmp = new THREE.Vector3();
+  for (const m of meshes) {
+    const g = m.geometry, pos = g.attributes.position;
+    const keep = [], take = wh.map(() => []);
+    for (let t = 0; t < pos.count / 3; t++) {
+      tmp.set(0, 0, 0);
+      for (let k = 0; k < 3; k++) tmp.add(v.fromBufferAttribute(pos, t * 3 + k));
+      tmp.multiplyScalar(1 / 3);
+      let w = -1;
+      for (let i = 0; i < 4; i++) {
+        const q = wh[i];
+        if (Math.hypot(tmp.y - q.c.y, tmp.z - q.c.z) <= q.R * 1.03 && Math.abs(tmp.x - q.c.x) <= q.hw * 1.08) { w = i; break; }
+      }
+      (w < 0 ? keep : take[w]).push(t);
+    }
+    const build = tris => {
+      const ng = new THREE.BufferGeometry();
+      for (const name in g.attributes) {
+        const a = g.attributes[name], n = a.itemSize, arr = new a.array.constructor(tris.length * 3 * n);
+        tris.forEach((t, j) => { for (let k = 0; k < 3 * n; k++) arr[j * 3 * n + k] = a.array[t * 3 * n + k]; });
+        ng.setAttribute(name, new THREE.BufferAttribute(arr, n, a.normalized));
+      }
+      return ng;
+    };
+    take.forEach((tris, i) => {
+      if (!tris.length) return;
+      const ng = build(tris); ng.translate(-wh[i].c.x, -wh[i].c.y, -wh[i].c.z);
+      const wm = new THREE.Mesh(ng, m.material); wm.castShadow = wm.receiveShadow = true;
+      wh[i].parts.push(wm);
+    });
+    if (keep.length) m.geometry = build(keep); else m.visible = false;
+  }
+  // 앞쪽(+Z)이 먼저, 각 쌍에서 +X(왼쪽)이 먼저: 0=앞왼 1=앞오른 2=뒤왼 3=뒤오른
+  wh.forEach((q, i) => {
+    const w = model.wheels[i];
+    w.pivot.clear();
+    setWheelGeo(i, q.c.x, q.c.z, q.R);
+    w.spin = new THREE.Group();
+    q.parts.forEach(pm => w.spin.add(pm));
+    w.pivot.add(w.spin);
+    w.pivot.visible = true;
+    if (i === 0) curR = q.R;
+  });
+  return true;
+}
+
+// 코드로 만든 그랜저 상태로 되돌림 (GLB 제거 + 코드 휠/기본 휠 위치 복원)
+function resetToProcedural() {
+  if (currentHolder) {
+    model.shell.remove(currentHolder);
+    currentHolder.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+    currentHolder = null;
+  }
+  glbPaint = [];
+  model.glbWheels = false; model.glbActive = false;
+  model.proc.children.forEach(c => { c.visible = true; });
+  model.wheels.forEach((w, i) => {
+    w.pivot.clear();
+    w.spin = w.procSpin; w.pivot.add(w.spin); w.pivot.visible = true;
+    setWheelGeo(i, (i % 2 === 0 ? 1 : -1) * TRACK_X, i < 2 ? ZF : ZR, WHEEL_R);
+  });
+  curR = WHEEL_R;
+}
+
+async function loadCar(idx) {
+  const token = ++loadToken;
+  const car = CARS[idx];
+  carIdx = idx;
+  try { localStorage.setItem('cpm-car', car.id); } catch (_) {}
+  refreshCarMenu();
+  chassis.mass = car.mass; chassis.updateMassProperties();
+  if (!car.url) { resetToProcedural(); toast('차량: ' + car.name); return; }
+
+  toast('불러오는 중… ' + car.name);
   const loader = new GLTFLoader();
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
   loader.setDRACOLoader(draco);
   let gltf;
-  for (const url of GLB_URLS) {
-    try { gltf = await loader.loadAsync(url); break; } catch (e) { /* 다음 후보 */ }
-  }
-  if (!gltf) { console.info('GLB 없음 → 코드 모델 사용'); return; }
+  try { gltf = await loader.loadAsync(car.url); }
+  catch (e) { console.info('GLB 없음 → 코드 모델 사용: ' + car.url); if (token === loadToken) { resetToProcedural(); toast(car.name + ' 파일이 없어 코드 모델 사용'); } return; }
+  if (token !== loadToken) return;   // 그 사이 다른 차량을 골랐음
+  resetToProcedural();
 
   const holder = new THREE.Group();
   holder.add(gltf.scene);
   model.shell.add(holder);
-  // 가로로 긴 모델이면 앞뒤 축(Z)에 맞게 회전
+  currentHolder = holder;
+  // 가로로 긴 모델이면 앞(+X)이 +Z를 보도록 회전
   let box = new THREE.Box3().setFromObject(gltf.scene), size = box.getSize(new THREE.Vector3());
-  gltf.scene.rotation.y = (size.x > size.z ? -Math.PI / 2 : 0) + (GLB_FLIP ? Math.PI : 0);
+  gltf.scene.rotation.y = size.x > size.z ? -Math.PI / 2 : 0;
   gltf.scene.updateMatrixWorld(true);
   box = new THREE.Box3().setFromObject(gltf.scene); size = box.getSize(new THREE.Vector3());
-  const k = 5.03 / size.z;
-  gltf.scene.scale.multiplyScalar(k);
+  gltf.scene.scale.multiplyScalar(car.length / size.z);
   gltf.scene.updateMatrixWorld(true);
   box = new THREE.Box3().setFromObject(gltf.scene);
   const c = box.getCenter(new THREE.Vector3());
@@ -493,12 +626,12 @@ async function loadGLB() {
     o.castShadow = o.receiveShadow = true;
     for (const m of [].concat(o.material)) {
       m.envMapIntensity = 1.0;
-      if (/body|paint|carpaint|exterior/i.test(m.name) && m.color) glbPaint.push(m);
+      if (/body|paint|carpaint|exterior|metallic/i.test(m.name) && m.color) glbPaint.push(m);
     }
   });
   glbPaint.forEach(m => m.color.setHex(paintColors[paintIdx].c));
 
-  // 휠 노드 찾기 (조상 중에 이미 휠이 있으면 제외)
+  // 1) 휠 노드가 있는 경우 (조상 중에 이미 휠이 있으면 제외)
   const found = [];
   gltf.scene.traverse(o => {
     if (!/wheel|tire|tyre/i.test(o.name) || /steer|handle/i.test(o.name)) return;
@@ -507,8 +640,8 @@ async function loadGLB() {
   });
   if (found.length === 4) {
     const info = found.map(n => {
-      const bc = new THREE.Box3().setFromObject(n).getCenter(new THREE.Vector3());
-      return { n, c: holder.worldToLocal(bc) };
+      const b = new THREE.Box3().setFromObject(n), sz = b.getSize(new THREE.Vector3());
+      return { n, c: holder.worldToLocal(b.getCenter(new THREE.Vector3())), R: Math.max(sz.y, sz.z) / 2 };
     });
     const front = info.filter(i => i.c.z > 0), rear = info.filter(i => i.c.z <= 0);
     if (front.length === 2 && rear.length === 2) {
@@ -517,24 +650,47 @@ async function loadGLB() {
       order.forEach((it, i) => {
         const w = model.wheels[i];
         w.pivot.clear();
-        w.pivot.position.set(it.c.x, it.c.y + SHELL_Y, it.c.z);
+        setWheelGeo(i, it.c.x, it.c.z, it.R);
         w.pivot.updateMatrixWorld(true);
-        w.baseY = w.pivot.position.y;
         w.spin = new THREE.Group();
         w.pivot.add(w.spin);
+        w.pivot.updateMatrixWorld(true);
         w.spin.attach(it.n);
       });
+      curR = order[0].R;
       model.glbWheels = true;
     }
   }
-  if (!model.glbWheels) {   // 휠 노드를 못 찾으면 GLB에 붙은 휠은 고정, 코드 휠은 겹치지 않게 숨김
-    console.info('GLB 휠 노드 4개를 찾지 못함: 휠은 조향/회전 없이 고정');
+  // 2) 휠이 재질별 메시에 합쳐진 경우
+  if (!model.glbWheels) model.glbWheels = splitWheelsByTire(gltf.scene, holder);
+  if (!model.glbWheels) {   // 못 찾으면 GLB에 붙은 휠은 고정, 코드 휠은 겹치지 않게 숨김
+    console.info('GLB 휠을 찾지 못함: 휠은 조향/회전 없이 고정');
     model.wheels.forEach(w => w.pivot.visible = false);
   }
-  model.proc.visible = false;
-  toast('GLB 모델 적용');
+  // 코드 모델은 숨기고, GLB에 실내가 없으므로 코드로 만든 실내만 1인칭에서 보여준다
+  model.proc.children.forEach(c => { c.visible = c === model.interior; });
+  model.glbActive = true;
+  toast('차량: ' + car.name);
 }
-loadGLB();
+
+/* ---- 차량 선택 메뉴 ---- */
+const carMenu = document.getElementById('carMenu');
+function refreshCarMenu() {
+  carMenu.innerHTML = '';
+  CARS.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.textContent = (i === carIdx ? '✔ ' : '') + c.name;
+    if (i === carIdx) b.className = 'cur';
+    b.onclick = () => { carMenu.classList.remove('on'); if (i !== carIdx) loadCar(i); };
+    carMenu.appendChild(b);
+  });
+}
+document.getElementById('btnCar').onclick = () => carMenu.classList.toggle('on');
+function nextCar() { loadCar((carIdx + 1) % CARS.length); }
+let startIdx = 0;
+try { const sv = localStorage.getItem('cpm-car'); const k = CARS.findIndex(c => c.id === sv); if (k >= 0) startIdx = k; } catch (_) {}
+carIdx = startIdx; refreshCarMenu();
+
 
 /* ================= 입력 ================= */
 const kb = {}, tc = {};
@@ -545,6 +701,7 @@ addEventListener('keydown', e => {
   else if (e.repeat) return;
   else if (e.code === 'KeyC') toggleView();
   else if (e.code === 'KeyV') nextPaint();
+  else if (e.code === 'KeyN') nextCar();
   else if (e.code === 'KeyR') resetCar();
 });
 addEventListener('keyup', e => { if (keyMap[e.code]) kb[keyMap[e.code]] = false; });
@@ -673,7 +830,7 @@ function syncModel(dt) {
   const p = chassis.interpolatedPosition, q = chassis.interpolatedQuaternion;
   model.car.position.set(p.x, p.y, p.z);
   model.car.quaternion.set(q.x, q.y, q.z, q.w);
-  wheelSpin += fwdSpeed / WHEEL_R * dt;
+  wheelSpin += fwdSpeed / curR * dt;
   for (let i = 0; i < 4; i++) {
     const w = vehicle.wheelInfos[i];
     const side = i % 2 === 0 ? 1 : -1;
@@ -719,6 +876,7 @@ function updateCamera(dt) {
     camera.fov += (60 + Math.min(Math.abs(fwdSpeed), 50) * 0.3 - camera.fov) * Math.min(1, dt * 4);
   }
   camera.updateProjectionMatrix();
+  if (model.glbActive) model.interior.visible = firstPerson;
   mats.glass.opacity += ((firstPerson ? 0.08 : 0.4) - mats.glass.opacity) * Math.min(1, dt * 10);   // 1인칭에서는 유리를 거의 투명하게
 }
 
@@ -748,6 +906,7 @@ function frame() {
 // 디버그/자동 테스트용 훅
 window.__cpm = { world, step: dt => { driveStep(dt); world.step(1 / 60, dt, 4); }, chassis, vehicle, kb, camera, model, THREE, setView: v => { firstPerson = v; }, state: () => ({ fwdSpeed, steerAngle, yaw: carYaw() }) };
 document.getElementById('loading').remove();
+loadCar(startIdx);
 toast('WASD로 운전 · 드래그로 시점 회전');
 requestAnimationFrame(frame);
 </script>
