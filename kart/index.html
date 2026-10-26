@@ -938,7 +938,7 @@ function startRace(grid, nBots) {
   skid = { m: new THREE.InstancedMesh(new THREE.PlaneGeometry(.55, 1.4), new THREE.MeshBasicMaterial({ color: 0x0a0a0a, transparent: true, opacity: .55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), 600), n: 0 };
   { const z0 = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < 600; i++) skid.m.setMatrixAt(i, z0); skid.m.frustumCulled = false; scene.add(skid.m); }
   spec = null; $('specbar').style.display = 'none';
-  toast('GO 직전에 ↑를 누르면 스타트 대시!');
+  toast(isTouch ? '스타트 대시: GO 직전 1초 안에 N2O 버튼을 누르세요' : '스타트 대시: GO 직전 1초 안에 ↑를 누르세요 (미리 누르고 있으면 안 돼요)', 3600);
   race = { phase: 'count', t0: performance.now() + 3200, last: 3, finished: {}, order: [], bestLap: {}, over: false, startT: 0 };
   $('msg').textContent = '';
   camReset = true; $('best').textContent = ''; $('toast').textContent = '';
@@ -1291,7 +1291,7 @@ function stepRemote(k, dt) {
 
 /* ============================== 레이스 루프 ============================== */
 let camReset = true, camShake = 0, camKick = 0, camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), camH = 0, netT = 0;
-function toast(t) { const el = $('toast'); el.textContent = t; clearTimeout(toast.t); toast.t = setTimeout(() => { el.textContent = ''; }, 1800); }
+function toast(t, ms = 1800) { const el = $('toast'); el.textContent = t; clearTimeout(toast.t); toast.t = setTimeout(() => { el.textContent = ''; }, ms); }
 
 function updateRace(dt) {
   const now = performance.now(), R = race;
@@ -1299,9 +1299,9 @@ function updateRace(dt) {
     const left = (R.t0 - now) / 1000, n = Math.ceil(left);
     if (n <= 3 && n >= 1 && n !== R.last) { R.last = n; sfx.count(); }
     $('msg').textContent = left > 0 ? (n <= 3 ? n : '') : '';
-    const mk = myKart; if (mk && !mk.auto) { if (readInput().gas) { if (mk.gasSince == null) mk.gasSince = left; } else mk.gasSince = null; }
+    const mk = myKart; if (mk && !mk.auto) { if (isTouch ? touch.n : readInput().gas) { if (mk.gasSince == null) mk.gasSince = left; } else mk.gasSince = null; }
     if (left <= 0) { R.phase = 'go'; $('msg').textContent = 'GO!'; sfx.go(); setTimeout(() => { if (race === R) $('msg').textContent = ''; }, 900); for (const k of karts) k.lapStart = 0;
-      const mk = myKart; if (mk && mk.gasSince != null && mk.gasSince < .8 && mk.gasSince > -1) { mk.boost = 1.6; camKick = 1; sfx.boost(); toast('스타트 대시!'); }
+      const mk = myKart; if (mk && mk.gasSince != null && mk.gasSince < 1 && mk.gasSince > -1) { mk.boost = 1.6; camKick = 1; sfx.boost(); toast('스타트 대시!'); }
       for (const k of karts) if (k.local && k.bot && Math.random() < (.35 + .2 * (lobby.diff | 0))) k.boost = 1.2; }
   }
   const canDrive = R.phase !== 'count';
