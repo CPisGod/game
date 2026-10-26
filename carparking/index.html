@@ -401,6 +401,7 @@ function buildGrandeur() {
   box(1.0, 0.035, 0.02, mats.trim, shell, 0, 0.84, -2.58);   // 트렁크 크롬
 
   /* --- 실내 --- */
+  const interiorStart = shell.children.length;
   box(1.45, 0.2, 0.42, mats.dash, shell, 0, 0.93, 0.74);
   box(0.5, 0.05, 0.1, mats.dash, shell, 0.37, 1.04, 0.62);                 // 계기판 후드
   for (const sx of [0.37, -0.37]) {
@@ -418,6 +419,10 @@ function buildGrandeur() {
     const sp = box(0.015, 0.16, 0.012, mats.dash, wheelMesh, 0, 0, 0);
     sp.position.set(Math.sin(a) * 0.08, Math.cos(a) * 0.08, 0); sp.rotation.z = -a;
   }
+
+  const interior = new THREE.Group();   // 1인칭에서만 보이게 할 수 있도록 묶음
+  [...shell.children].slice(interiorStart).forEach(c => interior.add(c));
+  shell.add(interior);
 
   /* --- 휠 --- */
   const wheels = [];
@@ -446,7 +451,7 @@ function buildGrandeur() {
   [...shell.children].forEach(c => proc.add(c));
   shell.add(proc);
 
-  return { car, shell, proc, wheels, taillights, headlights: hl, steerWheel: wheelMesh };
+  return { car, shell, proc, interior, wheels, taillights, headlights: hl, steerWheel: wheelMesh };
 }
 
 const model = buildGrandeur();
@@ -460,6 +465,82 @@ scene.add(model.car);
 const GLB_URLS = ['models/grandeur.glb', 'models/ferrari.glb'];   // 앞에서부터 먼저 있는 파일 사용
 const GLB_FLIP = false;
 const glbPaint = [];
+
+// 휠이 재질별 단일 메시에 합쳐진 GLB: 타이어(rubber/tire) 정점으로 휠 4개의 위치를 찾고,
+// 휠 범위 안에 든 삼각형(타이어·림·캘리퍼 등 모든 재질)을 떼어 휠별 메시로 만든다.
+function splitWheelsByTire(root, holder) {
+  const meshes = [];
+  root.updateMatrixWorld(true); holder.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(holder.matrixWorld).invert();
+  root.traverse(o => { if (o.isMesh) meshes.push(o); });
+  // 모든 메시를 holder 좌표계로 굽고 holder 직속으로 이동
+  for (const m of meshes) {
+    m.geometry = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+    m.geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
+    holder.add(m); m.matrix.identity(); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.set(1, 1, 1);
+  }
+  const tires = meshes.filter(m => /rubber|tire|tyre/i.test([].concat(m.material).map(x => x.name).join(' ') + m.name) && !/tread/i.test(m.name + [].concat(m.material).map(x => x.name).join(' ')));
+  if (!tires.length) return false;
+  const all = new THREE.Box3(); tires.forEach(m => { m.geometry.computeBoundingBox(); all.union(m.geometry.boundingBox); });
+  const mid = all.getCenter(new THREE.Vector3());
+  const quads = [0, 1, 2, 3].map(() => new THREE.Box3());   // 0:앞+X 1:앞-X 2:뒤+X 3:뒤-X
+  const qOf = (x, z) => (z > mid.z ? 0 : 2) + (x > mid.x ? 0 : 1);
+  const v = new THREE.Vector3();
+  for (const m of tires) {
+    const pos = m.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i); quads[qOf(v.x, v.z)].expandByPoint(v); }
+  }
+  if (quads.some(b => b.isEmpty())) return false;
+  const wh = quads.map(b => {
+    const c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3());
+    return { c, R: Math.max(sz.y, sz.z) / 2, hw: sz.x / 2, parts: [] };
+  });
+  // 삼각형 분배
+  const tmp = new THREE.Vector3();
+  for (const m of meshes) {
+    const g = m.geometry, pos = g.attributes.position;
+    const keep = [], take = wh.map(() => []);
+    for (let t = 0; t < pos.count / 3; t++) {
+      tmp.set(0, 0, 0);
+      for (let k = 0; k < 3; k++) tmp.add(v.fromBufferAttribute(pos, t * 3 + k));
+      tmp.multiplyScalar(1 / 3);
+      let w = -1;
+      for (let i = 0; i < 4; i++) {
+        const q = wh[i];
+        if (Math.hypot(tmp.y - q.c.y, tmp.z - q.c.z) <= q.R * 1.03 && Math.abs(tmp.x - q.c.x) <= q.hw * 1.08) { w = i; break; }
+      }
+      (w < 0 ? keep : take[w]).push(t);
+    }
+    const build = tris => {
+      const ng = new THREE.BufferGeometry();
+      for (const name in g.attributes) {
+        const a = g.attributes[name], n = a.itemSize, arr = new a.array.constructor(tris.length * 3 * n);
+        tris.forEach((t, j) => { for (let k = 0; k < 3 * n; k++) arr[j * 3 * n + k] = a.array[t * 3 * n + k]; });
+        ng.setAttribute(name, new THREE.BufferAttribute(arr, n, a.normalized));
+      }
+      return ng;
+    };
+    take.forEach((tris, i) => {
+      if (!tris.length) return;
+      const ng = build(tris); ng.translate(-wh[i].c.x, -wh[i].c.y, -wh[i].c.z);
+      const wm = new THREE.Mesh(ng, m.material); wm.castShadow = wm.receiveShadow = true;
+      wh[i].parts.push(wm);
+    });
+    if (keep.length) m.geometry = build(keep); else m.visible = false;
+  }
+  // 앞쪽(+Z)이 먼저, 각 쌍에서 +X(왼쪽)이 먼저: 0=앞왼 1=앞오른 2=뒤왼 3=뒤오른
+  wh.forEach((q, i) => {
+    const w = model.wheels[i];
+    w.pivot.clear();
+    w.pivot.position.set(q.c.x, q.c.y + SHELL_Y, q.c.z);
+    w.baseY = w.pivot.position.y;
+    w.spin = new THREE.Group();
+    q.parts.forEach(pm => w.spin.add(pm));
+    w.pivot.add(w.spin);
+    w.pivot.visible = true;
+  });
+  return true;
+}
 
 async function loadGLB() {
   const loader = new GLTFLoader();
@@ -493,7 +574,7 @@ async function loadGLB() {
     o.castShadow = o.receiveShadow = true;
     for (const m of [].concat(o.material)) {
       m.envMapIntensity = 1.0;
-      if (/body|paint|carpaint|exterior/i.test(m.name) && m.color) glbPaint.push(m);
+      if (/body|paint|carpaint|exterior|metallic/i.test(m.name) && m.color) glbPaint.push(m);
     }
   });
   glbPaint.forEach(m => m.color.setHex(paintColors[paintIdx].c));
@@ -527,11 +608,14 @@ async function loadGLB() {
       model.glbWheels = true;
     }
   }
+  if (!model.glbWheels) model.glbWheels = splitWheelsByTire(gltf.scene, holder);
   if (!model.glbWheels) {   // 휠 노드를 못 찾으면 GLB에 붙은 휠은 고정, 코드 휠은 겹치지 않게 숨김
     console.info('GLB 휠 노드 4개를 찾지 못함: 휠은 조향/회전 없이 고정');
     model.wheels.forEach(w => w.pivot.visible = false);
   }
-  model.proc.visible = false;
+  // 코드 모델은 숨기고, GLB에 실내가 없으므로 코드로 만든 실내만 1인칭에서 보여준다
+  model.proc.children.forEach(c => { c.visible = c === model.interior; });
+  model.glbActive = true;
   toast('GLB 모델 적용');
 }
 loadGLB();
@@ -719,6 +803,7 @@ function updateCamera(dt) {
     camera.fov += (60 + Math.min(Math.abs(fwdSpeed), 50) * 0.3 - camera.fov) * Math.min(1, dt * 4);
   }
   camera.updateProjectionMatrix();
+  if (model.glbActive) model.interior.visible = firstPerson;
   mats.glass.opacity += ((firstPerson ? 0.08 : 0.4) - mats.glass.opacity) * Math.min(1, dt * 10);   // 1인칭에서는 유리를 거의 투명하게
 }
 
