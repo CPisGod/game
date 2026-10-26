@@ -69,5 +69,36 @@ service cloud.firestore {
         && request.resource.data.playing is bool;
       allow delete: if true;
     }
+    // 카트 레이서 로비 (오목과 동일한 구조)
+    match /kart_rooms/{code} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['name', 'hb', 'playing'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 10
+        && request.resource.data.hb is number
+        && request.resource.data.playing is bool;
+      allow delete: if true;
+    }
+    // 카트 레이서 맵별 최고 랩 기록 (문서 ID: 맵__닉네임, 기록은 갱신만 가능)
+    match /kart_records/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['map', 'nick', 'time'])
+        && request.resource.data.map in ['russia', 'china', 'spain', 'usa', 'canada', 'italy', 'monaco', 'germany', 'australia']
+        && request.resource.data.nick is string
+        && request.resource.data.nick.size() > 0
+        && request.resource.data.nick.size() <= 10
+        && id == request.resource.data.map + '__' + request.resource.data.nick
+        && request.resource.data.time is int
+        && request.resource.data.time >= 8000
+        && request.resource.data.time <= 600000;
+      allow update: if request.resource.data.keys().hasOnly(['map', 'nick', 'time'])
+        && request.resource.data.map == resource.data.map
+        && request.resource.data.nick == resource.data.nick
+        && request.resource.data.time is int
+        && request.resource.data.time >= 8000
+        && request.resource.data.time < resource.data.time;
+      allow delete: if false;
+    }
   }
 }
