@@ -806,7 +806,7 @@ function dropPlayer(id) { if (!id) return; lobby.players = lobby.players.filter(
 // 레이스 중 나간 사람의 카트를 방장이 AI로 이어받음
 function botify(k) {
   if (k.finished) { k.bot = true; sendAll({ t: 'botify', id: k.id }); return; }
-  k.local = true; k.bot = true; k.auto = false; k.gone = false; k.burn = false; k.burnT = 0;
+  k.local = true; k.bot = true; k.auto = false; k.gone = false; k.burn = false; k.burnT = 0; k.beta = 0;
   k.vx = k.tvx || 0; k.vz = k.tvz || 0; k.spin = k.spinR || 0; k.boost = k.boostR ? 1 : 0; k.shield = k.shieldR ? 3 : 0; k.drift = 0; k.charge = 0;
   k.idx = nearest(k.x, k.z, null).i; k.prevIdx = k.idx; k.lapStart = race ? performance.now() - race.t0 : 0;
   k.fwd = k.vx * Math.sin(k.h) + k.vz * Math.cos(k.h); k.aiOff = rnd(-.5, .5); k.aiSkill = rnd(.9, 1.0); k.item = null; k.itemRoll = 0;
@@ -908,7 +908,7 @@ function makeKart(id, name, color, body, local, bot, cos) {
   const tag = nameSprite(name); tag.position.y = 4.4; mesh.add(tag); if (local && !bot) tag.visible = false;
   return { id, name, color, body, local, bot, mesh, tag,
     x: 0, z: 0, h: 0, vx: 0, vz: 0, spd: 0, drift: 0, charge: 0, boost: 0, shield: 0, spin: 0, inv: 0, item: null, itemRoll: 0,
-    y: 0, vy: 0, oil: 0, magnet: 0, n2o: 0, burn: false, burnT: 0, n2oHeld: false, recov: 0, driftTime: 0, lap: 0, idx: null, prog: 0, finished: false, finT: 0, lapStart: 0, bestLap: 0, rank: 1,
+    y: 0, vy: 0, oil: 0, magnet: 0, n2o: 0, burn: false, burnT: 0, n2oHeld: false, recov: 0, driftTime: 0, beta: 0, lap: 0, idx: null, prog: 0, finished: false, finT: 0, lapStart: 0, bestLap: 0, rank: 1,
     tx: 0, tz: 0, th: 0, tvx: 0, tvz: 0, lastRecv: 0, lat: 0, offroad: false, wrong: 0, yaw: 0, sparkT: 0, auto: false, aiOff: rnd(-.5, .5), aiSkill: rnd(.9, 1.0), gone: false };
 }
 function clearRace() {
@@ -1001,7 +1001,7 @@ function stepKart(k, inp, dt) {
   const T = track, half = T.half;
   if (k.spin > 0) { k.spin -= dt; inp = { steer: 0, gas: 0, brake: 0, drift: 0 }; k.drift = 0; k.charge = 0; }
   // 조향 입력은 서서히 들어가고 빠르게 풀림 (살짝 톡 치면 조금만 꺾임)
-  { const cs = k.steerS || 0, rs = Math.abs(inp.steer) > Math.abs(cs) ? 2.6 : 6; k.steerS = cs + clamp(inp.steer - cs, -rs * dt, rs * dt); inp = Object.assign({}, inp, { steer: k.steerS }); }
+  { const cs = k.steerS || 0, rs = Math.abs(inp.steer) > Math.abs(cs) ? (k.drift ? 7 : 2.6) : 6; k.steerS = cs + clamp(inp.steer - cs, -rs * dt, rs * dt); inp = Object.assign({}, inp, { steer: k.steerS }); }
   k.inv = Math.max(0, k.inv - dt); k.shield = Math.max(0, k.shield - dt);
   if (k.oil > 0) k.oil -= dt;
   if (k.y > 0 || k.vy > 0) {
@@ -1010,7 +1010,7 @@ function stepKart(k, inp, dt) {
   }
   const air = k.y > .05;
   const fx = Math.sin(k.h), fz = Math.cos(k.h), rx = Math.cos(k.h), rz = -Math.sin(k.h);
-  let vf = k.vx * fx + k.vz * fz, vl = k.vx * rx + k.vz * rz;
+  let vf = k.vx * fx + k.vz * fz;
   // 부스트 키: 게이지 100일 때만, 눌렀을 때 1회 발동 (이미 켜져 있으면 연장/중첩 없음)
   const n2oPress = !!inp.n2o && !k.n2oHeld; k.n2oHeld = !!inp.n2o;
   if (n2oPress && k.n2o >= 100 && !(k.burnT > 0) && k.spin <= 0) { k.n2o -= 100; k.burnT = BOOST_DUR; if (k.local && !k.bot) { sfx.boost(); camKick = 1; } }
@@ -1023,9 +1023,15 @@ function stepKart(k, inp, dt) {
   let maxS = MAXSPD * (boosting ? BOOST_VMAX : 1) * (k.offroad && !boosting ? .55 : 1);
   if (k.spin > 0) maxS = 8;
   if (k.oil > 0) maxS *= .85;
-  // 드리프트 시작/종료
-  if (inp.drift && !k.drift && Math.abs(inp.steer) > .2 && vf > 16 && k.spin <= 0 && !(k.oil > 0) && !air) { k.drift = inp.steer > 0 ? 1 : -1; k.charge = 0; k.sparkT = 0; k.lvPrev = gLv(k.n2o); k.driftT = performance.now(); k.driftTime = 0; vl += -k.drift * 4.5; vf *= .97; if (k.local && !k.bot) sfx.drift(); }
+  // 드리프트 시작 (클래식 카트라이더): 일정 속도 이상에서 방향키 + 드리프트 키
+  if (inp.drift && !k.drift && Math.abs(inp.steer) > .2 && vf > 16 && k.spin <= 0 && !(k.oil > 0) && !air) {
+    k.drift = inp.steer > 0 ? 1 : -1; k.sparkT = 0; k.lvPrev = gLv(k.n2o); k.driftT = performance.now(); k.driftTime = 0;
+    vf *= .97; if (k.local && !k.bot) sfx.drift();   // 진입 시 약간 감속, 차체는 아래에서 서서히 돌아감 (순간이동 없음)
+  }
   if (k.drift && (!inp.drift || vf < 11)) endDrift(k);
+  // 차체 방향(h)과 이동 방향(course)이 분리되는 모드: 드리프트 중 + 종료 후 차체가 정렬될 때까지
+  const kin = !!k.drift || Math.abs(k.beta || 0) > .02;
+  if (kin) vf = Math.max(Math.hypot(k.vx, k.vz), 0);   // 이동 방향 속도로 계산
   // 가속 / 브레이크
   if (inp.gas) vf += ACC * (1 - clamp(vf / maxS, 0, 1.2) * .85) * dt * (boosting ? BOOST_ACC : 1);
   else vf -= vf * .5 * dt;
@@ -1033,26 +1039,44 @@ function stepKart(k, inp, dt) {
   if (vf > maxS) vf = lerp(vf, maxS, Math.min(1, dt * 1.2));   // 부스트가 끝나도 속도가 서서히 줄어듦
   vf = Math.min(vf, MAXSPD * BOOST_VMAX * 1.08);   // 물리적 상한
   if (vf < -12) vf = -12;
-  // 조향
-  const sf = clamp(Math.abs(vf) / 14, 0, 1) * (vf >= 0 ? 1 : -1);
-  let rate;
-  if (k.drift) {
-    k.driftTime = (k.driftTime || 0) + dt; const dtm = k.driftTime;
-    vf -= vf * (.035 + .02 * clamp(dtm / 3, 0, 1.5)) * dt;                     // 드리프트 감속 (오래 끌수록 커짐)
-    const inward = Math.max(0, inp.steer * k.drift), longPen = dtm > 3 ? Math.max(.35, 1 - (dtm - 3) * .3) : 1;
-    const eff = clamp(Math.abs(vf) / MAXSPD, .4, 1.1) * (1 + .3 * inward) * longPen;   // 충전 보정값
-    k.n2o = Math.min(100, k.n2o + DRIFT_CHARGE * dt * eff);                    // 부스트 중에도 충전
-    rate = k.drift * 1.25 + inp.steer * .85;
-    const lvN = gLv(k.n2o);
-    if (lvN > (k.lvPrev || 0)) { k.lvPrev = lvN; if (k.local && !k.bot) { sfx.item(); camKick = .6; } for (let q = 0; q < 8; q++) spawnParticle(k.x, 1, k.z, SPARK[lvN], .5, 5); } }
-  else { rate = inp.steer * turnMax(Math.abs(vf)); vf -= Math.abs(rate) * vf * .2 * dt * clamp(vf / 20, 0, 1); }   // 핸들을 꺾으면 속도 손실
-  if (k.oil > 0) rate += Math.sin(performance.now() / 110) * .9;
-  if (air) rate *= .35;
-  k.h += rate * sf * dt;
-  // 옆미끄러짐 감쇠
-  vl *= Math.exp(-(k.drift ? 1.8 - .35 * clamp((k.driftTime || 0) / 4, 0, 1) : k.oil > 0 ? 1.1 : k.recov > 0 ? 9 - 6 * (k.recov / .45) : 9) * dt);   // 드리프트 종료 후 마찰이 서서히 복구
-  const nfx = Math.sin(k.h), nfz = Math.cos(k.h), nrx = Math.cos(k.h), nrz = -Math.sin(k.h);
-  k.vx = nfx * vf + nrx * vl; k.vz = nfz * vf + nrz * vl;
+  let vl = 0;
+  if (kin) {
+    const sp = Math.max(vf, 0), course = sp > .5 ? Math.atan2(k.vx, k.vz) : k.h - (k.beta || 0);
+    let beta = k.beta || 0, wc;
+    if (k.drift) {
+      k.driftTime = (k.driftTime || 0) + dt; const dtm = k.driftTime;
+      const sIn = clamp(inp.steer * k.drift, -1, 1);                                   // + 안쪽: 각도를 키우며 더 급하게 / − 바깥쪽: 각도를 줄이며 완만하게
+      beta += (k.drift * (.15 + .8 * (sIn + 1) / 2) - beta) * Math.min(1, dt * 5.5);    // 목표 미끄러짐 각 약 9°~54°, 차체가 서서히 회전
+      const bm = clamp(Math.abs(beta), .15, .95);
+      wc = k.drift * (.55 + 1.35 * (bm - .15) / .8);                                   // 각도가 클수록 코스가 급하게 휨
+      vf -= vf * (.035 + .02 * clamp(dtm / 3, 0, 1.5)) * (.6 + .8 * Math.abs(beta) / .95) * dt;   // 감속: 각도가 클수록, 오래 끌수록 커짐
+      const longPen = dtm > 3 ? Math.max(.35, 1 - (dtm - 3) * .3) : 1;
+      const eff = clamp(Math.abs(vf) / MAXSPD, .4, 1.1) * (.6 + .8 * Math.abs(beta) / .95) * longPen;   // 충전 보정값: 속도·각도 비례
+      k.n2o = Math.min(100, k.n2o + DRIFT_CHARGE * dt * eff);                          // 부스트 중에도 충전
+      const lvN = gLv(k.n2o);
+      if (lvN > (k.lvPrev || 0)) { k.lvPrev = lvN; if (k.local && !k.bot) { sfx.item(); camKick = .6; } for (let q = 0; q < 8; q++) spawnParticle(k.x, 1, k.z, SPARK[lvN], .5, 5); }
+    } else {                                                                            // 드리프트 종료: 차체가 이동 방향으로 빠르게 정렬 (속도 손실 없음)
+      beta *= Math.exp(-9 * dt); wc = inp.steer * turnMax(Math.abs(vf)) * .6;
+    }
+    if (k.oil > 0) wc += Math.sin(performance.now() / 110) * .9;
+    if (air) wc *= .35;
+    const course2 = course + wc * clamp(sp / 14, 0, 1) * dt;
+    k.h = course2 + beta; k.beta = beta;
+    k.vx = Math.sin(course2) * sp; k.vz = Math.cos(course2) * sp;
+    vl = -sp * Math.sin(beta); vf = sp * Math.cos(beta);
+  } else {
+    k.beta = 0;
+    // 조향
+    const sf = clamp(Math.abs(vf) / 14, 0, 1) * (vf >= 0 ? 1 : -1);
+    let rate = inp.steer * turnMax(Math.abs(vf)); vf -= Math.abs(rate) * vf * .2 * dt * clamp(vf / 20, 0, 1);   // 핸들을 꺾으면 속도 손실
+    if (k.oil > 0) rate += Math.sin(performance.now() / 110) * .9;
+    if (air) rate *= .35;
+    k.h += rate * sf * dt;
+    // 옆미끄러짐 감쇠
+    const fx2 = Math.sin(k.h), fz2 = Math.cos(k.h);
+    vl = k.vx * Math.cos(k.h) - k.vz * Math.sin(k.h); vl *= Math.exp(-(k.oil > 0 ? 1.1 : 9) * dt);
+    k.vx = fx2 * vf + Math.cos(k.h) * vl; k.vz = fz2 * vf - Math.sin(k.h) * vl;
+  }
   k.x += k.vx * dt; k.z += k.vz * dt;
   k.spd = Math.hypot(k.vx, k.vz) * (vf >= 0 ? 1 : -1); k.fwd = vf; k.slide = vl;
   // 벽
@@ -1076,7 +1100,7 @@ function endDrift(k) {
   // 충전된 게이지는 유지. 차체/이동 방향 차이는 recov 동안 서서히 줄어듦
   const lv = gLv(k.n2o);
   if (lv) for (let q = 0; q < 6; q++) spawnParticle(k.x - Math.sin(k.h) * 2, .7, k.z - Math.cos(k.h) * 2, SPARK[lv], .45, 5);
-  k.drift = 0; k.charge = 0; k.lvPrev = 0; k.driftTime = 0; k.recov = .45;
+  k.drift = 0; k.charge = 0; k.lvPrev = 0; k.driftTime = 0;   // 게이지는 유지, 차체는 beta 감쇠로 정렬
 }
 function onLap(k) {
   const now = performance.now() - race.t0;
@@ -1103,9 +1127,11 @@ function aiInput(k, dt) {
   // 앞쪽 곡률 / 커브 방향 (sgn > 0: 왼쪽 커브)
   let c = 0; for (let j = 0; j < 30; j += 4) c = Math.max(c, T.pts[(k.idx + j) % N].curv);
   const turn = angDiff(T.pts[k.idx].h, T.pts[(k.idx + 14) % N].h), sgn = Math.sign(turn);
+  let c1 = 0; for (let j = 0; j < 11; j += 2) c1 = Math.max(c1, T.pts[(k.idx + j) % N].curv);   // 바로 앞(약 35m) 곡률: 드리프트 시작/종료 판단용
+  const turn1 = angDiff(T.pts[k.idx].h, T.pts[(k.idx + 11) % N].h), sgn1 = Math.sign(turn1);
   // 레이싱 라인: 커브 안쪽으로 붙기
   const useSC = false;   // AI 지름길 이용은 입구에서 벽에 끼는 문제가 있어 비활성화 (코드는 남겨 둠)
-  let off = clamp(k.aiOff * T.half * .3 - sgn * T.half * .35 * clamp(c * 45, 0, 1), -T.half * .6, T.half * .6);
+  let off = clamp(k.aiOff * T.half * .3 + sgn * T.half * .35 * clamp(c * 45, 0, 1), -T.half * .6, T.half * .6);
   if (!useSC) for (const sc of T.shortcuts) {   // 지름길을 안 쓰는 AI는 입구/출구 근처에서 반대편으로 붙어 벽 틈으로 새지 않게 함
     const near = i => Math.min((i - k.idx + N) % N, (k.idx - i + N) % N) < 35;
     if (near(sc.i0) || near(sc.i1)) off = -sc.side * T.half * .35;
@@ -1126,8 +1152,8 @@ function aiInput(k, dt) {
   // 드리프트: 일반 조향으로 못 도는 커브에서 사용
   let wantDrift = false;
   if (ds >= 1 && !scAim && k.spin <= 0 && !(k.oil > 0) && k.y < .1) {
-    if (k.drift) wantDrift = c > .007 && Math.sign(k.drift) === sgn && Math.abs(k.lat) < T.half * .9;
-    else wantDrift = c > .011 && Math.abs(turn) > .14 && k.fwd > 18 && k.fwd * c > turnMax(k.fwd) * .8;
+    if (k.drift) wantDrift = c1 > .007 && Math.sign(k.drift) === sgn1 && Math.abs(k.lat) < T.half * .9;
+    else wantDrift = c1 > .014 && Math.abs(turn1) > .22 && k.fwd > 18 && k.fwd * c1 > turnMax(k.fwd) * .8;
   }
   const vmax = MAXSPD * k.aiSkill * rb; let target = vmax;
   if (scAim) target = Math.min(vmax, 34);
@@ -1137,9 +1163,9 @@ function aiInput(k, dt) {
   target = clamp(target, 14, MAXSPD * (k.boost > 0 || k.burn ? 1.45 : [1.02, 1.1, 1.2][ds]));
   const vh = Math.hypot(k.vx, k.vz) > 5 ? Math.atan2(k.vx, k.vz) : k.h, dv = angDiff(vh, want);   // 드리프트 중엔 진행 방향 기준으로 조향 (바깥으로 밀리지 않게)
   let steer = clamp((k.drift && !scAim ? dv : d) * 2.6, -1, 1);
-  if (wantDrift && !k.drift) steer = sgn * .9;   // 드리프트 진입 방향
+  if (wantDrift && !k.drift) steer = sgn1 * .9;   // 드리프트 진입 방향
   k.n2o = Math.min(100, k.n2o + 2 * dt);
-  const useN2o = k.n2o >= 100 && c < .006 && !k.offroad && k.fwd > 24;
+  const useN2o = k.n2o >= 100 && c1 < .004 && c < .02 && !k.offroad && k.fwd > 24;
   return { steer, gas: k.fwd < target ? 1 : 0, brake: k.fwd > target + 6 && !k.drift ? 1 : 0, drift: wantDrift ? 1 : 0, n2o: useN2o ? 1 : 0 };
 }
 
@@ -1303,7 +1329,7 @@ function visualKart(k, dt) {
   k.yaw = k.spin > 0 ? target : k.h;
   m.rotation.y = k.yaw;
   const lv = k.drift ? gLv(k.n2o) : 0;
-  u.inner.rotation.y = k.drift ? lerp(u.inner.rotation.y, k.drift * .62, Math.min(1, dt * 10)) : lerp(u.inner.rotation.y, 0, Math.min(1, dt * 10));
+  u.inner.rotation.y = k.drift ? lerp(u.inner.rotation.y, k.drift * .1, Math.min(1, dt * 10)) : lerp(u.inner.rotation.y, 0, Math.min(1, dt * 10));
   u.inner.rotation.z = lerp(u.inner.rotation.z, k.drift ? -k.drift * .15 : 0, Math.min(1, dt * 8));
   u.wheelRot += (k.spd || 0) * dt / .5; for (const w of u.wheels) w.rotation.x = u.wheelRot;
   u.shield.visible = k.shield > 0 && (k.shield > 1.5 || Math.floor(performance.now() / 100) % 2 === 0);
@@ -1373,7 +1399,6 @@ function updateRace(dt) {
       if (!canDrive) inp = { steer: 0, gas: 0, brake: 0, drift: 0 };
       else if (k.bot || k.auto) inp = aiInput(k, dt);
       else inp = readInput();
-      if (k.auto && !k.bot) inp.drift = 0;
       // 출발 부스트: 카운트다운 중 가속
       stepKart(k, inp, dt);
     } else stepRemote(k, dt);
@@ -1517,7 +1542,8 @@ function updateCamera(dt) {
   if (spec) $('spName').textContent = '👁 ' + spec.name;
   const spdF = clamp(Math.abs(k.spd) / MAXSPD, 0, 1.5);
   const slide = k.drift ? k.drift * .25 : 0;
-  camH = camReset ? k.h : camH + angDiff(camH, k.h - (k.drift || 0) * .34) * Math.min(1, dt * (k.drift ? 3.2 : 5.5));
+  const cdir = Math.hypot(k.vx, k.vz) > 3 ? Math.atan2(k.vx, k.vz) : k.h, ctgt = k.h + angDiff(k.h, cdir) * .8;   // 카메라는 이동 방향을 따라가서 드리프트 때 차가 옆으로 보임
+  camH = camReset ? ctgt : camH + angDiff(camH, ctgt) * Math.min(1, dt * (k.drift ? 3.5 : 5.5));
   const dist = 9.5 + spdF * 1.5, hgt = 4.4 + spdF * .4;
   const tx = k.x - Math.sin(camH) * dist, tz = k.z - Math.cos(camH) * dist;
   if (camReset) { camPos.set(tx, hgt, tz); camReset = false; } else camPos.lerp(new THREE.Vector3(tx, hgt, tz), Math.min(1, dt * 9));
