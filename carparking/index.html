@@ -81,11 +81,13 @@
 </div>
 
 <script type="module">
-let THREE, CANNON, RoomEnvironment;
+let THREE, CANNON, RoomEnvironment, GLTFLoader, DRACOLoader;
 try {
   THREE = await import('three');
   CANNON = await import('cannon-es');
   ({ RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js'));
+  ({ GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'));
+  ({ DRACOLoader } = await import('three/addons/loaders/DRACOLoader.js'));
 } catch (e) {
   document.getElementById('loading').innerHTML = '3D 라이브러리를 불러오지 못했어요.<br>인터넷 연결을 확인하고 새로고침 해주세요.';
   throw e;
@@ -436,14 +438,101 @@ function buildGrandeur() {
     mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 20).rotateZ(Math.PI / 2), mats.trim, face).position.x = side * 0.018;
     pivot.position.set(side * TRACK_X, CP_Y - REST_LEN, i < 2 ? ZF : ZR);
     car.add(pivot);
-    wheels.push({ pivot, spin });
+    wheels.push({ pivot, spin, baseY: pivot.position.y });
   }
 
-  return { car, shell, wheels, taillights, headlights: hl, steerWheel: wheelMesh };
+  // 코드로 만든 차체는 한 그룹으로 묶어 둔다 (GLB가 로드되면 숨김)
+  const proc = new THREE.Group();
+  [...shell.children].forEach(c => proc.add(c));
+  shell.add(proc);
+
+  return { car, shell, proc, wheels, taillights, headlights: hl, steerWheel: wheelMesh };
 }
 
 const model = buildGrandeur();
 scene.add(model.car);
+
+/* ================= GLB 모델 로드 (선택) =================
+   carparking/models/grandeur.glb 파일이 있으면 코드 모델 대신 사용한다. 없으면 코드 모델 유지.
+   - 앞쪽이 +Z, 모델 길이는 5.03m로 자동 스케일, 바닥은 지면에 맞춤
+   - 이름에 wheel/tire/tyre 가 들어간 최상위 노드가 정확히 4개면 휠로 인식해 조향·회전에 연결
+   - 앞뒤가 반대로 보이면 GLB_FLIP = true */
+const GLB_URL = 'models/grandeur.glb';
+const GLB_FLIP = false;
+const glbPaint = [];
+
+async function loadGLB() {
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
+  loader.setDRACOLoader(draco);
+  let gltf;
+  try { gltf = await loader.loadAsync(GLB_URL); }
+  catch (e) { console.info('GLB 없음 → 코드 모델 사용'); return; }
+
+  const holder = new THREE.Group();
+  holder.add(gltf.scene);
+  model.shell.add(holder);
+  // 가로로 긴 모델이면 앞뒤 축(Z)에 맞게 회전
+  let box = new THREE.Box3().setFromObject(gltf.scene), size = box.getSize(new THREE.Vector3());
+  gltf.scene.rotation.y = (size.x > size.z ? -Math.PI / 2 : 0) + (GLB_FLIP ? Math.PI : 0);
+  gltf.scene.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(gltf.scene); size = box.getSize(new THREE.Vector3());
+  const k = 5.03 / size.z;
+  gltf.scene.scale.multiplyScalar(k);
+  gltf.scene.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(gltf.scene);
+  const c = box.getCenter(new THREE.Vector3());
+  holder.position.set(-c.x, -box.min.y, -c.z);
+  holder.updateMatrixWorld(true);
+
+  gltf.scene.traverse(o => {
+    if (!o.isMesh) return;
+    o.castShadow = o.receiveShadow = true;
+    for (const m of [].concat(o.material)) {
+      m.envMapIntensity = 1.0;
+      if (/body|paint|carpaint|exterior/i.test(m.name) && m.color) glbPaint.push(m);
+    }
+  });
+  glbPaint.forEach(m => m.color.setHex(paintColors[paintIdx].c));
+
+  // 휠 노드 찾기 (조상 중에 이미 휠이 있으면 제외)
+  const found = [];
+  gltf.scene.traverse(o => {
+    if (!/wheel|tire|tyre/i.test(o.name) || /steer|handle/i.test(o.name)) return;
+    for (let a = o.parent; a; a = a.parent) if (found.includes(a)) return;
+    found.push(o);
+  });
+  if (found.length === 4) {
+    const info = found.map(n => {
+      const bc = new THREE.Box3().setFromObject(n).getCenter(new THREE.Vector3());
+      return { n, c: holder.worldToLocal(bc) };
+    });
+    const front = info.filter(i => i.c.z > 0), rear = info.filter(i => i.c.z <= 0);
+    if (front.length === 2 && rear.length === 2) {
+      const order = [];
+      for (const pair of [front, rear]) { pair.sort((a, b) => b.c.x - a.c.x); order.push(pair[0], pair[1]); }   // +X(왼쪽) 먼저
+      order.forEach((it, i) => {
+        const w = model.wheels[i];
+        w.pivot.clear();
+        w.pivot.position.set(it.c.x, it.c.y + SHELL_Y, it.c.z);
+        w.pivot.updateMatrixWorld(true);
+        w.baseY = w.pivot.position.y;
+        w.spin = new THREE.Group();
+        w.pivot.add(w.spin);
+        w.spin.attach(it.n);
+      });
+      model.glbWheels = true;
+    }
+  }
+  if (!model.glbWheels) {   // 휠 노드를 못 찾으면 GLB에 붙은 휠은 고정, 코드 휠은 겹치지 않게 숨김
+    console.info('GLB 휠 노드 4개를 찾지 못함: 휠은 조향/회전 없이 고정');
+    model.wheels.forEach(w => w.pivot.visible = false);
+  }
+  model.proc.visible = false;
+  toast('GLB 모델 적용');
+}
+loadGLB();
 
 /* ================= 입력 ================= */
 const kb = {}, tc = {};
@@ -483,6 +572,7 @@ function toggleView() { firstPerson = !firstPerson; userYaw = userPitch = 0; toa
 function nextPaint() {
   paintIdx = (paintIdx + 1) % paintColors.length;
   paintMat.color.setHex(paintColors[paintIdx].c); paintMatDS.color.setHex(paintColors[paintIdx].c);
+  glbPaint.forEach(m => m.color.setHex(paintColors[paintIdx].c));
   toast('색상: ' + paintColors[paintIdx].name);
 }
 function resetCar() {
@@ -585,7 +675,7 @@ function syncModel(dt) {
   for (let i = 0; i < 4; i++) {
     const w = vehicle.wheelInfos[i];
     const side = i % 2 === 0 ? 1 : -1;
-    model.wheels[i].pivot.position.y = CP_Y - w.suspensionLength;
+    model.wheels[i].pivot.position.y = model.wheels[i].baseY + (REST_LEN - w.suspensionLength);
     model.wheels[i].pivot.rotation.y = i < 2 ? STEER_SIGN * steerAngle : 0;
     model.wheels[i].spin.rotation.x = hand && i >= 2 ? model.wheels[i].spin.rotation.x : wheelSpin;
   }
