@@ -154,7 +154,7 @@
     <div class="rooms" id="roomList"><div class="empty">불러오는 중…</div></div>
     <div class="sub" style="margin-top:12px;line-height:1.6">
       ↑/W 가속 · ←→/AD 조향 · ↓/S 브레이크<br>
-      <b>Shift</b> 드리프트 (놓으면 부스터) · <b>X / Ctrl</b> N2O 부스터 (드리프트로 충전) · <b>Space</b> 아이템 · 모바일은 가속 자동 · 왼쪽 패드로 조향
+      <b>Shift</b> 드리프트 (놓으면 부스터) · <b>X / Ctrl</b> 부스트 (드리프트로 100% 충전 시) · <b>Space</b> 아이템 · 모바일은 가속 자동 · 왼쪽 패드로 조향
     </div>
   </div>
 </div>
@@ -219,7 +219,7 @@
   <div class="hp" id="item"></div>
   <div class="hp" id="speed">0<small> km/h</small></div>
   <div id="gaugeBox"><div id="gauge"></div></div>
-  <div id="n2oBox"><span>N2O <small>[X]</small></span><div id="n2oTrack"><div id="n2oBar"></div></div></div>
+  <div id="n2oBox"><span id="n2oLbl">BOOST 0%</span><div id="n2oTrack"><div id="n2oBar"></div></div></div>
   <canvas id="mapc" width="300" height="300"></canvas>
   <div class="hp" id="msg"></div>
   <div class="hp" id="toast"></div>
@@ -269,6 +269,12 @@ const MAPS = [
 ].map(m => Object.assign(m, TH[m.th]));
 const NSAMP = 700;
 const MAXSPD = 40, ACC = 22;
+// 드리프트 / 부스트 파라미터 (서로 독립적으로 조정 가능)
+const DRIFT_CHARGE = 20;      // 드리프트 중 초당 게이지 충전량 (× 보정값)
+const BOOST_DUR = 2.4;        // 부스트 지속시간(초)
+const BOOST_ACC = 2.4;        // 부스트 중 가속력 배율
+const BOOST_VMAX = 1.4;       // 부스트 중 최고속도 배율
+const gLv = g => g >= 100 ? 3 : g >= 66 ? 2 : g >= 33 ? 1 : 0;   // 게이지 단계 (스파크 색/효과음)
 const ITEMS = { banana: '🍌', missile: '🚀', boost: '⚡', shield: '🛡️', oil: '🛢️', thunder: '🌩️', magnet: '🧲' };
 const ITEM_ICONS = ['❓', '🍌', '🚀', '⚡', '🛡️', '🛢️', '🌩️', '🧲'];
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -642,6 +648,11 @@ function onShortcut(x, z, r = 9.5) {
   }
   return false;
 }
+// 벽 메쉬를 만들 때 쓴 틈 판정과 동일 (보이는 틈 = 실제로 통과 가능한 틈)
+function wallGapAt(side, i) {
+  const T = track, p = T.pts[i], wx = p.x + p.nx * T.wallOff * side, wz = p.z + p.nz * T.wallOff * side;
+  return T.shortcuts.some(s => { if (s.side !== side) return false; const t = clamp(((wx - s.ax) * s.dx + (wz - s.az) * s.dz) / s.l2, 0, 1); return Math.hypot(s.ax + s.dx * t - wx, s.az + s.dz * t - wz) < 12; });
+}
 /* 가장 가까운 샘플 탐색 (hint 주변 → 실패하면 전체) */
 function nearest(x, z, hint) {
   const P = track.pts, N = track.N; let best = -1, bd = 1e12;
@@ -795,7 +806,7 @@ function dropPlayer(id) { if (!id) return; lobby.players = lobby.players.filter(
 // 레이스 중 나간 사람의 카트를 방장이 AI로 이어받음
 function botify(k) {
   if (k.finished) { k.bot = true; sendAll({ t: 'botify', id: k.id }); return; }
-  k.local = true; k.bot = true; k.auto = false; k.gone = false; k.burn = false;
+  k.local = true; k.bot = true; k.auto = false; k.gone = false; k.burn = false; k.burnT = 0;
   k.vx = k.tvx || 0; k.vz = k.tvz || 0; k.spin = k.spinR || 0; k.boost = k.boostR ? 1 : 0; k.shield = k.shieldR ? 3 : 0; k.drift = 0; k.charge = 0;
   k.idx = nearest(k.x, k.z, null).i; k.prevIdx = k.idx; k.lapStart = race ? performance.now() - race.t0 : 0;
   k.fwd = k.vx * Math.sin(k.h) + k.vz * Math.cos(k.h); k.aiOff = rnd(-.5, .5); k.aiSkill = rnd(.9, 1.0); k.item = null; k.itemRoll = 0;
@@ -897,7 +908,7 @@ function makeKart(id, name, color, body, local, bot, cos) {
   const tag = nameSprite(name); tag.position.y = 4.4; mesh.add(tag); if (local && !bot) tag.visible = false;
   return { id, name, color, body, local, bot, mesh, tag,
     x: 0, z: 0, h: 0, vx: 0, vz: 0, spd: 0, drift: 0, charge: 0, boost: 0, shield: 0, spin: 0, inv: 0, item: null, itemRoll: 0,
-    y: 0, vy: 0, oil: 0, magnet: 0, n2o: 0, burn: false, lap: 0, idx: null, prog: 0, finished: false, finT: 0, lapStart: 0, bestLap: 0, rank: 1,
+    y: 0, vy: 0, oil: 0, magnet: 0, n2o: 0, burn: false, burnT: 0, n2oHeld: false, recov: 0, driftTime: 0, lap: 0, idx: null, prog: 0, finished: false, finT: 0, lapStart: 0, bestLap: 0, rank: 1,
     tx: 0, tz: 0, th: 0, tvx: 0, tvz: 0, lastRecv: 0, lat: 0, offroad: false, wrong: 0, yaw: 0, sparkT: 0, auto: false, aiOff: rnd(-.5, .5), aiSkill: rnd(.9, 1.0), gone: false };
 }
 function clearRace() {
@@ -1000,43 +1011,53 @@ function stepKart(k, inp, dt) {
   const air = k.y > .05;
   const fx = Math.sin(k.h), fz = Math.cos(k.h), rx = Math.cos(k.h), rz = -Math.sin(k.h);
   let vf = k.vx * fx + k.vz * fz, vl = k.vx * rx + k.vz * rz;
-  const wantBurn = !!inp.n2o && k.spin <= 0 && (k.burn ? k.n2o > 0 : k.n2o > 8);   // N2O: 누르는 동안 게이지 소모
-  if (wantBurn) { if (!k.burn && k.local && !k.bot) { sfx.boost(); camKick = 1; } k.n2o = Math.max(0, k.n2o - 42 * dt); }
-  k.burn = wantBurn;
+  // 부스트 키: 게이지 100일 때만, 눌렀을 때 1회 발동 (이미 켜져 있으면 연장/중첩 없음)
+  const n2oPress = !!inp.n2o && !k.n2oHeld; k.n2oHeld = !!inp.n2o;
+  if (n2oPress && k.n2o >= 100 && !(k.burnT > 0) && k.spin <= 0) { k.n2o -= 100; k.burnT = BOOST_DUR; if (k.local && !k.bot) { sfx.boost(); camKick = 1; } }
+  if (k.burnT > 0) k.burnT = Math.max(0, k.burnT - dt);
+  if (k.recov > 0) k.recov -= dt;
+  k.burn = k.burnT > 0;
   const boosting = k.boost > 0 || k.burn; k.boost = Math.max(0, k.boost - dt);
   const near = nearest(k.x, k.z, k.idx); k.idx = near.i; k.lat = near.lat;
   k.offroad = Math.abs(near.lat) > half && !air && !onShortcut(k.x, k.z);
-  let maxS = MAXSPD * (boosting ? 1.4 : 1) * (k.offroad && !boosting ? .55 : 1);
+  let maxS = MAXSPD * (boosting ? BOOST_VMAX : 1) * (k.offroad && !boosting ? .55 : 1);
   if (k.spin > 0) maxS = 8;
   if (k.oil > 0) maxS *= .85;
   // 드리프트 시작/종료
-  if (inp.drift && !k.drift && Math.abs(inp.steer) > .2 && vf > 16 && k.spin <= 0 && !(k.oil > 0) && !air) { k.drift = inp.steer > 0 ? 1 : -1; k.charge = 0; k.sparkT = 0; k.lvPrev = 0; k.driftT = performance.now(); vl += -k.drift * 4.5; if (k.local && !k.bot) sfx.drift(); }
+  if (inp.drift && !k.drift && Math.abs(inp.steer) > .2 && vf > 16 && k.spin <= 0 && !(k.oil > 0) && !air) { k.drift = inp.steer > 0 ? 1 : -1; k.charge = 0; k.sparkT = 0; k.lvPrev = gLv(k.n2o); k.driftT = performance.now(); k.driftTime = 0; vl += -k.drift * 4.5; vf *= .97; if (k.local && !k.bot) sfx.drift(); }
   if (k.drift && (!inp.drift || vf < 11)) endDrift(k);
   // 가속 / 브레이크
-  if (inp.gas) vf += ACC * (1 - clamp(vf / maxS, 0, 1.2) * .85) * dt * (boosting ? 2.4 : 1);
+  if (inp.gas) vf += ACC * (1 - clamp(vf / maxS, 0, 1.2) * .85) * dt * (boosting ? BOOST_ACC : 1);
   else vf -= vf * .5 * dt;
   if (inp.brake) vf -= (vf > 0 ? 55 : 14) * dt;
-  if (vf > maxS) vf = lerp(vf, maxS, Math.min(1, dt * 3));
+  if (vf > maxS) vf = lerp(vf, maxS, Math.min(1, dt * 1.2));   // 부스트가 끝나도 속도가 서서히 줄어듦
+  vf = Math.min(vf, MAXSPD * BOOST_VMAX * 1.08);   // 물리적 상한
   if (vf < -12) vf = -12;
   // 조향
   const sf = clamp(Math.abs(vf) / 14, 0, 1) * (vf >= 0 ? 1 : -1);
   let rate;
-  if (k.drift) { vf -= vf * .035 * dt; k.n2o = Math.min(100, k.n2o + dt * (15 + 8 * Math.max(0, inp.steer * k.drift))); rate = k.drift * 1.25 + inp.steer * .85; k.charge += dt * (.7 + .5 * Math.max(0, inp.steer * k.drift));
-    const lvN = k.charge >= 3 ? 3 : k.charge >= 1.9 ? 2 : k.charge >= .9 ? 1 : 0;
+  if (k.drift) {
+    k.driftTime = (k.driftTime || 0) + dt; const dtm = k.driftTime;
+    vf -= vf * (.035 + .02 * clamp(dtm / 3, 0, 1.5)) * dt;                     // 드리프트 감속 (오래 끌수록 커짐)
+    const inward = Math.max(0, inp.steer * k.drift), longPen = dtm > 3 ? Math.max(.35, 1 - (dtm - 3) * .3) : 1;
+    const eff = clamp(Math.abs(vf) / MAXSPD, .4, 1.1) * (1 + .3 * inward) * longPen;   // 충전 보정값
+    k.n2o = Math.min(100, k.n2o + DRIFT_CHARGE * dt * eff);                    // 부스트 중에도 충전
+    rate = k.drift * 1.25 + inp.steer * .85;
+    const lvN = gLv(k.n2o);
     if (lvN > (k.lvPrev || 0)) { k.lvPrev = lvN; if (k.local && !k.bot) { sfx.item(); camKick = .6; } for (let q = 0; q < 8; q++) spawnParticle(k.x, 1, k.z, SPARK[lvN], .5, 5); } }
   else { rate = inp.steer * turnMax(Math.abs(vf)); vf -= Math.abs(rate) * vf * .2 * dt * clamp(vf / 20, 0, 1); }   // 핸들을 꺾으면 속도 손실
   if (k.oil > 0) rate += Math.sin(performance.now() / 110) * .9;
   if (air) rate *= .35;
   k.h += rate * sf * dt;
   // 옆미끄러짐 감쇠
-  vl *= Math.exp(-(k.drift ? 1.8 : k.oil > 0 ? 1.1 : 9) * dt);
+  vl *= Math.exp(-(k.drift ? 1.8 - .35 * clamp((k.driftTime || 0) / 4, 0, 1) : k.oil > 0 ? 1.1 : k.recov > 0 ? 9 - 6 * (k.recov / .45) : 9) * dt);   // 드리프트 종료 후 마찰이 서서히 복구
   const nfx = Math.sin(k.h), nfz = Math.cos(k.h), nrx = Math.cos(k.h), nrz = -Math.sin(k.h);
   k.vx = nfx * vf + nrx * vl; k.vz = nfz * vf + nrz * vl;
   k.x += k.vx * dt; k.z += k.vz * dt;
   k.spd = Math.hypot(k.vx, k.vz) * (vf >= 0 ? 1 : -1); k.fwd = vf; k.slide = vl;
   // 벽
   const n2 = nearest(k.x, k.z, k.idx), lim = T.wallOff - 1.6, p = T.pts[n2.i];
-  if (Math.abs(n2.lat) > lim && !onShortcut(k.x, k.z, 13.5)) {
+  if (Math.abs(n2.lat) > lim && !onShortcut(k.x, k.z) && !wallGapAt(Math.sign(n2.lat), n2.i)) {
     const sgn = Math.sign(n2.lat), push = Math.abs(n2.lat) - lim;
     k.x -= p.nx * sgn * push; k.z -= p.nz * sgn * push;
     const vn = k.vx * p.nx * sgn + k.vz * p.nz * sgn;
@@ -1052,10 +1073,10 @@ function stepKart(k, inp, dt) {
   k.wrong = (dotF < -.4 && Math.abs(vf) > 5) ? k.wrong + dt : 0;
 }
 function endDrift(k) {
-  const lv = k.charge >= 3 ? 3 : k.charge >= 1.9 ? 2 : k.charge >= .9 ? 1 : 0;
-  if (lv) { const t = [0, .9, 1.5, 2.2][lv]; k.boost = Math.max(k.boost, t); if (k.local && !k.bot) { sfx.boost(); camKick = 1; } }
-  if (lv) for (let q = 0; q < 12; q++) spawnParticle(k.x - Math.sin(k.h) * 2, .7, k.z - Math.cos(k.h) * 2, SPARK[lv], .55, 6);
-  k.drift = 0; k.charge = 0; k.lvPrev = 0;
+  // 충전된 게이지는 유지. 차체/이동 방향 차이는 recov 동안 서서히 줄어듦
+  const lv = gLv(k.n2o);
+  if (lv) for (let q = 0; q < 6; q++) spawnParticle(k.x - Math.sin(k.h) * 2, .7, k.z - Math.cos(k.h) * 2, SPARK[lv], .45, 5);
+  k.drift = 0; k.charge = 0; k.lvPrev = 0; k.driftTime = 0; k.recov = .45;
 }
 function onLap(k) {
   const now = performance.now() - race.t0;
@@ -1083,10 +1104,15 @@ function aiInput(k, dt) {
   let c = 0; for (let j = 0; j < 30; j += 4) c = Math.max(c, T.pts[(k.idx + j) % N].curv);
   const turn = angDiff(T.pts[k.idx].h, T.pts[(k.idx + 14) % N].h), sgn = Math.sign(turn);
   // 레이싱 라인: 커브 안쪽으로 붙기
-  const off = clamp(k.aiOff * T.half * .3 - sgn * T.half * .35 * clamp(c * 45, 0, 1), -T.half * .6, T.half * .6);
+  const useSC = false;   // AI 지름길 이용은 입구에서 벽에 끼는 문제가 있어 비활성화 (코드는 남겨 둠)
+  let off = clamp(k.aiOff * T.half * .3 - sgn * T.half * .35 * clamp(c * 45, 0, 1), -T.half * .6, T.half * .6);
+  if (!useSC) for (const sc of T.shortcuts) {   // 지름길을 안 쓰는 AI는 입구/출구 근처에서 반대편으로 붙어 벽 틈으로 새지 않게 함
+    const near = i => Math.min((i - k.idx + N) % N, (k.idx - i + N) % N) < 35;
+    if (near(sc.i0) || near(sc.i1)) off = -sc.side * T.half * .35;
+  }
   const p = T.pts[(k.idx + look) % N];
   let tx = p.x + p.nx * off, tz = p.z + p.nz * off, scAim = false;
-  if (k.useSC) {   // 지름길 이용: 입구 근처면 입구로, 안에 들어왔으면 출구로
+  if (useSC) {   // 지름길 이용: 입구 근처면 입구로, 안에 들어왔으면 출구로
     const onSC = onShortcut(k.x, k.z);
     for (const sc of T.shortcuts) {
       const di = (sc.i0 - k.idx + N) % N, dB = Math.hypot(sc.bx - k.x, sc.bz - k.z);
@@ -1113,7 +1139,7 @@ function aiInput(k, dt) {
   let steer = clamp((k.drift && !scAim ? dv : d) * 2.6, -1, 1);
   if (wantDrift && !k.drift) steer = sgn * .9;   // 드리프트 진입 방향
   k.n2o = Math.min(100, k.n2o + 2 * dt);
-  const useN2o = k.n2o > (ds === 0 ? 85 : 30) && c < .006 && !k.offroad && k.fwd > 24;
+  const useN2o = k.n2o >= 100 && c < .006 && !k.offroad && k.fwd > 24;
   return { steer, gas: k.fwd < target ? 1 : 0, brake: k.fwd > target + 6 && !k.drift ? 1 : 0, drift: wantDrift ? 1 : 0, n2o: useN2o ? 1 : 0 };
 }
 
@@ -1276,7 +1302,7 @@ function visualKart(k, dt) {
   const target = k.h + (k.spin > 0 ? (1.3 - k.spin) * Math.PI * 2 * 1.6 : 0) + (k.drift ? -k.drift * .35 : 0) * 0;
   k.yaw = k.spin > 0 ? target : k.h;
   m.rotation.y = k.yaw;
-  const lv = k.drift ? (k.charge >= 3 ? 3 : k.charge >= 1.9 ? 2 : k.charge >= .9 ? 1 : 0) : 0;
+  const lv = k.drift ? gLv(k.n2o) : 0;
   u.inner.rotation.y = k.drift ? lerp(u.inner.rotation.y, k.drift * .62, Math.min(1, dt * 10)) : lerp(u.inner.rotation.y, 0, Math.min(1, dt * 10));
   u.inner.rotation.z = lerp(u.inner.rotation.z, k.drift ? -k.drift * .15 : 0, Math.min(1, dt * 8));
   u.wheelRot += (k.spd || 0) * dt / .5; for (const w of u.wheels) w.rotation.x = u.wheelRot;
@@ -1307,13 +1333,13 @@ function visualKart(k, dt) {
 function sendState() {
   const k = myKart; if (!k || !net.online) return;
   const pack = k => ({ t: 's', r: 1, id: k.id, x: +k.x.toFixed(2), z: +k.z.toFixed(2), h: +k.h.toFixed(3), vx: +k.vx.toFixed(2), vz: +k.vz.toFixed(2),
-    d: k.drift, c: +k.charge.toFixed(1), b: (k.boost > 0 || k.burn) ? 1 : 0, sh: k.shield > 0 ? 1 : 0, sp: k.spin > 0 ? +k.spin.toFixed(2) : 0, p: k.prog, l: k.lap, f: k.finished ? 1 : 0, w: k.fwd, y: +(k.y || 0).toFixed(2) });
+    d: k.drift, c: Math.round(k.n2o), b: (k.boost > 0 || k.burn) ? 1 : 0, sh: k.shield > 0 ? 1 : 0, sp: k.spin > 0 ? +k.spin.toFixed(2) : 0, p: k.prog, l: k.lap, f: k.finished ? 1 : 0, w: k.fwd, y: +(k.y || 0).toFixed(2) });
   sendAll(pack(k));
   if (net.host) for (const b of karts) if (b.bot && b.local) sendAll(pack(b));
 }
 function applyRemote(k, m) {
   k.tx = m.x; k.tz = m.z; k.th = m.h; k.tvx = m.vx; k.tvz = m.vz; k.lastRecv = performance.now();
-  k.drift = m.d; k.charge = m.c; k.boostR = m.b; k.shieldR = m.sh; k.spinR = m.sp; k.prog = m.p; k.lap = m.l; k.fwd = m.w; k.ty = m.y || 0;
+  k.drift = m.d; k.n2o = m.c; k.boostR = m.b; k.shieldR = m.sh; k.spinR = m.sp; k.prog = m.p; k.lap = m.l; k.fwd = m.w; k.ty = m.y || 0;
   if (m.f && !k.finished) k.finished = true;
 }
 function stepRemote(k, dt) {
@@ -1422,12 +1448,12 @@ function updateHud() {
   hudSet('time', fmtT(Math.floor(Math.max(0, t) / 50) * 50));
   if (k.bestLap) hudSet('best', 'BEST LAP ' + fmtT(k.bestLap));
   hudSet('speed', Math.round(Math.abs(k.spd) * 3.6 * 1.3) + '<small> km/h</small>', 1);
-  const g = $('gauge'); const lv = k.drift ? (k.charge >= 3 ? 3 : k.charge >= 1.9 ? 2 : k.charge >= .9 ? 1 : 0) : 0;
-  const gw = Math.round((k.drift ? clamp(k.charge / 3, 0, 1) * 100 : (k.boost > 0 ? clamp(k.boost / 2, 0, 1) * 100 : 0)) / 2) * 2 + '%';
+  const g = $('gauge');   // 가운데 바: 부스트 남은 시간
+  const gw = Math.round(clamp((k.burnT || 0) / BOOST_DUR, 0, 1) * 50) * 2 + '%';
   if (g._w !== gw) { g._w = gw; g.style.width = gw; }
-  const gc = k.boost > 0 && !k.drift ? '#ffb02e' : ['#3a9bff', '#3a9bff', '#ff9f1a', '#d04dff'][lv];
-  if (g._c !== gc) { g._c = gc; g.style.background = gc; }
-  const nw = Math.round(k.n2o / 2) * 2 + '%', nb = $('n2oBar'); if (nb._w !== nw) { nb._w = nw; nb.style.width = nw; nb.classList.toggle('full', k.n2o >= 99); }
+  const gc = (k.boost > 0 || k.burn) ? '#ffb02e' : '#3a9bff'; if (g._c !== gc) { g._c = gc; g.style.background = gc; }
+  const nw = Math.round(k.n2o / 2) * 2 + '%', nb = $('n2oBar'); if (nb._w !== nw) { nb._w = nw; nb.style.width = nw; nb.classList.toggle('full', k.n2o >= 99.9); }
+  hudSet('n2oLbl', k.n2o >= 99.9 ? (k.burn ? 'BOOST!' : 'BOOST READY [X]') : 'BOOST ' + Math.floor(k.n2o) + '%');
   const wr = k.wrong > .8 && !k.finished ? 'block' : 'none'; if ($('wrong')._d !== wr) { $('wrong')._d = wr; $('wrong').style.display = wr; }
   updateWarn(k);
   if (k.itemRoll > 0) updateItemHud();
@@ -1501,7 +1527,7 @@ function updateCamera(dt) {
   const fov = 66 + spdF * 10 + (k.boost > 0 || k.burn ? 12 : 0) + camKick * 6;
   camera.fov = lerp(camera.fov, fov + (k.drift ? 4 : 0), Math.min(1, dt * 6)); camera.updateProjectionMatrix();
   camRoll = lerp(camRoll, -(k.drift || 0) * .06, Math.min(1, dt * 6)); camera.rotateZ(camRoll);
-  if (k.drift && k.charge >= 1.9) camShake = Math.max(camShake, .1);
+  if (k.drift && k.n2o >= 100) camShake = Math.max(camShake, .1);
   if (engGain && actx) { engOsc.frequency.value = 55 + Math.abs(k.spd) * 4.5 + (k.boost > 0 || k.burn ? 40 : 0); engGain.gain.value = race.phase === 'count' ? .02 : (k.finished ? .02 : .05); }
 }
 let last = performance.now(), garageRot = 0, garageKart = null, garageKey = '';
@@ -1558,7 +1584,7 @@ $('btnAgain').addEventListener('click', () => {});
 initMenu(); initLobbyDb(); requestAnimationFrame(loop);
 
 // 테스트/디버깅용 훅
-window.__kart = { spawn: (t, x, z, h, to) => { if (t === 'mis') missiles.push(makeMissile('t' + Math.random(), 'x', to, x, z, h)); else bananas.push(makeBanana('t' + Math.random(), x, z, 'x', t)); }, sim: n => { race.t0 = performance.now() - 1; for (let i = 0; i < n; i++) updateRace(1 / 60); }, track: () => track, get spec() { return spec; }, setSpec, applyThunder, hitKart, dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
+window.__kart = { onShortcut, wallGapAt, nearest, spawn: (t, x, z, h, to) => { if (t === 'mis') missiles.push(makeMissile('t' + Math.random(), 'x', to, x, z, h)); else bananas.push(makeBanana('t' + Math.random(), x, z, 'x', t)); }, sim: n => { race.t0 = performance.now() - 1; for (let i = 0; i < n; i++) updateRace(1 / 60); }, track: () => track, get spec() { return spec; }, setSpec, applyThunder, hitKart, dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
 </script>
 </body>
 </html>
