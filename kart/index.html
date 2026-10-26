@@ -87,7 +87,6 @@
     color: #ffe14a; text-shadow: 4px 4px 0 #e8382e, 0 0 24px #000; }
   #toast { position: absolute; left: 0; right: 0; top: 190px; text-align: center; font-size: 22px; font-weight: 900; color: #fff; text-shadow: 2px 2px 0 #000; }
   #warn { left: 0; right: 0; top: 150px; text-align: center; font-size: 30px; line-height: 1.25; color: #ff4a3a; animation: wpulse .35s infinite alternate; }
-  #warn .hz { display: block; font-size: 20px; color: #ffd23d; animation: none; }
   #warnEdge { position: absolute; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 90px 24px #ff1a1a; transition: opacity .12s; }
   @keyframes wpulse { from { opacity: 1; transform: scale(1); } to { opacity: .55; transform: scale(1.08); } }
   #wrong { position: absolute; left: 0; right: 0; top: 40%; text-align: center; font-size: 34px; color: #ff5a4a; display: none; font-weight: 900; text-shadow: 2px 2px 0 #000; }
@@ -1408,12 +1407,6 @@ function updateWarn(k) {
       const rel = angDiff(k.h, Math.atan2(best.x - k.x, best.z - k.z)), arrow = ARROWS[Math.round(rel / (Math.PI / 4))] || '▲';
       html += '⚠ 미사일 접근! ' + arrow + ' ' + Math.round(bd) + 'm'; danger = bd < 60 ? 1 : .6;
       const now = performance.now(); if (now - lastWarn > Math.max(180, bd * 4)) { lastWarn = now; beep(bd < 60 ? 1100 : 800, .09, 'square', .07); }
-    }
-    const sf = Math.sin(k.h), cf = Math.cos(k.h);
-    for (const b of bananas) {
-      if (b.o === k.id && b.age < 1.5) continue;
-      const dx = b.x - k.x, dz = b.z - k.z, f = dx * sf + dz * cf, l = dx * cf - dz * sf;
-      if (f > 4 && f < 55 && Math.abs(l) < 7.5) { html += '<span class="hz">' + (b.kind === 'oil' ? '🛢️ 전방 오일' : '🍌 전방 바나나') + ' ' + Math.round(f) + 'm</span>'; break; }
     }
   }
   if (el._v !== html) { el._v = html; el.innerHTML = html; }
