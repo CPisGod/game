@@ -86,6 +86,9 @@
   #msg { position: absolute; left: 0; right: 0; top: 28%; text-align: center; font-size: 90px; font-style: italic; font-weight: 900;
     color: #ffe14a; text-shadow: 4px 4px 0 #e8382e, 0 0 24px #000; }
   #toast { position: absolute; left: 0; right: 0; top: 190px; text-align: center; font-size: 22px; font-weight: 900; color: #fff; text-shadow: 2px 2px 0 #000; }
+  #warn { left: 0; right: 0; top: 150px; text-align: center; font-size: 30px; line-height: 1.25; color: #ff4a3a; animation: wpulse .35s infinite alternate; }
+  #warnEdge { position: absolute; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 90px 24px #ff1a1a; transition: opacity .12s; }
+  @keyframes wpulse { from { opacity: 1; transform: scale(1); } to { opacity: .55; transform: scale(1.08); } }
   #wrong { position: absolute; left: 0; right: 0; top: 40%; text-align: center; font-size: 34px; color: #ff5a4a; display: none; font-weight: 900; text-shadow: 2px 2px 0 #000; }
   #result { pointer-events: auto; }
 
@@ -220,6 +223,8 @@
   <canvas id="mapc" width="300" height="300"></canvas>
   <div class="hp" id="msg"></div>
   <div class="hp" id="toast"></div>
+  <div id="warnEdge"></div>
+  <div class="hp" id="warn"></div>
   <div class="hp" id="wrong">⚠ 역주행!</div>
 </div>
 <div id="flash"></div>
@@ -549,7 +554,7 @@ function buildTrack(map) {
     const i = Math.floor(f * NSAMP), p = pts[i], side = k % 2 ? .35 : -.35;
     const px = p.x + p.nx * half * side, pz = p.z + p.nz * half * side;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(5, 9), new THREE.MeshBasicMaterial({ map: arrowTex }));
-    m.rotation.x = -Math.PI / 2; m.quaternion.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)); m.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.h));
+    m.rotation.x = -Math.PI / 2; m.quaternion.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)); m.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.h + Math.PI));
     m.position.set(px, .07, pz); grp.add(m); pads.push({ x: px, z: pz });
   });
   // 지름길 흙길 + 입구 표지
@@ -629,11 +634,11 @@ function buildTrack(map) {
   return { map, pts, N: NSAMP, seg, total, half, wallOff, pads, boxes, grp, minGap, minR, shortcuts, ramps };
 }
 
-function onShortcut(x, z) {
+function onShortcut(x, z, r = 9.5) {
   const sc = track.shortcuts;
   for (let i = 0; i < sc.length; i++) {
     const s = sc[i], t = ((x - s.ax) * s.dx + (z - s.az) * s.dz) / s.l2; if (t < -.03 || t > 1.03) continue;
-    const px = s.ax + s.dx * t - x, pz = s.az + s.dz * t - z; if (px * px + pz * pz < 9.5 * 9.5) return true;
+    const px = s.ax + s.dx * t - x, pz = s.az + s.dz * t - z; if (px * px + pz * pz < r * r) return true;
   }
   return false;
 }
@@ -923,7 +928,7 @@ function startRace(grid, nBots) {
       const bn = +id.slice(1), free = COLORS.filter(c => !humans().some(h => colorOf(h.color).toLowerCase() === c));
       const bc = lobby.uniq && free.length ? free[(bn - 1) % free.length] : (bn * 3 + 1) % 8;
       k = makeKart(id, BOTNAMES[(bn - 1) % BOTNAMES.length], bc, bn % 3, net.host || !net.online, true, [['#cfd6e6', '#ffc93d', '#ff3fb4', '#22e5ff'][bn % 4], bn % 3 === 0 ? '#ffffff' : '', ['#5fd0ff', '#b04dff', '#3dff7a', '#ff5fb7'][bn % 4]]);
-      k.aiSkill = [.84, .94, 1.03][lobby.diff | 0] * rnd(.96, 1);
+      k.aiSkill = [.92, 1.04, 1.14][lobby.diff | 0] * rnd(.97, 1); k.useSC = lobby.diff >= 2 || (lobby.diff === 1 && bn % 2 === 1);
     } else { const p = lobby.players.find(q => q.id === id) || { name: '?', color: 0, body: 0 }; k = makeKart(id, p.name, p.color, p.body, id === net.myId, false, p.cos); }
     // 출발 그리드 (2열)
     const row = Math.floor(slot / 2), col = slot % 2, i = (track.N - Math.round((10 + row * 14) / track.seg) + track.N) % track.N, p = track.pts[i];
@@ -938,7 +943,7 @@ function startRace(grid, nBots) {
   skid = { m: new THREE.InstancedMesh(new THREE.PlaneGeometry(.55, 1.4), new THREE.MeshBasicMaterial({ color: 0x0a0a0a, transparent: true, opacity: .55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), 600), n: 0 };
   { const z0 = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < 600; i++) skid.m.setMatrixAt(i, z0); skid.m.frustumCulled = false; scene.add(skid.m); }
   spec = null; $('specbar').style.display = 'none';
-  toast('GO 직전에 ↑를 누르면 스타트 대시!');
+  toast(isTouch ? '스타트 대시: GO 직전 1초 안에 N2O 버튼을 누르세요' : '스타트 대시: GO 직전 1초 안에 ↑를 누르세요 (미리 누르고 있으면 안 돼요)', 3600);
   race = { phase: 'count', t0: performance.now() + 3200, last: 3, finished: {}, order: [], bestLap: {}, over: false, startT: 0 };
   $('msg').textContent = '';
   camReset = true; $('best').textContent = ''; $('toast').textContent = '';
@@ -1005,7 +1010,7 @@ function stepKart(k, inp, dt) {
   if (k.spin > 0) maxS = 8;
   if (k.oil > 0) maxS *= .85;
   // 드리프트 시작/종료
-  if (inp.drift && !k.drift && Math.abs(inp.steer) > .2 && vf > 16 && k.spin <= 0 && !(k.oil > 0) && !air) { k.drift = inp.steer > 0 ? 1 : -1; k.charge = 0; k.sparkT = 0; vl += -k.drift * 3; if (k.local && !k.bot) sfx.drift(); }
+  if (inp.drift && !k.drift && Math.abs(inp.steer) > .2 && vf > 16 && k.spin <= 0 && !(k.oil > 0) && !air) { k.drift = inp.steer > 0 ? 1 : -1; k.charge = 0; k.sparkT = 0; k.lvPrev = 0; k.driftT = performance.now(); vl += -k.drift * 4.5; if (k.local && !k.bot) sfx.drift(); }
   if (k.drift && (!inp.drift || vf < 11)) endDrift(k);
   // 가속 / 브레이크
   if (inp.gas) vf += ACC * (1 - clamp(vf / maxS, 0, 1.2) * .85) * dt * (boosting ? 2.4 : 1);
@@ -1016,20 +1021,22 @@ function stepKart(k, inp, dt) {
   // 조향
   const sf = clamp(Math.abs(vf) / 14, 0, 1) * (vf >= 0 ? 1 : -1);
   let rate;
-  if (k.drift) { vf -= vf * .035 * dt; k.n2o = Math.min(100, k.n2o + dt * (15 + 8 * Math.max(0, inp.steer * k.drift))); rate = k.drift * 1.25 + inp.steer * .85; k.charge += dt * (.7 + .5 * Math.max(0, inp.steer * k.drift)); }
+  if (k.drift) { vf -= vf * .035 * dt; k.n2o = Math.min(100, k.n2o + dt * (15 + 8 * Math.max(0, inp.steer * k.drift))); rate = k.drift * 1.25 + inp.steer * .85; k.charge += dt * (.7 + .5 * Math.max(0, inp.steer * k.drift));
+    const lvN = k.charge >= 3 ? 3 : k.charge >= 1.9 ? 2 : k.charge >= .9 ? 1 : 0;
+    if (lvN > (k.lvPrev || 0)) { k.lvPrev = lvN; if (k.local && !k.bot) { sfx.item(); camKick = .6; } for (let q = 0; q < 8; q++) spawnParticle(k.x, 1, k.z, SPARK[lvN], .5, 5); } }
   else { rate = inp.steer * turnMax(Math.abs(vf)); vf -= Math.abs(rate) * vf * .2 * dt * clamp(vf / 20, 0, 1); }   // 핸들을 꺾으면 속도 손실
   if (k.oil > 0) rate += Math.sin(performance.now() / 110) * .9;
   if (air) rate *= .35;
   k.h += rate * sf * dt;
   // 옆미끄러짐 감쇠
-  vl *= Math.exp(-(k.drift ? 2.1 : k.oil > 0 ? 1.1 : 9) * dt);
+  vl *= Math.exp(-(k.drift ? 1.8 : k.oil > 0 ? 1.1 : 9) * dt);
   const nfx = Math.sin(k.h), nfz = Math.cos(k.h), nrx = Math.cos(k.h), nrz = -Math.sin(k.h);
   k.vx = nfx * vf + nrx * vl; k.vz = nfz * vf + nrz * vl;
   k.x += k.vx * dt; k.z += k.vz * dt;
   k.spd = Math.hypot(k.vx, k.vz) * (vf >= 0 ? 1 : -1); k.fwd = vf; k.slide = vl;
   // 벽
   const n2 = nearest(k.x, k.z, k.idx), lim = T.wallOff - 1.6, p = T.pts[n2.i];
-  if (Math.abs(n2.lat) > lim && !onShortcut(k.x, k.z)) {
+  if (Math.abs(n2.lat) > lim && !onShortcut(k.x, k.z, 13.5)) {
     const sgn = Math.sign(n2.lat), push = Math.abs(n2.lat) - lim;
     k.x -= p.nx * sgn * push; k.z -= p.nz * sgn * push;
     const vn = k.vx * p.nx * sgn + k.vz * p.nz * sgn;
@@ -1047,7 +1054,8 @@ function stepKart(k, inp, dt) {
 function endDrift(k) {
   const lv = k.charge >= 3 ? 3 : k.charge >= 1.9 ? 2 : k.charge >= .9 ? 1 : 0;
   if (lv) { const t = [0, .9, 1.5, 2.2][lv]; k.boost = Math.max(k.boost, t); if (k.local && !k.bot) { sfx.boost(); camKick = 1; } }
-  k.drift = 0; k.charge = 0;
+  if (lv) for (let q = 0; q < 12; q++) spawnParticle(k.x - Math.sin(k.h) * 2, .7, k.z - Math.cos(k.h) * 2, SPARK[lv], .55, 6);
+  k.drift = 0; k.charge = 0; k.lvPrev = 0;
 }
 function onLap(k) {
   const now = performance.now() - race.t0;
@@ -1067,20 +1075,46 @@ function onLap(k) {
 
 /* ============================== AI ============================== */
 function aiInput(k, dt) {
-  const T = track, N = T.N, look = Math.floor(clamp((8 + Math.abs(k.spd) * .3) / T.seg * 2.4, 5, 20));
-  const ti = (k.idx + look) % N, p = T.pts[ti];
-  const off = clamp(k.aiOff * T.half * .6, -T.half * .6, T.half * .6);
-  const tx = p.x + p.nx * off, tz = p.z + p.nz * off;
-  const want = Math.atan2(tx - k.x, tz - k.z), d = angDiff(k.h, want);
-  // 앞쪽 곡률 → 목표 속도
+  const T = track, N = T.N, ds = lobby.diff | 0, look = Math.floor(clamp((8 + Math.abs(k.spd) * .3) / T.seg * 2.4, 5, 20));
+  // 막힘 복구: 벽에 끼면 도로 중앙으로 되돌림
+  if (race.phase !== 'count' && !k.finished && Math.abs(k.fwd) < 3 && k.spin <= 0) k.stuckT = (k.stuckT || 0) + dt; else k.stuckT = 0;
+  if (k.stuckT > 1) { const n = nearest(k.x, k.z, null), q = T.pts[n.i]; k.x -= q.nx * n.lat * .7; k.z -= q.nz * n.lat * .7; k.h = q.h; k.vx = q.tx * 10; k.vz = q.tz * 10; k.steerS = 0; k.stuckT = 0; k.drift = 0; k.charge = 0; }
+  // 앞쪽 곡률 / 커브 방향 (sgn > 0: 왼쪽 커브)
   let c = 0; for (let j = 0; j < 30; j += 4) c = Math.max(c, T.pts[(k.idx + j) % N].curv);
-  const lead = karts.reduce((m, o) => Math.max(m, o.prog), -1e9), humanBest = karts.filter(o => !o.bot).reduce((m, o) => Math.max(m, o.prog), -1e9);
-  let rb = 1; if (humanBest > -1e8) rb = clamp(1 + (humanBest - k.prog) / T.N * 1.2, .88, [1.03, 1.1, 1.17][lobby.diff | 0]);
+  const turn = angDiff(T.pts[k.idx].h, T.pts[(k.idx + 14) % N].h), sgn = Math.sign(turn);
+  // 레이싱 라인: 커브 안쪽으로 붙기
+  const off = clamp(k.aiOff * T.half * .3 - sgn * T.half * .35 * clamp(c * 45, 0, 1), -T.half * .6, T.half * .6);
+  const p = T.pts[(k.idx + look) % N];
+  let tx = p.x + p.nx * off, tz = p.z + p.nz * off, scAim = false;
+  if (k.useSC) {   // 지름길 이용: 입구 근처면 입구로, 안에 들어왔으면 출구로
+    const onSC = onShortcut(k.x, k.z);
+    for (const sc of T.shortcuts) {
+      const di = (sc.i0 - k.idx + N) % N, dB = Math.hypot(sc.bx - k.x, sc.bz - k.z);
+      if (onSC && dB > 10 && dB < sc.len + 25) { tx = sc.bx; tz = sc.bz; scAim = true; break; }
+      if (di < Math.ceil(60 / T.seg) && di > 1) { tx = sc.ax; tz = sc.az; scAim = true; break; }
+    }
+  }
+  const want = Math.atan2(tx - k.x, tz - k.z), d = angDiff(k.h, want);
+  const humanBest = karts.filter(o => !o.bot).reduce((m, o) => Math.max(m, o.prog), -1e9);
+  let rb = 1; if (humanBest > -1e8) rb = clamp(1 + (humanBest - k.prog) / T.N * 1.2, [.9, .94, .97][ds], [1.03, 1.1, 1.17][ds]);
+  // 드리프트: 일반 조향으로 못 도는 커브에서 사용
+  let wantDrift = false;
+  if (ds >= 1 && !scAim && k.spin <= 0 && !(k.oil > 0) && k.y < .1) {
+    if (k.drift) wantDrift = c > .007 && Math.sign(k.drift) === sgn && Math.abs(k.lat) < T.half * .9;
+    else wantDrift = c > .011 && Math.abs(turn) > .14 && k.fwd > 18 && k.fwd * c > turnMax(k.fwd) * .8;
+  }
   const vmax = MAXSPD * k.aiSkill * rb; let target = vmax;
-  while (target > 14 && target * c > turnMax(target) * .75) target -= 1.5;   // 드리프트 없이 돌 수 있는 속도까지 감속
-  target = clamp(target, 14, MAXSPD * [1, 1.05, 1.12][lobby.diff | 0]);
-  k.n2o = Math.min(100, k.n2o + 5 * dt);
-  return { steer: clamp(d * 2.4, -1, 1), gas: k.fwd < target ? 1 : 0, brake: k.fwd > target + 6 ? 1 : 0, drift: 0, n2o: k.n2o > 55 && c < .004 && !k.offroad ? 1 : 0 };
+  if (scAim) target = Math.min(vmax, 34);
+  else if (wantDrift || k.drift) { while (target > 14 && target * c > 1.55) target -= 1.5; }
+  else while (target > 14 && target * c > turnMax(target) * .75) target -= 1.5;
+  if ((k.boost > 0 || k.burn) && c < .012) target = MAXSPD * 1.4;
+  target = clamp(target, 14, MAXSPD * (k.boost > 0 || k.burn ? 1.45 : [1.02, 1.1, 1.2][ds]));
+  const vh = Math.hypot(k.vx, k.vz) > 5 ? Math.atan2(k.vx, k.vz) : k.h, dv = angDiff(vh, want);   // 드리프트 중엔 진행 방향 기준으로 조향 (바깥으로 밀리지 않게)
+  let steer = clamp((k.drift && !scAim ? dv : d) * 2.6, -1, 1);
+  if (wantDrift && !k.drift) steer = sgn * .9;   // 드리프트 진입 방향
+  k.n2o = Math.min(100, k.n2o + 2 * dt);
+  const useN2o = k.n2o > (ds === 0 ? 85 : 30) && c < .006 && !k.offroad && k.fwd > 24;
+  return { steer, gas: k.fwd < target ? 1 : 0, brake: k.fwd > target + 6 && !k.drift ? 1 : 0, drift: wantDrift ? 1 : 0, n2o: useN2o ? 1 : 0 };
 }
 
 /* ============================== 아이템 ============================== */
@@ -1237,22 +1271,23 @@ function updateParticles(dt) {
 const SPARK = [0x4aa8ff, 0x4aa8ff, 0xff9f1a, 0xd04dff];
 function visualKart(k, dt) {
   const m = k.mesh, u = m.userData;
-  m.position.set(k.x, k.y || 0, k.z); u.blob.position.y = .06 - (k.y || 0);
+  const hopT = k.drift ? (performance.now() - (k.driftT || 0)) / 280 : 9, hop = hopT < 1 ? Math.sin(hopT * Math.PI) * .7 : 0;   // 드리프트 시작 시 살짝 점프
+  m.position.set(k.x, (k.y || 0) + hop, k.z); u.blob.position.y = .06 - (k.y || 0) - hop;
   const target = k.h + (k.spin > 0 ? (1.3 - k.spin) * Math.PI * 2 * 1.6 : 0) + (k.drift ? -k.drift * .35 : 0) * 0;
   k.yaw = k.spin > 0 ? target : k.h;
   m.rotation.y = k.yaw;
   const lv = k.drift ? (k.charge >= 3 ? 3 : k.charge >= 1.9 ? 2 : k.charge >= .9 ? 1 : 0) : 0;
-  u.inner.rotation.y = k.drift ? lerp(u.inner.rotation.y, k.drift * .45, Math.min(1, dt * 10)) : lerp(u.inner.rotation.y, 0, Math.min(1, dt * 10));
-  u.inner.rotation.z = lerp(u.inner.rotation.z, k.drift ? -k.drift * .08 : 0, Math.min(1, dt * 8));
+  u.inner.rotation.y = k.drift ? lerp(u.inner.rotation.y, k.drift * .62, Math.min(1, dt * 10)) : lerp(u.inner.rotation.y, 0, Math.min(1, dt * 10));
+  u.inner.rotation.z = lerp(u.inner.rotation.z, k.drift ? -k.drift * .15 : 0, Math.min(1, dt * 8));
   u.wheelRot += (k.spd || 0) * dt / .5; for (const w of u.wheels) w.rotation.x = u.wheelRot;
   u.shield.visible = k.shield > 0 && (k.shield > 1.5 || Math.floor(performance.now() / 100) % 2 === 0);
   const bs = k.boost > 0 || k.burn; for (const f of u.flames) { f.visible = bs; if (bs) f.scale.set(1, 1 + Math.random() * .5, 1); }
   u.blob.visible = true;
   m.visible = !k.gone && (k.inv > 0 && k.spin <= 0 ? Math.floor(performance.now() / 80) % 3 !== 0 : true);
   if (k.drift && lv > 0 || k.drift) {   // 스파크
-    k.sparkT -= dt; if (k.sparkT <= 0 && lv > 0) { k.sparkT = .03;
+    k.sparkT -= dt; if (k.sparkT <= 0) { k.sparkT = lv > 0 ? .02 : .06;
       const bx = -Math.sin(k.h) * 1.8, bz = -Math.cos(k.h) * 1.8, rx = Math.cos(k.h), rz = -Math.sin(k.h);
-      for (const s of [-1, 1]) spawnParticle(k.x + bx + rx * s * 1.1, .4, k.z + bz + rz * s * 1.1, SPARK[lv], .35, 3);
+      for (const s of [-1, 1]) for (let q = 0; q < (lv > 0 ? 2 : 1); q++) spawnParticle(k.x + bx + rx * s * 1.1, .4, k.z + bz + rz * s * 1.1, lv > 0 ? SPARK[lv] : 0xffffff, .4, 4.5);
     }
   }
   if (k.drift && (k.y || 0) < .1 && !k.offroad && skid) {   // 스키드 마크 + 연기
@@ -1290,8 +1325,8 @@ function stepRemote(k, dt) {
 }
 
 /* ============================== 레이스 루프 ============================== */
-let camReset = true, camShake = 0, camKick = 0, camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), camH = 0, netT = 0;
-function toast(t) { const el = $('toast'); el.textContent = t; clearTimeout(toast.t); toast.t = setTimeout(() => { el.textContent = ''; }, 1800); }
+let camRoll = 0, camReset = true, camShake = 0, camKick = 0, camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), camH = 0, netT = 0;
+function toast(t, ms = 1800) { const el = $('toast'); el.textContent = t; clearTimeout(toast.t); toast.t = setTimeout(() => { el.textContent = ''; }, ms); }
 
 function updateRace(dt) {
   const now = performance.now(), R = race;
@@ -1299,9 +1334,9 @@ function updateRace(dt) {
     const left = (R.t0 - now) / 1000, n = Math.ceil(left);
     if (n <= 3 && n >= 1 && n !== R.last) { R.last = n; sfx.count(); }
     $('msg').textContent = left > 0 ? (n <= 3 ? n : '') : '';
-    const mk = myKart; if (mk && !mk.auto) { if (readInput().gas) { if (mk.gasSince == null) mk.gasSince = left; } else mk.gasSince = null; }
+    const mk = myKart; if (mk && !mk.auto) { if (isTouch ? touch.n : readInput().gas) { if (mk.gasSince == null) mk.gasSince = left; } else mk.gasSince = null; }
     if (left <= 0) { R.phase = 'go'; $('msg').textContent = 'GO!'; sfx.go(); setTimeout(() => { if (race === R) $('msg').textContent = ''; }, 900); for (const k of karts) k.lapStart = 0;
-      const mk = myKart; if (mk && mk.gasSince != null && mk.gasSince < .8 && mk.gasSince > -1) { mk.boost = 1.6; camKick = 1; sfx.boost(); toast('스타트 대시!'); }
+      const mk = myKart; if (mk && mk.gasSince != null && mk.gasSince < 1 && mk.gasSince > -1) { mk.boost = 1.6; camKick = 1; sfx.boost(); toast('스타트 대시!'); }
       for (const k of karts) if (k.local && k.bot && Math.random() < (.35 + .2 * (lobby.diff | 0))) k.boost = 1.2; }
   }
   const canDrive = R.phase !== 'count';
@@ -1357,6 +1392,26 @@ function updateRace(dt) {
   if (net.host || !net.online) for (const k of karts) if (k.bot && k.finished && !k.reported) { k.reported = true; sendAll({ t: 'fin', r: 1, id: k.id, time: k.finT, lap: k.bestLap }); }
 }
 
+const ARROWS = { 0: '▲', 1: '◤', 2: '◀', 3: '◣', 4: '▼', '-4': '▼', '-3': '◢', '-2': '▶', '-1': '◥' };   // +h 방향이 화면 왼쪽
+let lastWarn = 0;
+function updateWarn(k) {
+  const el = $('warn'), edge = $('warnEdge'); let html = '', danger = 0;
+  if (race.phase !== 'count' && !k.finished && !spec) {
+    let best = null, bd = 1e9;
+    for (const m of missiles) {
+      if (m.o === k.id) continue;
+      const d = Math.hypot(m.x - k.x, m.z - k.z);
+      if ((m.to === k.id || (!m.to && d < 60)) && d < 150 && d < bd) { bd = d; best = m; }
+    }
+    if (best) {
+      const rel = angDiff(k.h, Math.atan2(best.x - k.x, best.z - k.z)), arrow = ARROWS[Math.round(rel / (Math.PI / 4))] || '▲';
+      html += '⚠ 미사일 접근! ' + arrow + ' ' + Math.round(bd) + 'm'; danger = bd < 60 ? 1 : .6;
+      const now = performance.now(); if (now - lastWarn > Math.max(180, bd * 4)) { lastWarn = now; beep(bd < 60 ? 1100 : 800, .09, 'square', .07); }
+    }
+  }
+  if (el._v !== html) { el._v = html; el.innerHTML = html; }
+  const eo = danger ? (Math.floor(performance.now() / 150) % 2 ? danger : danger * .35) : 0; if (edge._o !== eo) { edge._o = eo; edge.style.opacity = eo; }
+}
 const hudSet = (id, v, html) => { const e = $(id); if (e._v !== v) { e._v = v; if (html) e.innerHTML = v; else e.textContent = v; } };
 let hudN = 0;
 function updateHud() {
@@ -1374,6 +1429,7 @@ function updateHud() {
   if (g._c !== gc) { g._c = gc; g.style.background = gc; }
   const nw = Math.round(k.n2o / 2) * 2 + '%', nb = $('n2oBar'); if (nb._w !== nw) { nb._w = nw; nb.style.width = nw; nb.classList.toggle('full', k.n2o >= 99); }
   const wr = k.wrong > .8 && !k.finished ? 'block' : 'none'; if ($('wrong')._d !== wr) { $('wrong')._d = wr; $('wrong').style.display = wr; }
+  updateWarn(k);
   if (k.itemRoll > 0) updateItemHud();
   if ((hudN++ & 1) === 0) drawMinimap();
 }
@@ -1435,7 +1491,7 @@ function updateCamera(dt) {
   if (spec) $('spName').textContent = '👁 ' + spec.name;
   const spdF = clamp(Math.abs(k.spd) / MAXSPD, 0, 1.5);
   const slide = k.drift ? k.drift * .25 : 0;
-  camH = camReset ? k.h : camH + angDiff(camH, k.h - slide * 0.0) * Math.min(1, dt * (k.drift ? 3 : 5.5));
+  camH = camReset ? k.h : camH + angDiff(camH, k.h - (k.drift || 0) * .34) * Math.min(1, dt * (k.drift ? 3.2 : 5.5));
   const dist = 9.5 + spdF * 1.5, hgt = 4.4 + spdF * .4;
   const tx = k.x - Math.sin(camH) * dist, tz = k.z - Math.cos(camH) * dist;
   if (camReset) { camPos.set(tx, hgt, tz); camReset = false; } else camPos.lerp(new THREE.Vector3(tx, hgt, tz), Math.min(1, dt * 9));
@@ -1443,7 +1499,9 @@ function updateCamera(dt) {
   camera.position.copy(camPos); camera.position.x += rnd(-1, 1) * camShake * .5; camera.position.y += rnd(-1, 1) * camShake * .4;
   camLook.set(k.x + Math.sin(camH) * 8, 1.6, k.z + Math.cos(camH) * 8); camera.lookAt(camLook);
   const fov = 66 + spdF * 10 + (k.boost > 0 || k.burn ? 12 : 0) + camKick * 6;
-  camera.fov = lerp(camera.fov, fov, Math.min(1, dt * 6)); camera.updateProjectionMatrix();
+  camera.fov = lerp(camera.fov, fov + (k.drift ? 4 : 0), Math.min(1, dt * 6)); camera.updateProjectionMatrix();
+  camRoll = lerp(camRoll, -(k.drift || 0) * .06, Math.min(1, dt * 6)); camera.rotateZ(camRoll);
+  if (k.drift && k.charge >= 1.9) camShake = Math.max(camShake, .1);
   if (engGain && actx) { engOsc.frequency.value = 55 + Math.abs(k.spd) * 4.5 + (k.boost > 0 || k.burn ? 40 : 0); engGain.gain.value = race.phase === 'count' ? .02 : (k.finished ? .02 : .05); }
 }
 let last = performance.now(), garageRot = 0, garageKart = null, garageKey = '';
@@ -1500,7 +1558,7 @@ $('btnAgain').addEventListener('click', () => {});
 initMenu(); initLobbyDb(); requestAnimationFrame(loop);
 
 // 테스트/디버깅용 훅
-window.__kart = { track: () => track, get spec() { return spec; }, setSpec, applyThunder, hitKart, dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
+window.__kart = { spawn: (t, x, z, h, to) => { if (t === 'mis') missiles.push(makeMissile('t' + Math.random(), 'x', to, x, z, h)); else bananas.push(makeBanana('t' + Math.random(), x, z, 'x', t)); }, sim: n => { race.t0 = performance.now() - 1; for (let i = 0; i < n; i++) updateRace(1 / 60); }, track: () => track, get spec() { return spec; }, setSpec, applyThunder, hitKart, dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
 </script>
 </body>
 </html>
