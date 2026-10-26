@@ -79,7 +79,7 @@
   <div style="font-size:18px;margin-bottom:6px">닉네임을 정하세요</div>
   <input id="nick" class="nick" maxlength="10" placeholder="닉네임 (최대 10자)" autocomplete="off">
   <button id="nickBtn">로비 입장</button>
-  <div class="msg">60초 동안 카드를 눌러 내 사과 색으로! 많은 쪽이 승리</div>
+  <div class="msg">20초 동안 카드를 눌러 내 사과 색으로! 많은 쪽이 승리</div>
 </div>
 
 <div id="lobby" class="panel" style="display:none">
@@ -122,7 +122,7 @@
   const $ = id => document.getElementById(id);
   const PREFIX = 'cpisgod-apple-';
   const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const CELLS = 25, COUNT_MS = 3000, PLAY_MS = 60000, END_MS = COUNT_MS + PLAY_MS;
+  const CELLS = 25, COUNT_MS = 3000, PLAY_MS = 20000, END_MS = COUNT_MS + PLAY_MS;
   const PEND_MS = 600;   // 내가 누른 카드는 호스트 확인 전까지 내 색으로 유지
 
   let peer, isHost = false, myId = '', myName = '', myCode = null;
@@ -484,8 +484,8 @@
     if (!roomState || gs === 'idle') return;
     const el = Date.now() - t0, me = myColor(), [r, g] = counts();
     const rn = memName(roomState.red) || '-', gn = memName(roomState.green) || '-';
-    let tm = '60', cd = '';
-    if (gs === 'count') { tm = '60'; cd = String(Math.max(1, Math.ceil((COUNT_MS - el) / 1000))); }
+    let tm = String(PLAY_MS / 1000), cd = '';
+    if (gs === 'count') { tm = String(PLAY_MS / 1000); cd = String(Math.max(1, Math.ceil((COUNT_MS - el) / 1000))); }
     else if (gs === 'play') tm = String(Math.max(0, Math.ceil((END_MS - el) / 1000)));
     else tm = '0';
     $('hud').innerHTML =
