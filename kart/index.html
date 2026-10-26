@@ -75,8 +75,6 @@
   #lap { left: 16px; top: 74px; font-size: 22px; }
   #time { left: 16px; top: 104px; font-size: 18px; color: #cfe; }
   #best { left: 16px; top: 128px; font-size: 14px; color: #9ff; }
-  #item { left: 50%; top: 12px; transform: translateX(-50%); width: 76px; height: 76px; border-radius: 16px;
-    background: #000a; border: 3px solid #ffe14a; display: flex; align-items: center; justify-content: center; font-size: 44px; }
   #speed { right: 18px; bottom: 120px; font-size: 40px; font-style: italic; text-align: right; }
   #speed small { font-size: 16px; }
   #gaugeBox { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); width: min(300px, 55vw); height: 14px;
@@ -98,33 +96,54 @@
   #specbar button { padding: 8px 12px; font-size: 14px; }
   #touch { position: fixed; inset: 0; z-index: 6; pointer-events: none; display: none; }
   #touch.on { display: block; }
-  .tb { position: absolute; pointer-events: auto; border-radius: 50%; background: #ffffff26; border: 2px solid #fff6; color: #fff;
-    display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px; text-align: center; line-height: 1.1; }
-  .tb.on { background: #ffffff66; }
-  #tPad { position: absolute; left: 16px; bottom: 24px; width: 236px; height: 108px; border-radius: 54px; background: #ffffff1c; border: 2px solid #fff5;
-    display: flex; pointer-events: auto; touch-action: none; overflow: hidden; }
-  #tPad .ar { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 38px; color: #fffa; transition: background .06s; }
-  #tPad .ar.on { background: #ffffff55; color: #fff; }
-  #tD { right: 18px; bottom: 66px; width: 108px; height: 108px; background: #ff6a3d77; border-color: #ffb08c; font-size: 17px; letter-spacing: 1px; }
-  #tI { right: 140px; bottom: 80px; width: 84px; height: 84px; font-size: 36px; background: #ffe14a55; border-color: #ffe14a; }
-  #tB { right: 236px; bottom: 66px; width: 58px; height: 58px; font-size: 11px; background: #22222299; }
+  .tb { position: absolute; pointer-events: auto; touch-action: none; border-radius: 50%; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 900; text-align: center; line-height: 1.05; text-shadow: 0 2px 4px #0009;
+    background: radial-gradient(circle at 32% 24%, #ffffff55, #ffffff14 62%); border: 2px solid #ffffff66; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 8px 20px #0007, inset 0 0 14px #ffffff26; transition: transform .06s, filter .06s; }
+  .tb.on { transform: scale(.93); filter: brightness(1.35); }
+  .tb span { font-size: 13px; letter-spacing: 1px; } .tb b { font-size: 26px; }
+  #tPad { position: absolute; left: 16px; bottom: 26px; width: 244px; height: 112px; border-radius: 56px; display: flex; pointer-events: auto; touch-action: none; overflow: hidden;
+    background: linear-gradient(#ffffff2a, #ffffff0f); border: 2px solid #ffffff66; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 8px 20px #0007, inset 0 0 16px #ffffff22; }
+  #tPad .ar { flex: 1; display: flex; align-items: center; justify-content: center; transition: background .06s; }
+  #tPad .ar + .ar { border-left: 1px solid #ffffff33; }
+  #tPad .ar svg { width: 46px; height: 46px; fill: none; stroke: #ffffffcc; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 2px 3px #0008); }
+  #tPad .ar.on { background: #ffffff40; } #tPad .ar.on svg { stroke: #fff; }
+  #tD { right: 18px; bottom: 62px; width: 112px; height: 112px; background: radial-gradient(circle at 32% 24%, #ffc98f, #ff6a2a 62%, #d63a10); border-color: #ffd9b8; box-shadow: 0 8px 22px #ff6a2a66, 0 8px 20px #0007, inset 0 0 14px #ffffff44; }
+  #tD span { font-size: 18px; letter-spacing: 2px; }
+  #tN { right: 142px; bottom: 70px; width: 84px; height: 84px; background: radial-gradient(circle at 32% 24%, #9be3ff, #1b8cff 62%, #0b52c9); border-color: #cfeeff; box-shadow: 0 8px 22px #1b8cff66, 0 8px 20px #0007, inset 0 0 14px #ffffff44; }
+  #tN b { font-size: 24px; } #tN span { font-size: 11px; }
+  #tN em { position: absolute; top: -6px; right: -4px; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 12px; background: #ffe14a; color: #321; font-style: normal; font-size: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px #0008; }
+  .tb.sq { border-radius: 18px; width: 64px; height: 64px; font-size: 30px; background: linear-gradient(#ffffff30, #ffffff10); border-color: #ffffff55; color: #ffffff77; }
+  .tb.sq.has { border-color: #ffe14a; color: #fff; box-shadow: 0 0 14px #ffe14a88, 0 8px 20px #0007, inset 0 0 14px #ffe14a33; }
+  #tI1 { right: 18px; bottom: 184px; } #tI2 { right: 94px; bottom: 172px; }
+  .tb.sm { width: 54px; height: 54px; background: radial-gradient(circle at 32% 24%, #ffffff40, #00000040 70%); }
+  .tb.sm span { font-size: 10px; } .tb.sm b { font-size: 20px; }
+  #tB { right: 238px; bottom: 62px; }
   #n2oBox { position: absolute; left: 16px; bottom: 20px; width: 250px; font-weight: 900; font-size: 13px; text-shadow: 1px 1px 0 #000; }
-  #n2oBox small { color: #9aa4ff; font-weight: 700; }
-  #n2oTrack { height: 16px; margin-top: 3px; background: #000a; border: 2px solid #fff6; border-radius: 9px; overflow: hidden; }
+  #n2oBox .nrow { display: flex; justify-content: space-between; align-items: center; }
+  .pips { display: flex; gap: 5px; } .pips i { width: 22px; height: 14px; border-radius: 5px; background: #00000099; border: 2px solid #ffffff55; transform: skewX(-18deg); }
+  .pips i.on { background: linear-gradient(90deg, #ffb02e, #ffe14a); border-color: #fff; box-shadow: 0 0 10px #ffe14a; }
+  #n2oTrack { height: 14px; margin-top: 3px; background: #000a; border: 2px solid #fff6; border-radius: 9px; overflow: hidden; }
   #n2oBar { height: 100%; width: 0; background: linear-gradient(90deg, #1b8cff, #5fe6ff); }
   #n2oBar.full { background: linear-gradient(90deg, #ff9f1a, #ffe14a); box-shadow: 0 0 10px #ffe14a; }
-  #tN { right: 140px; bottom: 176px; width: 70px; height: 70px; background: #1b8cff77; border-color: #7fd3ff; font-size: 15px; }
+  #slots { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); display: flex; gap: 10px; align-items: flex-end; }
+  .slot { position: relative !important; width: 76px; height: 76px; border-radius: 18px; background: linear-gradient(#000b, #0008); border: 3px solid #ffe14a; display: flex; align-items: center; justify-content: center; font-size: 42px; box-shadow: 0 6px 16px #0007; }
+  .slot.s2 { width: 60px; height: 60px; font-size: 32px; border-color: #ffffff66; }
+  .slot::after { content: attr(data-n); position: absolute; left: 6px; top: 2px; font-size: 11px; color: #ffffffaa; }
   #rotHint { display: none; position: fixed; top: 6px; left: 50%; transform: translateX(-50%); z-index: 30; background: #000c; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; pointer-events: none; }
   @media (orientation: portrait) and (pointer: coarse) { body.racing #rotHint { display: block; } }
   .scr { align-items: flex-start; } .panel { margin: auto; }
   @media (pointer: coarse) {
-    #n2oBox { left: 16px; bottom: 140px; width: 236px; }
+    #n2oBox { left: 50%; transform: translateX(-50%); bottom: 12px; width: min(220px, 32vw); }
+    #gaugeBox { display: none; }
+    #slots { display: none; }   /* 터치 기기는 아이템이 버튼에 표시됨 */
+    .slot { width: 56px; height: 56px; font-size: 30px; border-width: 2px; border-radius: 14px; } .slot.s2 { width: 44px; height: 44px; font-size: 24px; }
+    .slot::after { display: none; }
     #rank { font-size: 40px; top: 6px; } #rank small { font-size: 16px; }
     #lap { top: 52px; font-size: 16px; } #time { top: 76px; font-size: 14px; } #best { top: 96px; font-size: 11px; }
-    #item { width: 62px; height: 62px; font-size: 34px; top: 8px; border-width: 2px; }
     #mapc { width: 100px; height: 100px; top: 6px; right: 8px; }
-    #speed { bottom: auto; top: 110px; right: 12px; font-size: 22px; } #speed small { font-size: 11px; }
-    #gaugeBox { bottom: 14px; width: min(220px, 34vw); height: 10px; }
+    #speed { bottom: auto; top: 100px; right: auto; left: 16px; text-align: left; font-size: 20px; } #speed small { font-size: 11px; }
+    #tRet { left: 16px; top: 134px; bottom: auto; }
     #msg { font-size: 64px; top: 22%; } #toast { top: 118px; font-size: 16px; } #wrong { font-size: 24px; }
   }
   @media (max-height: 520px) {
@@ -154,7 +173,7 @@
     <div class="rooms" id="roomList"><div class="empty">불러오는 중…</div></div>
     <div class="sub" style="margin-top:12px;line-height:1.6">
       ↑/W 가속 · ←→/AD 조향 · ↓/S 브레이크<br>
-      <b>Shift</b> 드리프트 (놓으면 부스터) · <b>X / Ctrl</b> 부스트 (드리프트로 100% 충전 시) · <b>Space</b> 아이템 · 모바일은 가속 자동 · 왼쪽 패드로 조향
+      <b>Shift</b> 드리프트 · <b>X / Ctrl</b> 부스트(보관 2칸) · <b>Space / Q</b> 아이템 1 / 2번 · <b>R</b> 도로 복귀 · 모바일은 가속 자동 · 왼쪽 패드로 조향
     </div>
   </div>
 </div>
@@ -216,10 +235,10 @@
   <div class="hp" id="lap">LAP 1/3</div>
   <div class="hp" id="time">0:00.00</div>
   <div class="hp" id="best"></div>
-  <div class="hp" id="item"></div>
+  <div id="slots"><div class="hp slot s1" id="item" data-n="Space"></div><div class="hp slot s2" id="item2" data-n="Q"></div></div>
   <div class="hp" id="speed">0<small> km/h</small></div>
   <div id="gaugeBox"><div id="gauge"></div></div>
-  <div id="n2oBox"><span id="n2oLbl">BOOST 0%</span><div id="n2oTrack"><div id="n2oBar"></div></div></div>
+  <div id="n2oBox"><div class="nrow"><span id="n2oLbl">BOOST</span><span class="pips"><i id="bp0"></i><i id="bp1"></i></span></div><div id="n2oTrack"><div id="n2oBar"></div></div></div>
   <canvas id="mapc" width="300" height="300"></canvas>
   <div class="hp" id="msg"></div>
   <div class="hp" id="toast"></div>
@@ -230,8 +249,15 @@
 <div id="flash"></div>
 <div id="specbar"><button class="dim" id="spPrev">◀</button><span id="spName"></span><button class="dim" id="spNext">▶</button><button class="alt" id="spRes">결과표</button></div>
 <div id="touch">
-  <div id="tPad"><div class="ar" id="tpL">◀</div><div class="ar" id="tpR">▶</div></div>
-  <div class="tb" id="tD">DRIFT</div><div class="tb" id="tI">🎁</div><div class="tb" id="tB">BRAKE</div><div class="tb" id="tN">N2O</div>
+  <div id="tPad">
+    <div class="ar" id="tpL"><svg viewBox="0 0 24 24"><path d="M15 4 7 12l8 8" /></svg></div>
+    <div class="ar" id="tpR"><svg viewBox="0 0 24 24"><path d="m9 4 8 8-8 8" /></svg></div>
+  </div>
+  <div class="tb" id="tD"><span>DRIFT</span></div>
+  <div class="tb" id="tN"><b>⚡</b><span>BOOST</span><em id="tNn">0</em></div>
+  <div class="tb sq" id="tI1">1</div><div class="tb sq" id="tI2">2</div>
+  <div class="tb sm" id="tB">BRAKE</div>
+  <div class="tb sm" id="tRet"><b>↺</b><span>복귀</span></div>
 </div>
 <div id="rotHint">📱 가로로 돌리면 더 편해요</div>
 </div>
@@ -274,7 +300,8 @@ const DRIFT_CHARGE = 20;      // 드리프트 중 초당 게이지 충전량 (×
 const BOOST_DUR = 2.4;        // 부스트 지속시간(초)
 const BOOST_ACC = 2.4;        // 부스트 중 가속력 배율
 const BOOST_VMAX = 1.4;       // 부스트 중 최고속도 배율
-const gLv = g => g >= 100 ? 3 : g >= 66 ? 2 : g >= 33 ? 1 : 0;   // 게이지 단계 (스파크 색/효과음)
+const BOOST_PASSIVE = 3;      // 게이지 기본 충전 (초당 %)
+const MAX_BOOSTS = 2;         // 부스트 보관 칸 수
 const ITEMS = { banana: '🍌', missile: '🚀', boost: '⚡', shield: '🛡️', oil: '🛢️', thunder: '🌩️', magnet: '🧲' };
 const ITEM_ICONS = ['❓', '🍌', '🚀', '⚡', '🛡️', '🛢️', '🌩️', '🧲'];
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -806,10 +833,10 @@ function dropPlayer(id) { if (!id) return; lobby.players = lobby.players.filter(
 // 레이스 중 나간 사람의 카트를 방장이 AI로 이어받음
 function botify(k) {
   if (k.finished) { k.bot = true; sendAll({ t: 'botify', id: k.id }); return; }
-  k.local = true; k.bot = true; k.auto = false; k.gone = false; k.burn = false; k.burnT = 0; k.beta = 0;
+  k.local = true; k.bot = true; k.auto = false; k.gone = false; k.burn = false; k.burnT = 0; k.beta = 0; k.boosts = 0; k.item2 = null;
   k.vx = k.tvx || 0; k.vz = k.tvz || 0; k.spin = k.spinR || 0; k.boost = k.boostR ? 1 : 0; k.shield = k.shieldR ? 3 : 0; k.drift = 0; k.charge = 0;
   k.idx = nearest(k.x, k.z, null).i; k.prevIdx = k.idx; k.lapStart = race ? performance.now() - race.t0 : 0;
-  k.fwd = k.vx * Math.sin(k.h) + k.vz * Math.cos(k.h); k.aiOff = rnd(-.5, .5); k.aiSkill = rnd(.9, 1.0); k.item = null; k.itemRoll = 0;
+  k.fwd = k.vx * Math.sin(k.h) + k.vz * Math.cos(k.h); k.aiOff = rnd(-.5, .5); k.aiSkill = rnd(.9, 1.0); k.item = null; k.item2 = null; k.itemRoll = 0;
   sendAll({ t: 'botify', id: k.id });
 }
 function fixColors() {
@@ -907,8 +934,8 @@ function makeKart(id, name, color, body, local, bot, cos) {
   const mesh = buildKart(colorOf(color), body, cos); scene.add(mesh);
   const tag = nameSprite(name); tag.position.y = 4.4; mesh.add(tag); if (local && !bot) tag.visible = false;
   return { id, name, color, body, local, bot, mesh, tag,
-    x: 0, z: 0, h: 0, vx: 0, vz: 0, spd: 0, drift: 0, charge: 0, boost: 0, shield: 0, spin: 0, inv: 0, item: null, itemRoll: 0,
-    y: 0, vy: 0, oil: 0, magnet: 0, n2o: 0, burn: false, burnT: 0, n2oHeld: false, recov: 0, driftTime: 0, beta: 0, lap: 0, idx: null, prog: 0, finished: false, finT: 0, lapStart: 0, bestLap: 0, rank: 1,
+    x: 0, z: 0, h: 0, vx: 0, vz: 0, spd: 0, drift: 0, charge: 0, boost: 0, shield: 0, spin: 0, inv: 0, item: null, item2: null, itemRoll: 0,
+    y: 0, vy: 0, oil: 0, magnet: 0, n2o: 0, boosts: 0, burn: false, burnT: 0, n2oHeld: false, recov: 0, driftTime: 0, beta: 0, lap: 0, idx: null, prog: 0, finished: false, finT: 0, lapStart: 0, bestLap: 0, rank: 1,
     tx: 0, tz: 0, th: 0, tvx: 0, tvz: 0, lastRecv: 0, lat: 0, offroad: false, wrong: 0, yaw: 0, sparkT: 0, auto: false, aiOff: rnd(-.5, .5), aiSkill: rnd(.9, 1.0), gone: false };
 }
 function clearRace() {
@@ -963,12 +990,14 @@ function startRace(grid, nBots) {
 
 /* ============================== 입력 ============================== */
 const keys = {};
-const touch = { sx: 0, d: 0, b: 0, i: 0, n: 0 };
+const touch = { sx: 0, d: 0, b: 0, i1: 0, i2: 0, ret: 0, n: 0 };
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   keys[e.code] = true;
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
-  if (state === 'race' && (e.code === 'Space' || e.code === 'KeyE') && !e.repeat) useItem(myKart);
+  if (state === 'race' && (e.code === 'Space' || e.code === 'KeyE') && !e.repeat) useItem(myKart, 0);
+  if (state === 'race' && e.code === 'KeyQ' && !e.repeat) useItem(myKart, 1);
+  if (state === 'race' && e.code === 'KeyR' && !e.repeat) returnToTrack(myKart);
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -979,7 +1008,9 @@ function bindTouch(id, key, fn) {
   el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('lostpointercapture', off);
 }
 bindTouch('tD', 'd'); bindTouch('tB', 'b'); bindTouch('tN', 'n');
-bindTouch('tI', 'i', () => { if (state === 'race') useItem(myKart); });
+bindTouch('tI1', 'i1', () => { if (state === 'race') useItem(myKart, 0); });
+bindTouch('tI2', 'i2', () => { if (state === 'race') useItem(myKart, 1); });
+bindTouch('tRet', 'ret', () => { if (state === 'race') returnToTrack(myKart); });
 (function () {   // 조향 패드: 손가락 위치로 좌/우 (슬라이드 가능)
   const pad = $('tPad'), L = $('tpL'), R = $('tpR');
   const set = e => { const r = pad.getBoundingClientRect(), v = clamp(((e.clientX - r.left) / r.width - .5) / .32, -1, 1); touch.sx = Math.abs(v) < .12 ? 0 : v; L.classList.toggle('on', touch.sx < 0); R.classList.toggle('on', touch.sx > 0); };
@@ -1013,7 +1044,7 @@ function stepKart(k, inp, dt) {
   let vf = k.vx * fx + k.vz * fz;
   // 부스트 키: 게이지 100일 때만, 눌렀을 때 1회 발동 (이미 켜져 있으면 연장/중첩 없음)
   const n2oPress = !!inp.n2o && !k.n2oHeld; k.n2oHeld = !!inp.n2o;
-  if (n2oPress && k.n2o >= 100 && !(k.burnT > 0) && k.spin <= 0) { k.n2o -= 100; k.burnT = BOOST_DUR; if (k.local && !k.bot) { sfx.boost(); camKick = 1; } }
+  if (n2oPress && k.boosts > 0 && !(k.burnT > 0) && k.spin <= 0) { k.boosts--; k.burnT = BOOST_DUR; if (k.local && !k.bot) { sfx.boost(); camKick = 1; } }
   if (k.burnT > 0) k.burnT = Math.max(0, k.burnT - dt);
   if (k.recov > 0) k.recov -= dt;
   k.burn = k.burnT > 0;
@@ -1025,13 +1056,19 @@ function stepKart(k, inp, dt) {
   if (k.oil > 0) maxS *= .85;
   // 드리프트 시작 (클래식 카트라이더): 일정 속도 이상에서 방향키 + 드리프트 키
   if (inp.drift && !k.drift && Math.abs(inp.steer) > .2 && vf > 16 && k.spin <= 0 && !(k.oil > 0) && !air) {
-    k.drift = inp.steer > 0 ? 1 : -1; k.sparkT = 0; k.lvPrev = gLv(k.n2o); k.driftT = performance.now(); k.driftTime = 0;
+    k.drift = inp.steer > 0 ? 1 : -1; k.driftTime = 0;
     vf *= .97; if (k.local && !k.bot) sfx.drift();   // 진입 시 약간 감속, 차체는 아래에서 서서히 돌아감 (순간이동 없음)
   }
   if (k.drift && (!inp.drift || vf < 11)) endDrift(k);
   // 차체 방향(h)과 이동 방향(course)이 분리되는 모드: 드리프트 중 + 종료 후 차체가 정렬될 때까지
   const kin = !!k.drift || Math.abs(k.beta || 0) > .02;
   if (kin) vf = Math.max(Math.hypot(k.vx, k.vz), 0);   // 이동 방향 속도로 계산
+  // 게이지: 기본 초당 3% 충전, 100%가 되면 부스트 칸에 1개 적립
+  if (k.boosts < MAX_BOOSTS) {
+    k.n2o += BOOST_PASSIVE * dt;
+    while (k.n2o >= 100 && k.boosts < MAX_BOOSTS) { k.n2o -= 100; k.boosts++; if (k.local && !k.bot) { sfx.item(); toast('⚡ 부스트 +1'); } }
+  }
+  if (k.boosts >= MAX_BOOSTS) k.n2o = 0;
   // 가속 / 브레이크
   if (inp.gas) vf += ACC * (1 - clamp(vf / maxS, 0, 1.2) * .85) * dt * (boosting ? BOOST_ACC : 1);
   else vf -= vf * .5 * dt;
@@ -1052,9 +1089,7 @@ function stepKart(k, inp, dt) {
       vf -= vf * (.035 + .02 * clamp(dtm / 3, 0, 1.5)) * (.6 + .8 * Math.abs(beta) / .95) * dt;   // 감속: 각도가 클수록, 오래 끌수록 커짐
       const longPen = dtm > 3 ? Math.max(.35, 1 - (dtm - 3) * .3) : 1;
       const eff = clamp(Math.abs(vf) / MAXSPD, .4, 1.1) * (.6 + .8 * Math.abs(beta) / .95) * longPen;   // 충전 보정값: 속도·각도 비례
-      k.n2o = Math.min(100, k.n2o + DRIFT_CHARGE * dt * eff);                          // 부스트 중에도 충전
-      const lvN = gLv(k.n2o);
-      if (lvN > (k.lvPrev || 0)) { k.lvPrev = lvN; if (k.local && !k.bot) { sfx.item(); camKick = .6; } for (let q = 0; q < 8; q++) spawnParticle(k.x, 1, k.z, SPARK[lvN], .5, 5); }
+      if (k.boosts < MAX_BOOSTS) k.n2o += DRIFT_CHARGE * dt * eff;                     // 드리프트 충전 (부스트 중에도)
     } else {                                                                            // 드리프트 종료: 차체가 이동 방향으로 빠르게 정렬 (속도 손실 없음)
       beta *= Math.exp(-9 * dt); wc = inp.steer * turnMax(Math.abs(vf)) * .6;
     }
@@ -1096,10 +1131,17 @@ function stepKart(k, inp, dt) {
   const dotF = Math.sin(k.h) * T.pts[k.idx].tx + Math.cos(k.h) * T.pts[k.idx].tz;
   k.wrong = (dotF < -.4 && Math.abs(vf) > 5) ? k.wrong + dt : 0;
 }
+// 어디서든 가장 가까운 도로 중앙으로 복귀 (복귀 버튼 / R키)
+function returnToTrack(k) {
+  if (!k || !race || race.phase === 'count' || performance.now() - (k.retT || 0) < 800) return;
+  k.retT = performance.now();
+  const n = nearest(k.x, k.z, null), q = track.pts[n.i], sp = Math.min(Math.hypot(k.vx, k.vz), 14);
+  k.x = q.x; k.z = q.z; k.h = q.h; k.vx = q.tx * sp; k.vz = q.tz * sp; k.y = 0; k.vy = 0;
+  k.drift = 0; k.beta = 0; k.steerS = 0; k.spin = 0; k.oil = 0; k.driftTime = 0; k.inv = Math.max(k.inv, 1.5);
+  k.idx = n.i; k.prevIdx = n.i; k.lat = 0; camReset = true; if (k === myKart) toast('도로로 복귀!');
+}
 function endDrift(k) {
   // 충전된 게이지는 유지. 차체/이동 방향 차이는 recov 동안 서서히 줄어듦
-  const lv = gLv(k.n2o);
-  if (lv) for (let q = 0; q < 6; q++) spawnParticle(k.x - Math.sin(k.h) * 2, .7, k.z - Math.cos(k.h) * 2, SPARK[lv], .45, 5);
   k.drift = 0; k.charge = 0; k.lvPrev = 0; k.driftTime = 0;   // 게이지는 유지, 차체는 beta 감쇠로 정렬
 }
 function onLap(k) {
@@ -1164,14 +1206,13 @@ function aiInput(k, dt) {
   const vh = Math.hypot(k.vx, k.vz) > 5 ? Math.atan2(k.vx, k.vz) : k.h, dv = angDiff(vh, want);   // 드리프트 중엔 진행 방향 기준으로 조향 (바깥으로 밀리지 않게)
   let steer = clamp((k.drift && !scAim ? dv : d) * 2.6, -1, 1);
   if (wantDrift && !k.drift) steer = sgn1 * .9;   // 드리프트 진입 방향
-  k.n2o = Math.min(100, k.n2o + 2 * dt);
-  const useN2o = k.n2o >= 100 && c1 < .004 && c < .02 && !k.offroad && k.fwd > 24;
+  const useN2o = k.boosts > 0 && c1 < .004 && c < .02 && !k.offroad && k.fwd > 24;
   return { steer, gas: k.fwd < target ? 1 : 0, brake: k.fwd > target + 6 && !k.drift ? 1 : 0, drift: wantDrift ? 1 : 0, n2o: useN2o ? 1 : 0 };
 }
 
 /* ============================== 아이템 ============================== */
 function botUseItem(k, dt) {
-  if (!k.item || k.itemRoll > 0 || k.spin > 0 || k.finished || race.phase === 'count') return;
+  if (!k.item || k.spin > 0 || k.finished || race.phase === 'count') return;
   k.itemAge = (k.itemAge || 0) + dt;
   if (k.itemAge < (k.useDelay || 1.5)) return;
   const N = track.N, seg = track.seg;
@@ -1192,9 +1233,12 @@ function rollItem(k) {
   let tot = 0; for (const v in w) tot += w[v]; let x = Math.random() * tot;
   for (const v in w) { x -= w[v]; if (x <= 0) return v; } return 'boost';
 }
-function useItem(k) {
-  if (!k || !k.item || k.itemRoll > 0 || k.spin > 0 || race.phase !== 'go' && race.phase !== 'run') return;
-  const it = k.item; k.item = null; updateItemHud();
+function useItem(k, slot = 0) {
+  const cur = k ? (slot === 1 ? k.item2 : k.item) : null;
+  if (!k || !cur || k.spin > 0 || race.phase !== 'go' && race.phase !== 'run') return;
+  const it = cur;
+  if (slot === 1) k.item2 = null; else { k.item = k.item2; k.item2 = null; k.itemAge = 0; k.useDelay = rnd(.8, 2); }
+  updateItemHud();
   if (it === 'boost') { k.boost = Math.max(k.boost, 2.2); sfx.boost(); camKick = 1; }
   else if (it === 'shield') { k.shield = 6; sfx.item(); }
   else if (it === 'banana') {
@@ -1279,7 +1323,7 @@ function updateItems(dt) {
     for (const k of locals) {
       if ((k.x - bx.x) ** 2 + (k.z - bx.z) ** 2 < 3.2 * 3.2) {
         bx.t = 5; bx.mesh.visible = false; sendAll({ t: 'box', r: 1, i: bx.idx });
-        if (!k.item && !k.itemRoll) { k.itemRoll = 1; k.pendItem = rollItem(k); if (!k.bot) sfx.item(); }
+        if (!(k.item && k.item2) && !k.itemRoll) { k.itemRoll = 1; k.pendItem = rollItem(k); if (!k.bot) sfx.item(); }
         break;
       }
     }
@@ -1293,12 +1337,15 @@ function updateItems(dt) {
     }
     for (const r of track.ramps) if (k.y < .2 && k.vy <= 0 && (k.x - r.x) ** 2 + (k.z - r.z) ** 2 < 5.5 * 5.5 && k.fwd > 8) { k.vy = 13; k.y = .1; k.boost = Math.max(k.boost, .6); if (!k.bot) { sfx.boost(); camKick = 1; } }
     for (const p of track.pads) if ((k.x - p.x) ** 2 + (k.z - p.z) ** 2 < 4.5 * 4.5 && k.boost < 1.2) { k.boost = 1.2; if (!k.bot) { sfx.boost(); camKick = 1; } }
-    if (k.itemRoll > 0) { k.itemRoll -= dt; if (k.itemRoll <= 0) { k.itemRoll = 0; k.item = k.pendItem; k.itemAge = 0; k.useDelay = rnd(.8, 3); if (k === myKart) updateItemHud(); } }
+    if (k.itemRoll > 0) { k.itemRoll -= dt; if (k.itemRoll <= 0) { k.itemRoll = 0; if (!k.item) { k.item = k.pendItem; k.itemAge = 0; k.useDelay = rnd(.8, 3); } else k.item2 = k.pendItem; if (k === myKart) updateItemHud(); } }
   }
 }
 function updateItemHud() {
   const k = myKart; if (!k) return;
-  $('item').textContent = k.itemRoll > 0 ? ITEM_ICONS[Math.floor(performance.now() / 90) % ITEM_ICONS.length] : (k.item ? ITEMS[k.item] : '');
+  const roll = k.itemRoll > 0, ic = () => ITEM_ICONS[Math.floor(performance.now() / 90) % ITEM_ICONS.length];
+  const s1 = k.item ? ITEMS[k.item] : (roll ? ic() : ''), s2 = k.item2 ? ITEMS[k.item2] : (roll && k.item ? ic() : '');
+  hudSet('item', s1); hudSet('item2', s2); hudSet('tI1', s1 || '1'); hudSet('tI2', s2 || '2');
+  $('tI1').classList.toggle('has', !!s1 && !!k.item); $('tI2').classList.toggle('has', !!k.item2);
 }
 
 /* ============================== 이펙트 ============================== */
@@ -1323,34 +1370,22 @@ function updateParticles(dt) {
 const SPARK = [0x4aa8ff, 0x4aa8ff, 0xff9f1a, 0xd04dff];
 function visualKart(k, dt) {
   const m = k.mesh, u = m.userData;
-  const hopT = k.drift ? (performance.now() - (k.driftT || 0)) / 280 : 9, hop = hopT < 1 ? Math.sin(hopT * Math.PI) * .7 : 0;   // 드리프트 시작 시 살짝 점프
-  m.position.set(k.x, (k.y || 0) + hop, k.z); u.blob.position.y = .06 - (k.y || 0) - hop;
+  m.position.set(k.x, k.y || 0, k.z); u.blob.position.y = .06 - (k.y || 0);
   const target = k.h + (k.spin > 0 ? (1.3 - k.spin) * Math.PI * 2 * 1.6 : 0) + (k.drift ? -k.drift * .35 : 0) * 0;
   k.yaw = k.spin > 0 ? target : k.h;
   m.rotation.y = k.yaw;
-  const lv = k.drift ? gLv(k.n2o) : 0;
-  u.inner.rotation.y = k.drift ? lerp(u.inner.rotation.y, k.drift * .1, Math.min(1, dt * 10)) : lerp(u.inner.rotation.y, 0, Math.min(1, dt * 10));
-  u.inner.rotation.z = lerp(u.inner.rotation.z, k.drift ? -k.drift * .15 : 0, Math.min(1, dt * 8));
   u.wheelRot += (k.spd || 0) * dt / .5; for (const w of u.wheels) w.rotation.x = u.wheelRot;
   u.shield.visible = k.shield > 0 && (k.shield > 1.5 || Math.floor(performance.now() / 100) % 2 === 0);
   const bs = k.boost > 0 || k.burn; for (const f of u.flames) { f.visible = bs; if (bs) f.scale.set(1, 1 + Math.random() * .5, 1); }
   u.blob.visible = true;
   m.visible = !k.gone && (k.inv > 0 && k.spin <= 0 ? Math.floor(performance.now() / 80) % 3 !== 0 : true);
-  if (k.drift && lv > 0 || k.drift) {   // 스파크
-    k.sparkT -= dt; if (k.sparkT <= 0) { k.sparkT = lv > 0 ? .02 : .06;
-      const bx = -Math.sin(k.h) * 1.8, bz = -Math.cos(k.h) * 1.8, rx = Math.cos(k.h), rz = -Math.sin(k.h);
-      for (const s of [-1, 1]) for (let q = 0; q < (lv > 0 ? 2 : 1); q++) spawnParticle(k.x + bx + rx * s * 1.1, .4, k.z + bz + rz * s * 1.1, lv > 0 ? SPARK[lv] : 0xffffff, .4, 4.5);
-    }
-  }
-  if (k.drift && (k.y || 0) < .1 && !k.offroad && skid) {   // 스키드 마크 + 연기
+  if (k.drift && (k.y || 0) < .1 && !k.offroad && skid) {   // 스키드 마크만
     k.skidT = (k.skidT || 0) - dt;
     if (k.skidT <= 0) {
       k.skidT = .04; const fx = Math.sin(k.h), fz = Math.cos(k.h), rx = Math.cos(k.h), rz = -Math.sin(k.h), sh = Math.hypot(k.vx, k.vz) > 3 ? Math.atan2(k.vx, k.vz) : k.h;
       for (const sd of [-1, 1]) addSkid(k.x - fx * 1.2 + rx * sd, k.z - fz * 1.2 + rz * sd, sh);
-      if (Math.random() < .5) spawnParticle(k.x - fx * 1.6, .6, k.z - fz * 1.6, 0xdddddd, .7, .8);
     }
   }
-  if (bs && Math.random() < .5) spawnParticle(k.x - Math.sin(k.h) * 3, .8, k.z - Math.cos(k.h) * 3, 0x66ddff, .3, 1.5);
   const cd = Math.hypot(camera.position.x - k.x, camera.position.z - k.z);
   k.tag.visible = !(k.local && !k.bot) && cd > 9; k.tag.scale.set(6, 1.5, 1).multiplyScalar(clamp(cd / 24, .5, 2));
 }
@@ -1410,13 +1445,12 @@ function updateRace(dt) {
       if (a === b || b.gone) continue;
       const dx = a.x - b.x, dz = a.z - b.z, d2 = dx * dx + dz * dz, R2 = 3.4 * 3.4;
       if (d2 >= R2 || d2 < .0001) continue;
-      const d = Math.sqrt(d2), nx = dx / d, nz = dz / d, o = (3.4 - d) * .5;
+      const d = Math.sqrt(d2), nx = dx / d, nz = dz / d, o = (3.4 - d) * .65;
       a.x += nx * o; a.z += nz * o;
       const vn = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;      // 음수면 서로 접근 중
       if (vn < 0) {
-        const j = -(1 + .7) * vn * .5, boostEdge = (a.boost > 0 ? .85 : 1) * (b.boost > 0 ? 1.15 : 1);   // 부스트 중이면 덜 밀림
+        const j = (-(1 + 1.4) * vn + 3) * .5, boostEdge = (a.boost > 0 ? .85 : 1) * (b.boost > 0 ? 1.15 : 1);   // 부스트 중이면 덜 밀림
         a.vx += nx * j * boostEdge; a.vz += nz * j * boostEdge;
-        a.vx *= .985; a.vz *= .985;
         if (-vn > 6) {
           a.bumpT = a.bumpT || 0;
           if (performance.now() - a.bumpT > 300) {
@@ -1477,11 +1511,14 @@ function updateHud() {
   const gw = Math.round(clamp((k.burnT || 0) / BOOST_DUR, 0, 1) * 50) * 2 + '%';
   if (g._w !== gw) { g._w = gw; g.style.width = gw; }
   const gc = (k.boost > 0 || k.burn) ? '#ffb02e' : '#3a9bff'; if (g._c !== gc) { g._c = gc; g.style.background = gc; }
-  const nw = Math.round(k.n2o / 2) * 2 + '%', nb = $('n2oBar'); if (nb._w !== nw) { nb._w = nw; nb.style.width = nw; nb.classList.toggle('full', k.n2o >= 99.9); }
-  hudSet('n2oLbl', k.n2o >= 99.9 ? (k.burn ? 'BOOST!' : 'BOOST READY [X]') : 'BOOST ' + Math.floor(k.n2o) + '%');
+  const full = k.boosts >= MAX_BOOSTS, nw = (full ? 100 : Math.round(k.n2o / 2) * 2) + '%', nb = $('n2oBar'); if (nb._w !== nw) { nb._w = nw; nb.style.width = nw; }
+  nb.classList.toggle('full', full);
+  for (let i = 0; i < MAX_BOOSTS; i++) { const e = $('bp' + i), on = k.boosts > i; if (e._on !== on) { e._on = on; e.classList.toggle('on', on); } }
+  hudSet('n2oLbl', k.burn ? 'BOOST!' : full ? 'BOOST MAX [X]' : k.boosts ? 'BOOST ×' + k.boosts + ' [X]' : 'BOOST ' + Math.floor(k.n2o) + '%');
+  hudSet('tNn', String(k.boosts));
   const wr = k.wrong > .8 && !k.finished ? 'block' : 'none'; if ($('wrong')._d !== wr) { $('wrong')._d = wr; $('wrong').style.display = wr; }
   updateWarn(k);
-  if (k.itemRoll > 0) updateItemHud();
+  updateItemHud();
   if ((hudN++ & 1) === 0) drawMinimap();
 }
 /* 미니맵 */
@@ -1541,9 +1578,7 @@ function updateCamera(dt) {
   const k = spec || myKart; if (!k) return;
   if (spec) $('spName').textContent = '👁 ' + spec.name;
   const spdF = clamp(Math.abs(k.spd) / MAXSPD, 0, 1.5);
-  const slide = k.drift ? k.drift * .25 : 0;
-  const cdir = Math.hypot(k.vx, k.vz) > 3 ? Math.atan2(k.vx, k.vz) : k.h, ctgt = k.h + angDiff(k.h, cdir) * .8;   // 카메라는 이동 방향을 따라가서 드리프트 때 차가 옆으로 보임
-  camH = camReset ? ctgt : camH + angDiff(camH, ctgt) * Math.min(1, dt * (k.drift ? 3.5 : 5.5));
+  camH = camReset ? k.h : camH + angDiff(camH, k.h) * Math.min(1, dt * 5.5);
   const dist = 9.5 + spdF * 1.5, hgt = 4.4 + spdF * .4;
   const tx = k.x - Math.sin(camH) * dist, tz = k.z - Math.cos(camH) * dist;
   if (camReset) { camPos.set(tx, hgt, tz); camReset = false; } else camPos.lerp(new THREE.Vector3(tx, hgt, tz), Math.min(1, dt * 9));
@@ -1551,9 +1586,7 @@ function updateCamera(dt) {
   camera.position.copy(camPos); camera.position.x += rnd(-1, 1) * camShake * .5; camera.position.y += rnd(-1, 1) * camShake * .4;
   camLook.set(k.x + Math.sin(camH) * 8, 1.6, k.z + Math.cos(camH) * 8); camera.lookAt(camLook);
   const fov = 66 + spdF * 10 + (k.boost > 0 || k.burn ? 12 : 0) + camKick * 6;
-  camera.fov = lerp(camera.fov, fov + (k.drift ? 4 : 0), Math.min(1, dt * 6)); camera.updateProjectionMatrix();
-  camRoll = lerp(camRoll, -(k.drift || 0) * .06, Math.min(1, dt * 6)); camera.rotateZ(camRoll);
-  if (k.drift && k.n2o >= 100) camShake = Math.max(camShake, .1);
+  camera.fov = lerp(camera.fov, fov, Math.min(1, dt * 6)); camera.updateProjectionMatrix();
   if (engGain && actx) { engOsc.frequency.value = 55 + Math.abs(k.spd) * 4.5 + (k.boost > 0 || k.burn ? 40 : 0); engGain.gain.value = race.phase === 'count' ? .02 : (k.finished ? .02 : .05); }
 }
 let last = performance.now(), garageRot = 0, garageKart = null, garageKey = '';
@@ -1610,7 +1643,7 @@ $('btnAgain').addEventListener('click', () => {});
 initMenu(); initLobbyDb(); requestAnimationFrame(loop);
 
 // 테스트/디버깅용 훅
-window.__kart = { onShortcut, wallGapAt, nearest, spawn: (t, x, z, h, to) => { if (t === 'mis') missiles.push(makeMissile('t' + Math.random(), 'x', to, x, z, h)); else bananas.push(makeBanana('t' + Math.random(), x, z, 'x', t)); }, sim: n => { race.t0 = performance.now() - 1; for (let i = 0; i < n; i++) updateRace(1 / 60); }, track: () => track, get spec() { return spec; }, setSpec, applyThunder, hitKart, dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
+window.__kart = { useItem, onShortcut, wallGapAt, nearest, spawn: (t, x, z, h, to) => { if (t === 'mis') missiles.push(makeMissile('t' + Math.random(), 'x', to, x, z, h)); else bananas.push(makeBanana('t' + Math.random(), x, z, 'x', t)); }, sim: n => { race.t0 = performance.now() - 1; for (let i = 0; i < n; i++) updateRace(1 / 60); }, track: () => track, get spec() { return spec; }, setSpec, applyThunder, hitKart, dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
 </script>
 </body>
 </html>
