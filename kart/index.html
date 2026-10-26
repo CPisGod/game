@@ -1103,9 +1103,11 @@ function aiInput(k, dt) {
   // 앞쪽 곡률 / 커브 방향 (sgn > 0: 왼쪽 커브)
   let c = 0; for (let j = 0; j < 30; j += 4) c = Math.max(c, T.pts[(k.idx + j) % N].curv);
   const turn = angDiff(T.pts[k.idx].h, T.pts[(k.idx + 14) % N].h), sgn = Math.sign(turn);
+  let c1 = 0; for (let j = 0; j < 11; j += 2) c1 = Math.max(c1, T.pts[(k.idx + j) % N].curv);   // 바로 앞(약 35m) 곡률: 드리프트 시작/종료 판단용
+  const turn1 = angDiff(T.pts[k.idx].h, T.pts[(k.idx + 11) % N].h), sgn1 = Math.sign(turn1);
   // 레이싱 라인: 커브 안쪽으로 붙기
   const useSC = false;   // AI 지름길 이용은 입구에서 벽에 끼는 문제가 있어 비활성화 (코드는 남겨 둠)
-  let off = clamp(k.aiOff * T.half * .3 - sgn * T.half * .35 * clamp(c * 45, 0, 1), -T.half * .6, T.half * .6);
+  let off = clamp(k.aiOff * T.half * .3 + sgn * T.half * .35 * clamp(c * 45, 0, 1), -T.half * .6, T.half * .6);
   if (!useSC) for (const sc of T.shortcuts) {   // 지름길을 안 쓰는 AI는 입구/출구 근처에서 반대편으로 붙어 벽 틈으로 새지 않게 함
     const near = i => Math.min((i - k.idx + N) % N, (k.idx - i + N) % N) < 35;
     if (near(sc.i0) || near(sc.i1)) off = -sc.side * T.half * .35;
@@ -1126,8 +1128,8 @@ function aiInput(k, dt) {
   // 드리프트: 일반 조향으로 못 도는 커브에서 사용
   let wantDrift = false;
   if (ds >= 1 && !scAim && k.spin <= 0 && !(k.oil > 0) && k.y < .1) {
-    if (k.drift) wantDrift = c > .007 && Math.sign(k.drift) === sgn && Math.abs(k.lat) < T.half * .9;
-    else wantDrift = c > .011 && Math.abs(turn) > .14 && k.fwd > 18 && k.fwd * c > turnMax(k.fwd) * .8;
+    if (k.drift) wantDrift = c1 > .007 && Math.sign(k.drift) === sgn1 && Math.abs(k.lat) < T.half * .9;
+    else wantDrift = c1 > .014 && Math.abs(turn1) > .22 && k.fwd > 18 && k.fwd * c1 > turnMax(k.fwd) * .8;
   }
   const vmax = MAXSPD * k.aiSkill * rb; let target = vmax;
   if (scAim) target = Math.min(vmax, 34);
@@ -1137,9 +1139,9 @@ function aiInput(k, dt) {
   target = clamp(target, 14, MAXSPD * (k.boost > 0 || k.burn ? 1.45 : [1.02, 1.1, 1.2][ds]));
   const vh = Math.hypot(k.vx, k.vz) > 5 ? Math.atan2(k.vx, k.vz) : k.h, dv = angDiff(vh, want);   // 드리프트 중엔 진행 방향 기준으로 조향 (바깥으로 밀리지 않게)
   let steer = clamp((k.drift && !scAim ? dv : d) * 2.6, -1, 1);
-  if (wantDrift && !k.drift) steer = sgn * .9;   // 드리프트 진입 방향
+  if (wantDrift && !k.drift) steer = sgn1 * .9;   // 드리프트 진입 방향
   k.n2o = Math.min(100, k.n2o + 2 * dt);
-  const useN2o = k.n2o >= 100 && c < .006 && !k.offroad && k.fwd > 24;
+  const useN2o = k.n2o >= 100 && c1 < .004 && c < .02 && !k.offroad && k.fwd > 24;
   return { steer, gas: k.fwd < target ? 1 : 0, brake: k.fwd > target + 6 && !k.drift ? 1 : 0, drift: wantDrift ? 1 : 0, n2o: useN2o ? 1 : 0 };
 }
 
@@ -1373,7 +1375,6 @@ function updateRace(dt) {
       if (!canDrive) inp = { steer: 0, gas: 0, brake: 0, drift: 0 };
       else if (k.bot || k.auto) inp = aiInput(k, dt);
       else inp = readInput();
-      if (k.auto && !k.bot) inp.drift = 0;
       // 출발 부스트: 카운트다운 중 가속
       stepKart(k, inp, dt);
     } else stepRemote(k, dt);
