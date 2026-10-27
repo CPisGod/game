@@ -545,7 +545,7 @@ function buildTrack(map) {
   grp.add(new THREE.Mesh(rg, new THREE.MeshStandardMaterial({ map: roadTex, roughness: .9, side: THREE.DoubleSide })));
 
   // 연석 + 벽
-  const wallOff = half + 5, wallH = 1.6;
+  const wallOff = half + 1, wallH = .22;   // 부딪히는 벽이 아니라 도로 가장자리의 낮은 연석
   const wc = document.createElement('canvas'); wc.width = 64; wc.height = 16; const wx = wc.getContext('2d');
   wx.fillStyle = '#fff'; wx.fillRect(0, 0, 64, 16); wx.fillStyle = map.night ? '#ff2bd6' : '#e8382e'; wx.fillRect(0, 0, 32, 16);
   const wtex = new THREE.CanvasTexture(wc); wtex.wrapS = THREE.RepeatWrapping; wtex.wrapT = THREE.RepeatWrapping;
@@ -1166,14 +1166,7 @@ function stepKart(k, inp, dt) {
   }
   k.x += k.vx * dt; k.z += k.vz * dt;
   k.spd = Math.hypot(k.vx, k.vz) * (vf >= 0 ? 1 : -1); k.fwd = vf; k.slide = vl;
-  // 벽
-  const n2 = nearest(k.x, k.z, k.idx), lim = T.wallOff - 1.6, p = T.pts[n2.i];
-  if (Math.abs(n2.lat) > lim && !onShortcut(k.x, k.z) && !wallGapAt(Math.sign(n2.lat), n2.i)) {
-    const sgn = Math.sign(n2.lat), push = Math.abs(n2.lat) - lim;
-    k.x -= p.nx * sgn * push; k.z -= p.nz * sgn * push;
-    const vn = k.vx * p.nx * sgn + k.vz * p.nz * sgn;
-    if (vn > 0) { k.vx -= p.nx * sgn * vn * 1.4; k.vz -= p.nz * sgn * vn * 1.4; k.vx *= .92; k.vz *= .92; if (vn > 8 && k.local && !k.bot) { sfx.hit(); camShake = .5; } }
-  }
+  // 벽 없음: 도로 밖(잔디)으로 나가도 되돌리지 않음. 느려질 뿐이며 복귀는 복귀 버튼(R)으로
   // 진행도 / 랩
   const old = k.prevIdx == null ? k.idx : k.prevIdx; const N = T.N;
   if (old > N * .75 && k.idx < N * .25) { k.lap++; onLap(k); }
