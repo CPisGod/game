@@ -781,10 +781,10 @@ function startTransport() {
 }
 function netTick() {
   const now = Date.now();
-  if (now - net.lastPush > 2500) netPushStates([]);   // 하트비트 (레이스 중에는 상태 전송이 대신함)
+  if (now - net.lastPush > 4000) netPushStates([]);   // 하트비트 (레이스 중에는 상태 전송이 대신함)
   if (net.host) {
-    for (const p of humans()) if (p.id !== 'p0' && net.seen[p.id] && now - net.seen[p.id] > 12000) { net.conns.delete(p.id); dropPlayer(p.id); }
-  } else if (net.joined && net.seen.p0 && now - net.seen.p0 > 12000 && !leaving) toMenu('방장과 연결이 끊겼어요');
+    for (const p of humans()) if (p.id !== 'p0' && net.seen[p.id] && now - net.seen[p.id] > 16000) { net.conns.delete(p.id); dropPlayer(p.id); }
+  } else if (net.joined && net.seen.p0 && now - net.seen.p0 > 16000 && !leaving) toMenu('방장과 연결이 끊겼어요');
 }
 let leaving = false;
 function netReset() {
@@ -1445,12 +1445,16 @@ function visualKart(k, dt) {
 /* ============================== 원격 카트 보간 ============================== */
 function sendState() {
   const k = myKart; if (!k || !net.online) return;
-  const now = performance.now(); if (now - (sendState.t || 0) < 240) return; sendState.t = now;   // Firestore 쓰기 횟수 때문에 약 4Hz로 제한
+  // Firestore 읽기/쓰기 횟수를 줄이기 위해 전송 간격을 인원수에 따라 늘림 (2명 0.26초 ~ 8명 0.62초)
+  const now = performance.now(), iv = 200 + 60 * Math.max(1, humans().length - 1);
+  if (now - (sendState.t || 0) < iv) return; sendState.t = now;
   const pack = k => ({ t: 's', id: k.id, x: +k.x.toFixed(2), z: +k.z.toFixed(2), h: +k.h.toFixed(3), vx: +k.vx.toFixed(2), vz: +k.vz.toFixed(2),
     d: k.drift, c: Math.round(k.n2o), b: (k.boost > 0 || k.burn) ? 1 : 0, sh: k.shield > 0 ? 1 : 0, sp: k.spin > 0 ? +k.spin.toFixed(2) : 0, p: k.prog, l: k.lap, f: k.finished ? 1 : 0, w: +k.fwd.toFixed(2), y: +(k.y || 0).toFixed(2) });
   const list = [pack(k)];
   if (net.host) for (const b of karts) if (b.bot && b.local) list.push(pack(b));
-  netPushStates(list);
+  const sig = JSON.stringify(list.map(o => [o.x, o.z, o.h, o.b, o.sp, o.d, o.l, o.f]));
+  if (sig === sendState.sig) return;   // 정지 상태(카운트다운 등)면 쓰지 않음
+  sendState.sig = sig; netPushStates(list);
 }
 function applyRemote(k, m) {
   k.tx = m.x; k.tz = m.z; k.th = m.h; k.tvx = m.vx; k.tvz = m.vz; k.lastRecv = performance.now();
@@ -1458,7 +1462,7 @@ function applyRemote(k, m) {
   if (m.f && !k.finished) k.finished = true;
 }
 function stepRemote(k, dt) {
-  const age = Math.min(.5, (performance.now() - k.lastRecv) / 1000);   // 전송 지연이 있어서 최대 0.5초까지 위치를 예측
+  const age = Math.min(.7, (performance.now() - k.lastRecv) / 1000);   // 전송 지연이 있어서 최대 0.7초까지 위치를 예측
   const ex = k.tx + k.tvx * age, ez = k.tz + k.tvz * age, a = Math.min(1, dt * 10);
   k.x = lerp(k.x, ex, a); k.z = lerp(k.z, ez, a); k.h += angDiff(k.h, k.th) * a;
   k.vx = k.tvx; k.vz = k.tvz; k.spd = k.fwd || 0;
