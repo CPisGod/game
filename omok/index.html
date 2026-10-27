@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>온라인 오목</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; min-height: 100vh; background: #1b1410; color: #fff;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; }
+  h1 { margin: 0 0 10px; font-size: 26px; }
+  .panel { width: min(420px, 100%); background: #2b2018; border: 1px solid #5a4636; border-radius: 14px; padding: 18px; text-align: center; }
+  .panel button, .panel input { font: inherit; font-size: 18px; border-radius: 10px; border: 0; padding: 12px; width: 100%; margin-top: 10px; }
+  .panel button { background: #e8b04a; color: #2b1a05; font-weight: 700; }
+  .panel button.sub { background: #4a3a2c; color: #fff; }
+  .panel input { background: #fff; color: #000; text-align: center; letter-spacing: 6px; text-transform: uppercase; }
+  .code { font-size: 48px; font-weight: 800; letter-spacing: 8px; color: #e8b04a; margin: 10px 0; }
+  .msg { color: #cbb7a3; font-size: 14px; min-height: 20px; margin-top: 8px; }
+  .panel input.nick { letter-spacing: 0; text-transform: none; margin-top: 0; }
+  .rooms { margin-top: 14px; text-align: left; }
+  .rooms h3 { margin: 0 0 6px; font-size: 15px; color: #cbb7a3; display: flex; justify-content: space-between; }
+  .room { display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin-top: 6px; background: #3a2c20; border-radius: 10px; }
+  .room b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .room small { color: #9c8a78; }
+  .panel .room button { width: auto; margin: 0; padding: 8px 16px; font-size: 15px; }
+  .me { text-align: left; font-size: 17px; }
+  .panel button.link { display: inline; width: auto; margin: 0 0 0 6px; padding: 2px 8px; font-size: 13px; background: #4a3a2c; color: #fff; font-weight: 400; }
+  .members { text-align: left; margin-top: 6px; }
+  .members .row { padding: 9px 12px; margin-top: 6px; background: #3a2c20; border-radius: 10px; font-size: 16px; }
+  .members .row small { color: #9c8a78; }
+  .members .prow { display: flex; align-items: center; gap: 8px; }
+  .members .prow > span:first-child { flex: 1; }
+  .members select { font: inherit; font-size: 15px; padding: 6px; border-radius: 8px; border: 0; background: #fff; color: #000; }
+  .members button { width: auto; margin: 0; padding: 5px 10px; font-size: 13px; background: #e8b04a; color: #2b1a05; border: 0; border-radius: 8px; font-weight: 700; }
+  .members .sline { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+  .members .skin { font-size: 18px; }
+  .members .slot-empty { color: #9c8a78; }
+  #startBtn:disabled { opacity: .4; }
+  .btns { display: flex; gap: 8px; justify-content: center; }
+  .btns button { margin-top: 12px; padding: 12px 22px; font: inherit; font-size: 17px; font-weight: 700; border: 0; border-radius: 10px; background: #e8b04a; color: #2b1a05; }
+  .btns button.sub { background: #4a3a2c; color: #fff; }
+  .empty { color: #9c8a78; font-size: 14px; padding: 14px 0; text-align: center; }
+  #game { display: none; flex-direction: column; align-items: center; width: 100%; }
+  #status { line-height: 1.4; font-size: 17px; font-weight: 700; margin-bottom: 8px; min-height: 26px; text-align: center; }
+  #status .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; margin-right: 4px; }
+  canvas { width: min(96vw, 78vh, 640px); height: auto; aspect-ratio: 1; touch-action: manipulation; border-radius: 6px; }
+  .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
+    background: #000a; color: #fff; font: 700 14px/1 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    text-decoration: none; border: 1px solid #fff6; }
+  .home-btn:active { transform: translateY(2px); }
+</style>
+</head>
+<body>
+<a class="home-btn" href="../">🏠 메인 메뉴</a>
+
+<h1>⚫⚪ 온라인 오목</h1>
+
+<div id="nameScr" class="panel">
+  <div style="font-size:18px;margin-bottom:6px">닉네임을 정하세요</div>
+  <input id="nick" class="nick" maxlength="10" placeholder="닉네임 (최대 10자)" autocomplete="off">
+  <button id="nickBtn">로비 입장</button>
+  <div class="msg">렌주룰: 흑 3-3·4-4·장목 금지</div>
+</div>
+
+<div id="lobby" class="panel" style="display:none">
+  <div class="me">👤 <b id="meName"></b> <button id="renameBtn" class="link">변경</button></div>
+  <button id="createBtn">방 만들기</button>
+  <div class="rooms">
+    <h3><span>열린 방</span><span id="roomCount"></span></h3>
+    <div id="roomList"><div class="empty">방 목록 불러오는 중…</div></div>
+  </div>
+  <input id="codeIn" maxlength="4" placeholder="코드로 입장 (선택)" autocapitalize="characters" autocomplete="off">
+  <button id="joinBtn" class="sub">코드로 입장</button>
+  <div class="msg" id="lobbyMsg"></div>
+</div>
+
+<div id="room" class="panel" style="display:none">
+  <div class="msg" style="margin:0">방 코드</div>
+  <div class="code" id="roomCode">----</div>
+  <div class="members" id="members"></div>
+  <button id="startBtn">시작</button>
+  <div class="msg" id="roomMsg"></div>
+  <button id="leaveBtn" class="sub">나가기</button>
+</div>
+
+<div id="game">
+  <div id="status"></div>
+  <canvas id="cv" width="600" height="600"></canvas>
+  <div class="btns">
+    <button id="again" style="display:none">다시 하기</button>
+    <button id="toRoom" class="sub" style="display:none">대기실로</button>
+    <button id="leaveGame" class="sub">나가기</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const N = 15, SIZE = 600, CELL = SIZE / (N + 1);
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const PREFIX = 'cpisgod-omok-';
+  const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  let peer, conn, myColor = 0, isHost = false;   // 1 = 흑(선공), 2 = 백, 0 = 관전
+  let board, turn, last, winner, winLine, started = false, moves = [];
+  let myName = '', myCode = null, hostColor = 1;
+  let specs = [];                 // 호스트: [{c, name}]
+  let guestM = null, phase = 'lobby';   // 호스트가 관리하는 방 상태. guestM = {c, name, skin} (플레이어)
+  let myRole = '';                      // 'guest' | 'spec' (호스트는 '')
+
+  // ---------- 돌 모양 ----------
+  const SKINS = {
+    normal: {icon: '⚫⚪', name: '일반'},
+    buta:   {icon: '🐽', name: '부타'},
+    chuk:   {icon: '💀', name: '척추'},
+    monkey: {icon: '🐵', name: '원숭이'},
+    apple:  {icon: '🍏', name: '청사과'},
+    bread:  {icon: '🍞', name: '빵'},
+  };
+  let mySkin = 'normal';
+  try { const k = localStorage.getItem('omokSkin'); if (SKINS[k]) mySkin = k; } catch (e) {}
+  let hostSkin = mySkin;
+  let roomState = null, specCount = 0;     // 모두가 받는 방 상태 {host, guest, specs, phase}
+
+  const SCREENS = ['nameScr', 'lobby', 'room'];
+  function show(id) {
+    SCREENS.forEach(x => $(x).style.display = x === id ? 'block' : 'none');
+    $('game').style.display = id === 'game' ? 'flex' : 'none';
+  }
+  const lobbyMsg = t => $('lobbyMsg').textContent = t;
+  const CHARS_LEN = CHARS.length;
+  const newCode = () => Array.from({length: 4}, () => CHARS[Math.random() * CHARS_LEN | 0]).join('');
+  const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // ---------- 닉네임 ----------
+  try { $('nick').value = localStorage.getItem('omokNick') || ''; } catch (e) {}
+  function enterLobby() {
+    const n = $('nick').value.trim().slice(0, 10);
+    if (!n) { $('nick').focus(); return; }
+    myName = n;
+    try { localStorage.setItem('omokNick', n); } catch (e) {}
+    $('meName').textContent = n; lobbyMsg(''); show('lobby'); renderRooms();
+  }
+  $('nickBtn').onclick = enterLobby;
+  $('nick').addEventListener('keydown', e => { if (e.key === 'Enter') enterLobby(); });
+  $('renameBtn').onclick = () => show('nameScr');
+
+  // ---------- 로비 (Firestore 방 목록) ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyBPgoO4EXWFagGEutquysQPmcvFk37eXbU",
+    authDomain: "game-81004.firebaseapp.com",
+    projectId: "game-81004",
+    storageBucket: "game-81004.firebasestorage.app",
+    messagingSenderId: "217133907611",
+    appId: "1:217133907611:web:a62de72fc5c909390bd03e"
+  };
+  const ROOM_TTL = 25000, HB_MS = 8000;
+  let db = null, fs = null, rooms = [], hbTimer = null;
+  const NOLIST = '<div class="empty">방 목록을 불러올 수 없어요. 코드로 입장하세요.</div>';
+
+  async function initLobby() {
+    try {
+      const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+      const [app, f] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-firestore.js')]);
+      db = f.getFirestore(app.initializeApp(firebaseConfig, 'omok')); fs = f;
+      fs.onSnapshot(fs.collection(db, 'omok_rooms'), snap => {
+        rooms = snap.docs.map(d => ({code: d.id, ...d.data()}));
+        rooms.filter(r => Date.now() - r.hb > 120000)   // 오래된 방 정리
+             .forEach(r => fs.deleteDoc(fs.doc(db, 'omok_rooms', r.code)).catch(() => {}));
+        renderRooms();
+      }, () => { db = null; $('roomList').innerHTML = NOLIST; });
+    } catch (e) { $('roomList').innerHTML = NOLIST; }
+  }
+  function renderRooms() {
+    if (!db) return;
+    const live = rooms.filter(r => Date.now() - r.hb < ROOM_TTL && r.code !== myCode)
+                      .sort((a, b) => b.hb - a.hb);
+    $('roomCount').textContent = live.length ? live.length + '개' : '';
+    $('roomList').innerHTML = live.length ? live.map(r => {
+      const c = esc(r.code);
+      return `<div class="room"><b>${esc(r.name)}</b><small>${r.playing ? '대결 중' : '대기 중'}</small>` +
+        (r.playing ? '' : `<button data-c="${c}">입장</button>`) +
+        `<button class="sub" data-c="${c}" data-spec="1">관전</button></div>`;
+    }).join('') : '<div class="empty">열린 방이 없어요. 방을 만들어 보세요!</div>';
+  }
+  $('roomList').addEventListener('click', e => {
+    const c = e.target.dataset && e.target.dataset.c;
+    if (c) joinRoom(c, !!e.target.dataset.spec);
+  });
+  setInterval(renderRooms, 5000);
+
+  const roomRef = () => fs.doc(db, 'omok_rooms', myCode);
+  const putRoom = () => { if (db && myCode) fs.setDoc(roomRef(), {name: myName, hb: Date.now(), playing: phase === 'playing'}).catch(() => {}); };
+  function publishRoom() { if (db) { putRoom(); hbTimer = setInterval(putRoom, HB_MS); } }
+  function unpublishRoom() {
+    clearInterval(hbTimer); hbTimer = null;
+    if (db && myCode) fs.deleteDoc(roomRef()).catch(() => {});
+  }
+  addEventListener('pagehide', unpublishRoom);
+  initLobby();
+
+  // ---------- 방 (대기실) ----------
+  const skinOpts = cur => Object.entries(SKINS).map(([k, v]) =>
+    `<option value="${k}"${k === cur ? ' selected' : ''}>${v.icon} ${v.name}</option>`).join('');
+  // 플레이어 오른쪽의 돌 모양: 본인이면 선택, 아니면 표시만
+  const skinCell = (k, mine) => mine
+    ? `<select id="skinSel">${skinOpts(k)}</select>`
+    : `<span class="skin">돌 ${SKINS[k] ? SKINS[k].icon : '⚫⚪'}</span>`;
+
+  function renderRoom() {
+    const r = roomState; if (!r) return;
+    $('roomCode').textContent = myCode;
+    const guestMine = !isHost && myRole === 'guest';
+    const sp = r.specs.length
+      ? r.specs.map((n, i) => `<div class="sline"><span>👀 ${esc(n)}</span>` +
+          (isHost ? `<button data-act="toGuest" data-i="${i}">플레이어로</button>` : '') + `</div>`).join('')
+      : '<div class="slot-empty">아직 없어요</div>';
+    $('members').innerHTML =
+      `<div class="row prow"><span>👑 방장 <b>${esc(r.host)}</b></span>${skinCell(r.hs, isHost)}</div>` +
+      `<div class="row prow"><span>🎮 ` + (r.guest
+          ? `<b>${esc(r.guest)}</b></span>${skinCell(r.gs, guestMine)}` + (isHost ? `<button data-act="toSpec">관전으로</button>` : '')
+          : '<span class="slot-empty">플레이어 자리가 비었어요</span></span>') + `</div>` +
+      `<div class="row">관전자 (${r.specs.length})<div style="margin-top:4px">${sp}</div></div>`;
+    $('startBtn').style.display = isHost ? 'block' : 'none';
+    $('startBtn').disabled = !r.guest;
+    $('roomMsg').textContent = isHost
+      ? (r.guest ? '준비됐으면 시작을 누르세요' : '친구에게 코드를 알려주세요')
+      : (myRole === 'guest' ? '플레이어로 참가 중 · 방장이 시작하길 기다리는 중…' : '관전자로 참가 중 · 방장이 시작하길 기다리는 중…');
+  }
+  function applyRoom(info) {
+    roomState = info; specCount = info.specs.length;
+    if (info.phase === 'lobby') {
+      started = false; phase = 'lobby';
+      renderRoom(); show('room');
+    } else { updateStatus(); draw(); }
+  }
+  const roomInfo = () => ({t: 'room', host: myName, guest: guestM ? guestM.name : null, specs: specs.map(s => s.name), phase,
+                           hs: hostSkin, gs: guestM ? guestM.skin : 'normal'});
+  function broadcastRoom() {   // 호스트만
+    if (!isHost || !myCode) return;
+    const info = roomInfo();
+    send(info); sendSpecs(info);
+    applyRoom(info);
+  }
+
+  const send = m => conn && conn.open && conn.send(m);
+  const sendSpecs = m => specs.forEach(s => s.c.open && s.c.send(m));
+
+  function cleanup() {
+    unpublishRoom();
+    const p = peer;   // 상태를 먼저 비워서 destroy 중 발생하는 close 이벤트가 화면을 건드리지 않게 함
+    peer = conn = null; isHost = false; started = false; specs = []; guestM = null; myRole = ''; hostSkin = mySkin;
+    phase = 'lobby'; roomState = null; specCount = 0; myCode = null; myColor = 0;
+    try { if (p) p.destroy(); } catch (e) {}
+  }
+  function toLobby(msg) {
+    cleanup(); show('lobby'); lobbyMsg(msg || ''); renderRooms();
+  }
+
+  // ---------- 방 만들기 (호스트) ----------
+  $('createBtn').onclick = () => {
+    isHost = true; lobbyMsg('방 만드는 중…');
+    const tryCreate = () => {
+      const code = newCode();
+      peer = new Peer(PREFIX + code);
+      peer.on('open', () => { myCode = code; phase = 'lobby'; publishRoom(); broadcastRoom(); });
+      peer.on('error', e => {
+        if (e.type === 'unavailable-id') { peer.destroy(); tryCreate(); }
+        else toLobby('오류: ' + e.type);
+      });
+      peer.on('connection', onGuestConn);
+    };
+    tryCreate();
+  };
+
+  const syncConn = () => { conn = guestM ? guestM.c : null; };
+
+  function onGuestConn(c) {
+    const md = c.metadata || {};
+    const m = {c, name: String(md.name || '손님').slice(0, 10), skin: 'normal'};
+    const asSpec = !!md.spec;
+    if (!asSpec && (guestM || phase === 'playing')) {   // 플레이어 자리가 없음
+      c.on('open', () => { c.send({t: 'full'}); setTimeout(() => c.close(), 300); });
+      return;
+    }
+    c.on('data', msg => hostData(msg, m));
+    c.on('open', () => {
+      if (asSpec) {   // 관전자는 언제든 입장 가능
+        specs.push(m);
+        if (phase === 'playing') c.send({t: 'spec', moves, hc: hostColor});
+      } else guestM = m;
+      c.send({t: 'role', role: asSpec ? 'spec' : 'guest'});
+      syncConn(); broadcastRoom();
+    });
+    c.on('close', () => {
+      if (guestM === m) {
+        guestM = null; syncConn();
+        if (phase === 'playing' && started) {
+          winner = winner || -1; setStatus('상대가 나갔어요');
+          $('again').style.display = 'none'; $('toRoom').style.display = 'inline-block';
+        } else broadcastRoom();
+      } else if (specs.includes(m)) { specs = specs.filter(x => x !== m); broadcastRoom(); }
+    });
+  }
+
+  // 호스트가 받는 메시지: 플레이어의 수, 모두의 돌 모양 선택
+  function hostData(msg, m) {
+    if (msg.t === 'skin' && SKINS[msg.skin]) { m.skin = msg.skin; if (phase === 'lobby') broadcastRoom(); }
+    else if (msg.t === 'move' && m === guestM) onData(msg);
+  }
+
+  // ---------- 역할 바꾸기 (호스트, 대기실에서만) ----------
+  function moveToSpec() {
+    if (!isHost || phase !== 'lobby' || !guestM) return;
+    const m = guestM; guestM = null; specs.push(m);
+    m.c.send({t: 'role', role: 'spec'});
+    syncConn(); broadcastRoom();
+  }
+  function moveToGuest(i) {
+    if (!isHost || phase !== 'lobby' || !specs[i]) return;
+    const m = specs[i]; specs.splice(i, 1);
+    if (guestM) { specs.push(guestM); guestM.c.send({t: 'role', role: 'spec'}); }   // 자리 교체
+    guestM = m; m.c.send({t: 'role', role: 'guest'});
+    syncConn(); broadcastRoom();
+  }
+  $('members').addEventListener('click', e => {
+    const a = e.target.dataset && e.target.dataset.act;
+    if (a === 'toSpec') moveToSpec();
+    else if (a === 'toGuest') moveToGuest(+e.target.dataset.i);
+  });
+  $('members').addEventListener('change', e => {
+    if (e.target.id !== 'skinSel' || !SKINS[e.target.value]) return;
+    mySkin = e.target.value;
+    try { localStorage.setItem('omokSkin', mySkin); } catch (er) {}
+    if (isHost) { hostSkin = mySkin; broadcastRoom(); } else send({t: 'skin', skin: mySkin});
+  });
+
+  // ---------- 입장 (게스트 / 관전자) ----------
+  function joinRoom(code, spec) {
+    if (peer) { const o = peer; peer = null; try { o.destroy(); } catch (e) {} }
+    isHost = false; myCode = code; lobbyMsg('접속 중…');
+    peer = new Peer();
+    peer.on('error', e => toLobby(e.type === 'peer-unavailable' ? '방이 사라졌어요' : '오류: ' + e.type));
+    peer.on('open', () => {
+      conn = peer.connect(PREFIX + code, {reliable: true, metadata: {spec: !!spec, name: myName}});
+      myColor = 0;
+      conn.on('data', onData);
+      conn.on('open', () => { if (mySkin !== 'normal') conn.send({t: 'skin', skin: mySkin}); });
+      conn.on('close', () => { if (!isHost && peer) toLobby('방장이 나갔어요'); });
+      setTimeout(() => { if (!roomState && !isHost && peer) toLobby('연결 시간 초과. 다른 방을 시도하세요'); }, 10000);
+    });
+  }
+  $('joinBtn').onclick = () => {
+    const code = $('codeIn').value.trim().toUpperCase();
+    if (code.length !== 4) { lobbyMsg('4자리 코드를 입력하세요'); return; }
+    joinRoom(code, false);
+  };
+
+  $('leaveBtn').onclick = $('leaveGame').onclick = () => toLobby('');
+
+  // ---------- 메시지 ----------
+  function onData(m) {
+    if (m.t === 'room') applyRoom(m);
+    else if (m.t === 'role') { myRole = m.role; if (roomState && roomState.phase === 'lobby') renderRoom(); }
+    else if (m.t === 'full') toLobby('플레이어 자리가 찼어요. 관전으로 입장하세요');
+    else if (m.t === 'start') { myColor = m.color; hostColor = 3 - m.color; reset(); started = true; phase = 'playing'; show('game'); draw(); updateStatus(); }
+    else if (m.t === 'move') place(m.x, m.y, false);
+    else if (m.t === 'again') {   // 호스트가 색을 바꿔 재시작
+      if (m.color) myColor = m.color;
+      hostColor = 3 - hostColor;
+      reset(); draw(); updateStatus();
+    }
+    else if (m.t === 'spec') {    // 관전: 지금까지의 수를 재생
+      myColor = 0; hostColor = m.hc; reset(); started = true; phase = 'playing'; show('game');
+      m.moves.forEach(([x, y]) => place(x, y, false));
+      draw(); updateStatus();
+    }
+  }
+
+  // ---------- 시작 / 재시작 / 대기실 복귀 (호스트) ----------
+  $('startBtn').onclick = () => {
+    if (!isHost || !conn || !conn.open) return;
+    phase = 'playing'; putRoom();
+    myColor = Math.random() < .5 ? 1 : 2; hostColor = myColor;
+    send({t: 'start', color: 3 - myColor});
+    sendSpecs({t: 'spec', moves: [], hc: hostColor});
+    reset(); started = true; show('game'); draw();
+    broadcastRoom(); updateStatus();
+  };
+
+  $('again').onclick = () => {
+    if (!isHost || !conn) return;
+    myColor = 3 - myColor; hostColor = myColor;
+    send({t: 'again', color: 3 - myColor});
+    sendSpecs({t: 'again'});
+    reset(); draw(); updateStatus();
+  };
+
+  $('toRoom').onclick = () => {
+    if (!isHost) return;
+    phase = 'lobby'; putRoom();
+    broadcastRoom();   // 모두 대기실로
+  };
+
+  // ---------- 게임 ----------
+  function reset() {
+    board = Array.from({length: N}, () => Array(N).fill(0));
+    turn = 1; last = null; winner = 0; winLine = null; moves = [];
+    $('again').style.display = 'none'; $('toRoom').style.display = 'none';
+  }
+
+  // ---------- 렌주룰 (흑: 3-3, 4-4, 장목 금지 / 정확히 5목만 승리) ----------
+  const DIRS = [[1,0],[0,1],[1,1],[1,-1]];
+  const inB = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
+  const at = (x, y) => inB(x, y) ? board[y][x] : -1;   // 판 밖은 -1(막힘)
+
+  // (x,y)에 c가 놓여 있다고 보고 dir 방향 연속 길이
+  function run(x, y, dx, dy, c) {
+    let n = 1;
+    for (const s of [1, -1]) {
+      let nx = x + dx * s, ny = y + dy * s;
+      while (at(nx, ny) === c) { n++; nx += dx * s; ny += dy * s; }
+    }
+    return n;
+  }
+  // 임시로 c를 놓고 fn 실행
+  function tryPut(x, y, c, fn) {
+    board[y][x] = c;
+    try { return fn(); } finally { board[y][x] = 0; }
+  }
+  // 방향 d에서 e에 흑을 두면 정확히 5목이 되는 빈칸 목록
+  function fiveSpots(x, y, d) {
+    const out = [];
+    for (let k = -5; k <= 5; k++) {
+      const ex = x + d[0] * k, ey = y + d[1] * k;
+      if (at(ex, ey) !== 0) continue;
+      if (tryPut(ex, ey, 1, () => run(ex, ey, d[0], d[1], 1) === 5)) out.push(k);
+    }
+    return out;
+  }
+  // 방향 d에 열린 3이 있는가 (한 수로 '진짜 열린 4'를 만들 수 있음)
+  function hasOpenThree(x, y, d) {
+    for (let k = -4; k <= 4; k++) {
+      const ex = x + d[0] * k, ey = y + d[1] * k;
+      if (at(ex, ey) !== 0) continue;
+      const ok = tryPut(ex, ey, 1, () => {
+        if (run(ex, ey, d[0], d[1], 1) !== 4) return false;
+        if (isForbidden(ex, ey)) return false;
+        // 4개 양 끝이 모두 비어 있고, 어느 쪽으로 이어도 정확히 5목이어야 함
+        let a = 0; while (at(ex + d[0] * (a + 1), ey + d[1] * (a + 1)) === 1) a++;
+        let b = 0; while (at(ex - d[0] * (b + 1), ey - d[1] * (b + 1)) === 1) b++;
+        const e1x = ex + d[0] * (a + 1), e1y = ey + d[1] * (a + 1);
+        const e2x = ex - d[0] * (b + 1), e2y = ey - d[1] * (b + 1);
+        if (at(e1x, e1y) !== 0 || at(e2x, e2y) !== 0) return false;
+        return tryPut(e1x, e1y, 1, () => run(e1x, e1y, d[0], d[1], 1) === 5)
+            && tryPut(e2x, e2y, 1, () => run(e2x, e2y, d[0], d[1], 1) === 5);
+      });
+      if (ok) return true;
+    }
+    return false;
+  }
+  // 흑이 (x,y)에 이미 놓인 상태에서 금수인가
+  function isForbidden(x, y) {
+    if (DIRS.some(d => run(x, y, d[0], d[1], 1) === 5)) return false;   // 5목 완성이면 금수 아님
+    if (DIRS.some(d => run(x, y, d[0], d[1], 1) >= 6)) return true;     // 장목
+    let fours = 0, threes = 0;
+    for (const d of DIRS) {
+      const sp = fiveSpots(x, y, d);
+      if (sp.length >= 2) fours += (sp.length === 2 && Math.abs(sp[0] - sp[1]) === 5) ? 1 : 2;
+      else fours += sp.length;
+      if (hasOpenThree(x, y, d)) threes++;
+    }
+    return fours >= 2 || threes >= 2;
+  }
+  // 빈칸 (x,y)가 흑의 금수 자리인가
+  function forbiddenAt(x, y) {
+    if (board[y][x]) return false;
+    return tryPut(x, y, 1, () => isForbidden(x, y));
+  }
+
+  function checkWin(x, y, c) {
+    for (const d of DIRS) {
+      const n = run(x, y, d[0], d[1], c);
+      if (c === 1 ? n === 5 : n >= 5) {
+        const line = [[x, y]];
+        for (const s of [1, -1]) {
+          let nx = x + d[0] * s, ny = y + d[1] * s;
+          while (at(nx, ny) === c) { line.push([nx, ny]); nx += d[0] * s; ny += d[1] * s; }
+        }
+        return line;
+      }
+    }
+    return null;
+  }
+
+  function place(x, y, mine) {
+    if (winner || board[y][x]) return;
+    const c = turn;
+    board[y][x] = c; last = [x, y]; moves.push([x, y]);
+    const line = checkWin(x, y, c);
+    if (line) { winner = c; winLine = line; }
+    else if (board.every(r => r.every(v => v))) winner = 3;
+    else turn = 3 - turn;
+    if (mine) send({t: 'move', x, y});
+    if (isHost) sendSpecs({t: 'move', x, y});
+    draw(); updateStatus();
+    if (winner && isHost) { $('toRoom').style.display = 'inline-block'; if (conn) $('again').style.display = 'inline-block'; }
+  }
+
+  cv.addEventListener('pointerdown', e => {
+    if (!started || winner || turn !== myColor) return;
+    const r = cv.getBoundingClientRect();
+    const px = (e.clientX - r.left) * SIZE / r.width, py = (e.clientY - r.top) * SIZE / r.height;
+    const x = Math.round(px / CELL) - 1, y = Math.round(py / CELL) - 1;
+    if (x < 0 || y < 0 || x >= N || y >= N) return;
+    if (board[y][x]) return;
+    if (myColor === 1 && forbiddenAt(x, y)) { flash('금수 자리예요 (3-3 / 4-4 / 장목)'); return; }
+    place(x, y, true);
+  });
+
+  let flashT;
+  function flash(t) {
+    setStatus(`<span style="color:#ff7070">${t}</span>`);
+    clearTimeout(flashT); flashT = setTimeout(updateStatus, 1500);
+  }
+
+  const dot = c => `<span class="dot" style="background:${c === 1 ? '#000' : '#fff'};border:1px solid #888"></span>`;
+  function setStatus(t) { $('status').innerHTML = t; }
+  const nm = c => roomState ? ((c === hostColor ? roomState.host : roomState.guest) || '') : '';
+  function updateStatus() {
+    if (!started || winner === -1) return;
+    const eye = specCount ? ` · 👀 ${specCount}` : '';
+    if (myColor === 0) {   // 관전자
+      const vs = `${dot(1)}${esc(nm(1))} vs ${dot(2)}${esc(nm(2))}`;
+      if (winner === 3) setStatus(`${vs}<br>무승부!${eye}`);
+      else if (winner > 0) setStatus(`${vs}<br>${dot(winner)}${esc(nm(winner))} 승리!${eye}`);
+      else setStatus(`${vs}<br>👀 ${dot(turn)}${esc(nm(turn))} 차례${eye}`);
+      return;
+    }
+    const wait = isHost ? '' : ' (방장이 다시 시작)';
+    const opp = esc(nm(3 - myColor)) || '상대';
+    const me = `나: ${dot(myColor)}${myColor === 1 ? '흑(선공)' : '백'} · vs ${opp}`;
+    if (winner === 3) setStatus('무승부!' + wait + eye);
+    else if (winner) setStatus((winner === myColor ? '🎉 승리!' : '😢 패배') + wait + eye);
+    else setStatus(`${me}<br>${turn === myColor ? '내 차례' : '상대 차례'}${eye}`);
+  }
+
+  const skinOf = c => {
+    if (!roomState) return 'normal';
+    return (c === hostColor ? roomState.hs : roomState.gs) || 'normal';
+  };
+  function drawStone(cx, cy, r, c) {
+    const skin = skinOf(c);
+    const g = ctx.createRadialGradient(cx - r * .3, cy - r * .3, r * .1, cx, cy, r);
+    if (c === 1) { g.addColorStop(0, '#666'); g.addColorStop(1, '#000'); }
+    else { g.addColorStop(0, '#fff'); g.addColorStop(1, '#bbb'); }
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill();   // 흑/백 바탕
+    if (skin === 'normal') return;
+    if (skin === 'bread') {   // 동그란 빵
+      const b = ctx.createRadialGradient(cx - r * .3, cy - r * .35, r * .1, cx, cy, r * .85);
+      b.addColorStop(0, '#f6cf8a'); b.addColorStop(1, '#b8702a');
+      ctx.fillStyle = b; ctx.beginPath(); ctx.arc(cx, cy, r * .82, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#8a4e1a'; ctx.lineWidth = Math.max(1.5, r * .09); ctx.lineCap = 'round';
+      for (const dx of [-.3, 0, .3]) {
+        ctx.beginPath(); ctx.moveTo(cx + r * (dx - .12), cy - r * .4); ctx.lineTo(cx + r * (dx + .12), cy + r * .3); ctx.stroke();
+      }
+      return;
+    }
+    ctx.font = `${r * 1.35}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000';
+    ctx.fillText(SKINS[skin].icon, cx, cy + r * .08);
+  }
+
+  function draw() {
+    ctx.fillStyle = '#e0b060'; ctx.fillRect(0, 0, SIZE, SIZE);
+    ctx.strokeStyle = '#5a3d12'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const p = (i + 1) * CELL;
+      ctx.moveTo(CELL, p); ctx.lineTo(N * CELL, p);
+      ctx.moveTo(p, CELL); ctx.lineTo(p, N * CELL);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#5a3d12';
+    for (const [x, y] of [[3,3],[11,3],[7,7],[3,11],[11,11]]) {
+      ctx.beginPath(); ctx.arc((x + 1) * CELL, (y + 1) * CELL, 4, 0, 7); ctx.fill();
+    }
+    if (!board) return;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const c = board[y][x]; if (!c) continue;
+      drawStone((x + 1) * CELL, (y + 1) * CELL, CELL * .45, c);
+    }
+    if (started && !winner && myColor === 1 && turn === 1) {
+      ctx.strokeStyle = '#d22'; ctx.lineWidth = 3;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        if (!forbiddenAt(x, y)) continue;
+        const cx = (x + 1) * CELL, cy = (y + 1) * CELL, r = CELL * .22;
+        ctx.beginPath(); ctx.moveTo(cx - r, cy - r); ctx.lineTo(cx + r, cy + r);
+        ctx.moveTo(cx + r, cy - r); ctx.lineTo(cx - r, cy + r); ctx.stroke();
+      }
+    }
+    if (last) {
+      ctx.strokeStyle = '#e22'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc((last[0] + 1) * CELL, (last[1] + 1) * CELL, CELL * .2, 0, 7); ctx.stroke();
+    }
+    if (winLine) {
+      ctx.strokeStyle = '#e22'; ctx.lineWidth = 4;
+      for (const [x, y] of winLine) {
+        ctx.beginPath(); ctx.arc((x + 1) * CELL, (y + 1) * CELL, CELL * .45, 0, 7); ctx.stroke();
+      }
+    }
+  }
+  draw();
+})();
+</script>
+</body>
+</html>

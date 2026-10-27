@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>카트 레이서</title>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #0a0a18; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; color: #fff; }
+  canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
+    background: #000a; color: #fff; font: 700 14px/1 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    text-decoration: none; border: 1px solid #fff6; }
+  .home-btn:active { transform: translateY(2px); }
+
+  .scr { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10;
+    background: radial-gradient(ellipse at 50% 30%, #0000, #000a); padding: 14px; overflow: auto; }
+  .scr.on { display: flex; }
+  @media (min-width: 900px) { #scrMenu, #scrLobby, #scrShop { justify-content: flex-start; padding-left: 6vw; } }
+  .panel { background: #10122ae8; border: 2px solid #3b4cff; border-radius: 16px; padding: 18px 20px; width: min(560px, 100%);
+    box-shadow: 0 0 30px #3b4cff55; max-height: 100%; overflow: auto; }
+  h1 { margin: 0 0 4px; font-size: 38px; font-style: italic; letter-spacing: 1px; color: #ffe14a;
+    text-shadow: 3px 3px 0 #e8382e, 0 0 20px #ff8a00aa; }
+  h2 { margin: 0 0 10px; font-size: 22px; color: #ffe14a; }
+  .sub { color: #9aa4ff; font-size: 13px; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; color: #9aa4ff; margin: 10px 0 4px; }
+  input[type=text] { width: 100%; padding: 10px 12px; font-size: 16px; border-radius: 8px; border: 2px solid #3b4cff; background: #060814; color: #fff; }
+  button, .btn { font: 800 16px/1 inherit; font-family: inherit; padding: 12px 16px; border: 0; border-radius: 10px; cursor: pointer;
+    color: #fff; background: linear-gradient(#ff6a3d, #e8382e); box-shadow: 0 4px 0 #8a1d16; }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 #8a1d16; }
+  button.alt { background: linear-gradient(#4c6bff, #2b3fd6); box-shadow: 0 4px 0 #161f7a; }
+  button.dim { background: #2a2d4d; box-shadow: 0 4px 0 #14162b; }
+  button:disabled { opacity: .45; pointer-events: none; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row > * { flex: 1 1 auto; }
+  .col { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sw { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #0000; cursor: pointer; flex: none; }
+  .sw.none { background: #1b1d3a; display: flex; align-items: center; justify-content: center; color: #9aa4ff; font-size: 14px; }
+  .cpick { width: 30px; height: 30px; padding: 0; border: 2px solid #fff6; border-radius: 50%; background: none; cursor: pointer; flex: none; }
+  .sw.sel { border-color: #fff; box-shadow: 0 0 10px #fff; }
+  .seg { display: flex; gap: 6px; }
+  .seg button { flex: 1; padding: 9px 4px; font-size: 14px; background: #2a2d4d; box-shadow: 0 3px 0 #14162b; }
+  .mapgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .mapgrid.lock { opacity: .75; pointer-events: none; }
+  .mcard { background: #2a2d4d; border-radius: 10px; padding: 4px 4px 6px; cursor: pointer; text-align: center; border: 2px solid transparent; font-size: 12px; font-weight: 800; }
+  .mcard img { width: 100%; aspect-ratio: 3 / 2; display: block; border-radius: 6px; background: #0a0c20; object-fit: contain; }
+  .mcard.sel { border-color: #ffd23d; background: #3b3a22; }
+  .seg.grid { flex-wrap: wrap; } .seg.grid button { flex: 1 1 30%; }
+  .seg button.sel { background: linear-gradient(#ffd23d, #ff9f1a); color: #321; box-shadow: 0 3px 0 #8a5200; }
+  .rooms { max-height: 150px; overflow: auto; background: #060814; border-radius: 8px; padding: 6px; }
+  .room { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-bottom: 1px solid #ffffff14; font-size: 14px; }
+  .room b { flex: 1; } .room small { color: #9aa4ff; } .room button { padding: 7px 12px; font-size: 13px; }
+  .empty { color: #6b709e; font-size: 13px; padding: 8px; text-align: center; }
+  .plist { background: #060814; border-radius: 8px; padding: 6px 10px; }
+  .pl { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 15px; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex: none; border: 2px solid #fff8; }
+  .tag { font-size: 11px; background: #3b4cff; padding: 2px 6px; border-radius: 6px; }
+  .rec { font-size: 12px; color: #9aa4ff; background: #060814; border-radius: 8px; padding: 6px 10px; min-height: 28px; }
+  .code { font-size: 28px; letter-spacing: 6px; font-weight: 900; color: #ffe14a; text-align: center; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td, th { padding: 6px 8px; text-align: left; border-bottom: 1px solid #ffffff18; }
+  tr.me td { background: #3b4cff33; }
+
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; display: none; }
+  #hud.on { display: block; }
+  .hp { position: absolute; font-weight: 900; text-shadow: 2px 2px 0 #000a, 0 0 8px #000a; }
+  #rank { left: 16px; top: 10px; font-size: 54px; font-style: italic; color: #ffe14a; line-height: 1; }
+  #rank small { font-size: 22px; color: #fff; }
+  #lap { left: 16px; top: 74px; font-size: 22px; }
+  #time { left: 16px; top: 104px; font-size: 18px; color: #cfe; }
+  #best { left: 16px; top: 128px; font-size: 14px; color: #9ff; }
+  #speed { right: 18px; bottom: 120px; font-size: 40px; font-style: italic; text-align: right; }
+  #speed small { font-size: 16px; }
+  #gaugeBox { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); width: min(300px, 55vw); height: 14px;
+    background: #000a; border-radius: 8px; border: 2px solid #fff6; overflow: hidden; }
+  #gauge { height: 100%; width: 0; background: #3a9bff; transition: background .1s; }
+  #mapc { position: absolute; right: 12px; top: 10px; width: 150px; height: 150px; background: #000a; border-radius: 12px; border: 2px solid #fff4; }
+  #msg { position: absolute; left: 0; right: 0; top: 28%; text-align: center; font-size: 90px; font-style: italic; font-weight: 900;
+    color: #ffe14a; text-shadow: 4px 4px 0 #e8382e, 0 0 24px #000; }
+  #toast { position: absolute; left: 0; right: 0; top: 190px; text-align: center; font-size: 22px; font-weight: 900; color: #fff; text-shadow: 2px 2px 0 #000; }
+  #warn { left: 0; right: 0; top: 150px; text-align: center; font-size: 30px; line-height: 1.25; color: #ff4a3a; animation: wpulse .35s infinite alternate; }
+  #warnEdge { position: absolute; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 90px 24px #ff1a1a; transition: opacity .12s; }
+  @keyframes wpulse { from { opacity: 1; transform: scale(1); } to { opacity: .55; transform: scale(1.08); } }
+  #wrong { position: absolute; left: 0; right: 0; top: 40%; text-align: center; font-size: 34px; color: #ff5a4a; display: none; font-weight: 900; text-shadow: 2px 2px 0 #000; }
+  #result { pointer-events: auto; }
+
+  #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 7; transition: opacity .5s; }
+  #specbar { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 20; display: none; gap: 8px; align-items: center;
+    background: #000b; padding: 8px 12px; border-radius: 999px; border: 1px solid #fff5; font-weight: 800; }
+  #specbar button { padding: 8px 12px; font-size: 14px; }
+  #touch { position: fixed; inset: 0; z-index: 6; pointer-events: none; display: none; }
+  #touch.on { display: block; }
+  .tb { position: absolute; pointer-events: auto; touch-action: none; border-radius: 50%; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 900; text-align: center; line-height: 1.05; text-shadow: 0 2px 4px #0009;
+    background: radial-gradient(circle at 32% 24%, #ffffff55, #ffffff14 62%); border: 2px solid #ffffff66; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 8px 20px #0007, inset 0 0 14px #ffffff26; transition: transform .06s, filter .06s; }
+  .tb.on { transform: scale(.93); filter: brightness(1.35); }
+  .tb span { font-size: 13px; letter-spacing: 1px; } .tb b { font-size: 26px; }
+  #tPad { position: absolute; left: 16px; bottom: 26px; width: 244px; height: 112px; border-radius: 56px; display: flex; pointer-events: auto; touch-action: none; overflow: hidden;
+    background: linear-gradient(#ffffff2a, #ffffff0f); border: 2px solid #ffffff66; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 8px 20px #0007, inset 0 0 16px #ffffff22; }
+  #tPad .ar { flex: 1; display: flex; align-items: center; justify-content: center; transition: background .06s; }
+  #tPad .ar + .ar { border-left: 1px solid #ffffff33; }
+  #tPad .ar svg { width: 46px; height: 46px; fill: none; stroke: #ffffffcc; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 2px 3px #0008); }
+  #tPad .ar.on { background: #ffffff40; } #tPad .ar.on svg { stroke: #fff; }
+  #tD { right: 18px; bottom: 62px; width: 112px; height: 112px; background: radial-gradient(circle at 32% 24%, #ffc98f, #ff6a2a 62%, #d63a10); border-color: #ffd9b8; box-shadow: 0 8px 22px #ff6a2a66, 0 8px 20px #0007, inset 0 0 14px #ffffff44; }
+  #tD span { font-size: 18px; letter-spacing: 2px; }
+  #tN { right: 142px; bottom: 70px; width: 84px; height: 84px; background: radial-gradient(circle at 32% 24%, #9be3ff, #1b8cff 62%, #0b52c9); border-color: #cfeeff; box-shadow: 0 8px 22px #1b8cff66, 0 8px 20px #0007, inset 0 0 14px #ffffff44; }
+  #tN b { font-size: 24px; } #tN span { font-size: 11px; }
+  #tN em { position: absolute; top: -6px; right: -4px; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 12px; background: #ffe14a; color: #321; font-style: normal; font-size: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px #0008; }
+  .tb.sq { border-radius: 18px; width: 64px; height: 64px; font-size: 30px; background: linear-gradient(#ffffff30, #ffffff10); border-color: #ffffff55; color: #ffffff77; }
+  .tb.sq.has { border-color: #ffe14a; color: #fff; box-shadow: 0 0 14px #ffe14a88, 0 8px 20px #0007, inset 0 0 14px #ffe14a33; }
+  #tI1 { right: 18px; bottom: 184px; } #tI2 { right: 94px; bottom: 172px; }
+  .tb.sm { width: 54px; height: 54px; background: radial-gradient(circle at 32% 24%, #ffffff40, #00000040 70%); }
+  .tb.sm span { font-size: 10px; } .tb.sm b { font-size: 20px; }
+  #tB { right: 238px; bottom: 62px; }
+  #n2oBox { position: absolute; left: 16px; bottom: 20px; width: 250px; font-weight: 900; font-size: 13px; text-shadow: 1px 1px 0 #000; }
+  #n2oBox .nrow { display: flex; justify-content: space-between; align-items: center; }
+  .pips { display: flex; gap: 5px; } .pips i { width: 22px; height: 14px; border-radius: 5px; background: #00000099; border: 2px solid #ffffff55; transform: skewX(-18deg); }
+  .pips i.on { background: linear-gradient(90deg, #ffb02e, #ffe14a); border-color: #fff; box-shadow: 0 0 10px #ffe14a; }
+  #n2oTrack { height: 14px; margin-top: 3px; background: #000a; border: 2px solid #fff6; border-radius: 9px; overflow: hidden; }
+  #n2oBar { height: 100%; width: 0; background: linear-gradient(90deg, #1b8cff, #5fe6ff); }
+  #n2oBar.full { background: linear-gradient(90deg, #ff9f1a, #ffe14a); box-shadow: 0 0 10px #ffe14a; }
+  #slots { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); display: flex; gap: 10px; align-items: flex-end; }
+  .slot { position: relative !important; width: 76px; height: 76px; border-radius: 18px; background: linear-gradient(#000b, #0008); border: 3px solid #ffe14a; display: flex; align-items: center; justify-content: center; font-size: 42px; box-shadow: 0 6px 16px #0007; }
+  .slot.s2 { width: 60px; height: 60px; font-size: 32px; border-color: #ffffff66; }
+  .slot::after { content: attr(data-n); position: absolute; left: 6px; top: 2px; font-size: 11px; color: #ffffffaa; }
+  #rotHint { display: none; position: fixed; top: 6px; left: 50%; transform: translateX(-50%); z-index: 30; background: #000c; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; pointer-events: none; }
+  @media (orientation: portrait) and (pointer: coarse) { body.racing #rotHint { display: block; } }
+  .scr { align-items: flex-start; } .panel { margin: auto; }
+  @media (pointer: coarse) {
+    #n2oBox { left: 50%; transform: translateX(-50%); bottom: 12px; width: min(220px, 32vw); }
+    #gaugeBox { display: none; }
+    #slots { display: none; }   /* 터치 기기는 아이템이 버튼에 표시됨 */
+    .slot { width: 56px; height: 56px; font-size: 30px; border-width: 2px; border-radius: 14px; } .slot.s2 { width: 44px; height: 44px; font-size: 24px; }
+    .slot::after { display: none; }
+    #rank { font-size: 40px; top: 6px; } #rank small { font-size: 16px; }
+    #lap { top: 52px; font-size: 16px; } #time { top: 76px; font-size: 14px; } #best { top: 96px; font-size: 11px; }
+    #mapc { width: 100px; height: 100px; top: 6px; right: 8px; }
+    #speed { bottom: auto; top: 100px; right: auto; left: 16px; text-align: left; font-size: 20px; } #speed small { font-size: 11px; }
+    #tRet { left: 16px; top: 134px; bottom: auto; }
+    #msg { font-size: 64px; top: 22%; } #toast { top: 118px; font-size: 16px; } #wrong { font-size: 24px; }
+  }
+  @media (max-height: 520px) {
+    .panel { padding: 12px 14px; } h1 { font-size: 28px; } h2 { font-size: 18px; } label { margin: 6px 0 3px; font-size: 12px; }
+    button, .btn { padding: 9px 12px; font-size: 14px; } .col { gap: 6px; margin-top: 8px; } .rooms { max-height: 80px; } .sub { margin-bottom: 6px; }
+  }
+</style>
+</head>
+<body>
+<a class="home-btn" href="../">🏠 메인 메뉴</a>
+<canvas id="gl"></canvas>
+
+<!-- 메뉴 -->
+<div class="scr on" id="scrMenu">
+  <div class="panel" style="margin-left:0">
+    <h1>카트 레이서</h1>
+    <div class="sub">드리프트 → 부스터! 아이템을 써서 1등을 차지하세요</div>
+    <label>닉네임</label>
+    <input type="text" id="nick" maxlength="10" placeholder="닉네임 (최대 10자)">
+    <div class="col">
+      <button id="btnSolo">🏁 혼자 하기 (AI 대전)</button>
+      <button class="dim" id="btnShop">🛠 카트 꾸미기</button>
+      <button class="alt" id="btnCreate">🌐 방 만들기 (멀티플레이)</button>
+      <div class="row"><input type="text" id="codeIn" maxlength="4" placeholder="방 코드 4자리" style="flex:2;text-transform:uppercase"><button class="alt" id="btnJoin" style="flex:1">입장</button></div>
+    </div>
+    <label>열린 방 <span id="roomCount"></span></label>
+    <div class="rooms" id="roomList"><div class="empty">불러오는 중…</div></div>
+    <div class="sub" style="margin-top:12px;line-height:1.6">
+      ↑/W 가속 · ←→/AD 조향 · ↓/S 브레이크<br>
+      <b>Shift</b> 드리프트 · <b>X / Ctrl</b> 부스트(보관 2칸) · <b>Space / Q</b> 아이템 1 / 2번 · <b>R</b> 도로 복귀 · 모바일은 가속 자동 · 왼쪽 패드로 조향
+    </div>
+  </div>
+</div>
+
+<!-- 로비 -->
+<div class="scr" id="scrLobby">
+  <div class="panel">
+    <h2 id="lobTitle">대기실</h2>
+    <div id="codeBox" style="display:none"><div class="sub">친구에게 이 코드를 알려주세요</div><div class="code" id="roomCode"></div></div>
+    <label>참가자</label>
+    <div class="plist" id="plist"></div>
+    <label>맵 <span id="mapNote" class="tag" style="display:none">방장이 선택</span></label>
+    <div class="mapgrid" id="mapSeg"></div>
+    <div class="rec" id="mapInfo" style="margin-top:6px"></div>
+    <label>랩 수 / AI 카트 수</label>
+    <div class="row">
+      <div class="seg" id="lapSeg" style="flex:1"></div>
+      <div class="seg" id="botSeg" style="flex:1.4"></div>
+    </div>
+    <label>AI 난이도</label>
+    <div class="seg" id="diffSeg"></div>
+    <label>방 설정</label>
+    <div class="row"><div class="seg" id="itemSeg" style="flex:1"></div><div class="seg" id="uniqSeg" style="flex:1"></div></div>
+    <label>맵 최고 랩 기록 TOP5</label>
+    <div class="rec" id="recBox">-</div>
+    <div class="col">
+      <button id="btnStart">🚦 레이스 시작!</button>
+      <button class="dim" id="btnLeave">← 나가기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 꾸미기 -->
+<div class="scr" id="scrShop">
+  <div class="panel">
+    <h2>🛠 카트 꾸미기</h2>
+    <div class="sub">마음대로 골라 보세요. 다른 참가자에게도 그대로 보여요.</div>
+    <label>차종</label><div class="seg" id="edBodyType"></div>
+    <label>카트 색</label><div class="swatches" id="edBody"></div>
+    <label>휠</label><div class="swatches" id="edWheel"></div>
+    <label>스트라이프</label><div class="swatches" id="edStripe"></div>
+    <label>부스터 불꽃</label><div class="swatches" id="edFlame"></div>
+    <div class="col"><button class="dim" id="btnReset">기본값으로</button><button id="btnShopBack">← 돌아가기</button></div>
+  </div>
+</div>
+
+<!-- 결과 -->
+<div class="scr" id="scrResult" style="background:#0008">
+  <div class="panel">
+    <h2 id="resTitle">레이스 결과</h2>
+    <table id="resTable"></table>
+    <div class="col"><button class="alt" id="btnSpec">👁 관전하기</button><button id="btnAgain">대기실로</button></div>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hp" id="rank">1<small>/8</small></div>
+  <div class="hp" id="lap">LAP 1/3</div>
+  <div class="hp" id="time">0:00.00</div>
+  <div class="hp" id="best"></div>
+  <div id="slots"><div class="hp slot s1" id="item" data-n="Space"></div><div class="hp slot s2" id="item2" data-n="Q"></div></div>
+  <div class="hp" id="speed">0<small> km/h</small></div>
+  <div id="gaugeBox"><div id="gauge"></div></div>
+  <div id="n2oBox"><div class="nrow"><span id="n2oLbl">BOOST</span><span class="pips"><i id="bp0"></i><i id="bp1"></i></span></div><div id="n2oTrack"><div id="n2oBar"></div></div></div>
+  <canvas id="mapc" width="300" height="300"></canvas>
+  <div class="hp" id="msg"></div>
+  <div class="hp" id="toast"></div>
+  <div id="warnEdge"></div>
+  <div class="hp" id="warn"></div>
+  <div class="hp" id="wrong">⚠ 역주행!</div>
+</div>
+<div id="flash"></div>
+<div id="specbar"><button class="dim" id="spPrev">◀</button><span id="spName"></span><button class="dim" id="spNext">▶</button><button class="alt" id="spRes">결과표</button></div>
+<div id="touch">
+  <div id="tPad">
+    <div class="ar" id="tpL"><svg viewBox="0 0 24 24"><path d="M15 4 7 12l8 8" /></svg></div>
+    <div class="ar" id="tpR"><svg viewBox="0 0 24 24"><path d="m9 4 8 8-8 8" /></svg></div>
+  </div>
+  <div class="tb" id="tD"><span>DRIFT</span></div>
+  <div class="tb" id="tN"><b>⚡</b><span>BOOST</span><em id="tNn">0</em></div>
+  <div class="tb sq" id="tI1">1</div><div class="tb sq" id="tI2">2</div>
+  <div class="tb sm" id="tB">BRAKE</div>
+  <div class="tb sm" id="tRet"><b>↺</b><span>복귀</span></div>
+</div>
+<div id="rotHint">📱 가로로 돌리면 더 편해요</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+const $ = id => document.getElementById(id);
+const rnd = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const angDiff = (a, b) => { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtT = ms => { const m = Math.floor(ms / 60000), s = (ms % 60000) / 1000; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(2); };
+
+/* ============================== 설정 ============================== */
+const COLORS = ['#e8382e', '#ff8a00', '#ffd23d', '#2bd36b', '#22c5ff', '#3b4cff', '#b04dff', '#ff5fb7'];
+const BODIES = ['클래식', '웨지', '버기'];
+const TH = {
+  meadow: { sky: 0x7ec8ff, ground: 0x3f9a45, road: '#4a4d55', fog: 0x9fd6ff, fogN: 200, fogF: 900, deco: 'tree', night: false },
+  desert: { sky: 0xffc98a, ground: 0xd9b26a, road: '#5a4a42', fog: 0xffd9a8, fogN: 200, fogF: 850, deco: 'cactus', night: false },
+  neon: { sky: 0x0b0724, ground: 0x0d0a22, road: '#23233a', fog: 0x120a30, fogN: 120, fogF: 700, deco: 'city', night: true },
+};
+// 실제 서킷을 본뜬 중심선 제어점 (이미지 좌표, 첫 점 = 출발선, 진행 방향 순서)
+const MAPS = [
+  { id: 'russia', name: '🇷🇺 러시아', w: 24, len: 2300, th: 'meadow', cp: [[222,262],[190,272],[150,272],[122,268],[118,248],[104,238],[88,242],[82,262],[60,276],[34,274],[26,250],[45,230],[80,212],[125,208],[152,224],[182,240],[215,244],[242,236],[240,250]] },
+  { id: 'china', name: '🇨🇳 중국', w: 24, len: 2300, th: 'neon', cp: [[342,246],[352,218],[357,203],[372,198],[381,206],[376,218],[367,228],[369,242],[380,252],[400,256],[422,258],[434,272],[430,290],[400,294],[372,294],[340,294],[312,294],[296,288],[298,274],[320,260]] },
+  { id: 'spain', name: '🇪🇸 스페인', w: 24, len: 2300, th: 'desert', cp: [[642,272],[600,274],[560,274],[535,272],[528,262],[545,254],[572,256],[574,246],[548,238],[522,242],[510,234],[520,224],[552,222],[582,232],[600,246],[618,244],[634,232],[652,229],[672,236],[690,244],[695,260],[684,271]] },
+  { id: 'usa', name: '🇺🇸 미국', w: 24, len: 2400, th: 'desert', cp: [[58,486],[38,474],[58,458],[88,464],[105,448],[100,430],[130,426],[172,410],[208,394],[222,398],[212,412],[188,426],[152,442],[132,454],[130,470],[114,482],[100,496],[75,498]] },
+  { id: 'canada', name: '🇨🇦 캐나다', w: 24, len: 2300, th: 'meadow', cp: [[410,442],[432,452],[446,462],[444,474],[430,480],[405,468],[375,462],[345,458],[318,438],[302,420],[280,406],[266,394],[268,384],[288,388],[312,396],[340,408],[375,426]] },
+  { id: 'italy', name: '🇮🇹 이탈리아', w: 24, len: 2300, th: 'meadow', cp: [[645,492],[600,493],[560,490],[545,480],[520,445],[510,425],[510,396],[525,392],[550,400],[570,430],[598,455],[630,468],[665,468],[705,466],[710,480],[690,490]] },
+  { id: 'monaco', name: '🇲🇨 모나코', w: 22, len: 2300, th: 'neon', cp: [[50,648],[48,625],[62,607],[95,608],[120,614],[165,620],[195,610],[215,595],[225,578],[245,578],[247,595],[235,612],[205,632],[175,640],[150,636],[125,632],[100,640],[78,652],[68,668],[60,690],[52,712],[42,708],[42,680]] },
+  { id: 'germany', name: '🇩🇪 독일', w: 24, len: 2300, th: 'meadow', cp: [[425,628],[452,624],[446,637],[400,638],[370,632],[350,632],[346,650],[322,660],[300,672],[272,684],[236,686],[218,674],[236,658],[268,648],[288,630],[306,610],[325,591],[350,581],[375,588],[405,602]] },
+  { id: 'australia', name: '🇦🇺 호주', w: 24, len: 2300, th: 'desert', cp: [[632,668],[595,668],[560,665],[530,655],[515,640],[510,615],[525,590],[545,583],[560,600],[585,605],[610,592],[640,598],[665,622],[685,625],[697,640],[690,655],[660,665]] },
+].map(m => Object.assign(m, TH[m.th]));
+const NSAMP = 700;
+const MAXSPD = 40, ACC = 22;
+// 드리프트 / 부스트 파라미터 (서로 독립적으로 조정 가능)
+const DRIFT_CHARGE = 20;      // 드리프트 중 초당 게이지 충전량 (× 보정값)
+const BOOST_DUR = 2.4;        // 부스트 지속시간(초)
+const BOOST_ACC = 2.4;        // 부스트 중 가속력 배율
+const BOOST_VMAX = 1.4;       // 부스트 중 최고속도 배율
+const BOOST_PASSIVE = 3;      // 게이지 기본 충전 (초당 %)
+const MAX_BOOSTS = 2;         // 부스트 보관 칸 수
+const ITEMS = { banana: '🍌', missile: '🚀', boost: '⚡', shield: '🛡️', oil: '🛢️', thunder: '🌩️', magnet: '🧲' };
+const ITEM_ICONS = ['❓', '🍌', '🚀', '⚡', '🛡️', '🛢️', '🌩️', '🧲'];
+const HEX = /^#[0-9a-f]{6}$/i;
+const colorOf = c => typeof c === 'string' && HEX.test(c) ? c : COLORS[(c | 0) % COLORS.length];
+const COS_DEF = ['#cfd6e6', '', '#5fd0ff'];   // 휠, 스트라이프('' = 없음), 부스터 불꽃
+const cleanCos = c => COS_DEF.map((d, i) => { const v = Array.isArray(c) ? c[i] : null; return typeof v === 'string' && (HEX.test(v) || (i === 1 && v === '')) ? v : d; });
+
+/* ============================== 오디오 ============================== */
+let actx = null, engOsc = null, engGain = null;
+function audioInit() {
+  if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    engOsc = actx.createOscillator(); engOsc.type = 'sawtooth';
+    const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 500;
+    engGain = actx.createGain(); engGain.gain.value = 0;
+    engOsc.connect(f); f.connect(engGain); engGain.connect(actx.destination); engOsc.start();
+  } catch (e) { actx = null; }
+}
+function beep(freq, dur = .12, type = 'square', vol = .08, slide = 0) {
+  if (!actx) return;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = freq; if (slide) o.frequency.linearRampToValueAtTime(freq + slide, actx.currentTime + dur);
+  g.gain.value = vol; g.gain.linearRampToValueAtTime(0, actx.currentTime + dur);
+  o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
+}
+const sfx = {
+  count: () => beep(440, .2), go: () => beep(880, .5), item: () => { beep(660, .08); setTimeout(() => beep(990, .12), 80); },
+  hit: () => beep(180, .5, 'sawtooth', .12, -120), boost: () => beep(300, .5, 'sawtooth', .07, 500), drift: () => beep(1200, .08, 'sine', .06),
+  fire: () => beep(500, .3, 'sawtooth', .07, -300),
+};
+
+/* ============================== 렌더러 / 씬 ============================== */
+const coarse = matchMedia('(pointer: coarse)').matches;
+const renderer = new THREE.WebGLRenderer({ canvas: $('gl'), antialias: !coarse, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, coarse ? 1.5 : 2));
+addEventListener('contextmenu', e => e.preventDefault());
+const camera = new THREE.PerspectiveCamera(70, 1, .5, 2500);
+function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+let scene = new THREE.Scene();
+const garage = new THREE.Scene();
+garage.background = new THREE.Color(0x14173a);
+{
+  const g = new THREE.Mesh(new THREE.CylinderGeometry(4, 4.4, .4, 40), new THREE.MeshStandardMaterial({ color: 0x2a2d6a, metalness: .5, roughness: .4 }));
+  g.position.y = -.2; garage.add(g);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(4.1, .08, 8, 60), new THREE.MeshBasicMaterial({ color: 0x4c6bff }));
+  ring.rotation.x = Math.PI / 2; garage.add(ring);
+  garage.add(new THREE.HemisphereLight(0xffffff, 0x334, 1.1));
+  const d = new THREE.DirectionalLight(0xffffff, 1.6); d.position.set(5, 8, 6); garage.add(d);
+}
+
+/* ============================== 카트 모델 ============================== */
+const mat = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: .45, metalness: .15 }, o));
+function nameSprite(text) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+  const x = c.getContext('2d'); x.font = '900 34px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.lineWidth = 7; x.strokeStyle = '#000'; x.strokeText(text, 128, 34); x.fillStyle = '#fff'; x.fillText(text, 128, 34);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
+  s.scale.set(6, 1.5, 1); s.renderOrder = 10; return s;
+}
+function buildKart(color, body, cos) {
+  cos = cleanCos(cos); const hubM = mat(cos[0], { metalness: .9, roughness: .2 });
+  const g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
+  const col = new THREE.Color(color);
+  const paint = mat(col), dark = mat(0x222230, { roughness: .7 }), chrome = mat(0xcfd6e6, { metalness: .9, roughness: .2 });
+  const add = (geo, m, x, y, z, p = inner) => { const me = new THREE.Mesh(geo, m); me.position.set(x, y, z); p.add(me); return me; };
+  if (body === 0) {        // 클래식: 둥근 카트
+    add(new THREE.BoxGeometry(1.7, .5, 2.8), paint, 0, .65, 0);
+    add(new THREE.BoxGeometry(1.2, .45, 1.2), paint, 0, .75, 1.7).rotation.x = .2;
+    add(new THREE.CylinderGeometry(.35, .35, 1.9, 12), chrome, 0, .55, 1.95).rotation.z = Math.PI / 2;
+    add(new THREE.BoxGeometry(2, .12, .7), paint, 0, 1.55, -1.7);
+    add(new THREE.BoxGeometry(.12, .7, .5), dark, .7, 1.15, -1.7); add(new THREE.BoxGeometry(.12, .7, .5), dark, -.7, 1.15, -1.7);
+  } else if (body === 1) { // 웨지: 납작한 스포츠
+    const w = add(new THREE.BoxGeometry(1.6, .4, 3.6), paint, 0, .6, 0);
+    add(new THREE.BoxGeometry(1.2, .3, 1.6), paint, 0, .6, 2.2).rotation.x = .12;
+    add(new THREE.BoxGeometry(2.4, .08, .6), dark, 0, .38, 2.9);
+    add(new THREE.BoxGeometry(2.4, .1, .8), paint, 0, 1.3, -1.9);
+    add(new THREE.BoxGeometry(.1, .7, .6), dark, 1.05, .95, -1.9); add(new THREE.BoxGeometry(.1, .7, .6), dark, -1.05, .95, -1.9);
+    add(new THREE.BoxGeometry(.3, .08, 3.4), mat(0xffffff), 0, .83, 0);
+  } else {                 // 버기: 높은 오프로드
+    add(new THREE.BoxGeometry(1.6, .45, 2.6), paint, 0, .85, 0);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(new THREE.CylinderGeometry(.08, .08, 1.3, 6), chrome, sx * .75, 1.3, sz * 1.0);
+    add(new THREE.BoxGeometry(1.7, .08, 2.7), chrome, 0, 1.95, 0);
+    add(new THREE.BoxGeometry(1.3, .3, .5), dark, 0, .8, 1.5);
+    add(new THREE.CylinderGeometry(.18, .18, .4, 8), chrome, .5, .7, -1.7);
+    add(new THREE.CylinderGeometry(.18, .18, .4, 8), chrome, -.5, .7, -1.7);
+  }
+  if (cos[1] !== '') {   // 스트라이프
+    const sy = [.91, .83, 1.08][body], sl = [2.7, 3.5, 2.55][body], sm = mat(cos[1], { roughness: .3 });
+    for (const sx of [-.4, .4]) add(new THREE.BoxGeometry(.2, .05, sl), sm, sx, sy, 0);
+  }
+  // 운전자
+  const suit = mat(0xf4f4f4);
+  add(new THREE.CapsuleGeometry(.35, .5, 4, 8), suit, 0, 1.15, -.1);
+  const helm = add(new THREE.SphereGeometry(.42, 16, 12), paint, 0, 1.85, -.05);
+  add(new THREE.BoxGeometry(.6, .22, .3), mat(0x111122, { metalness: .8, roughness: .1 }), 0, 1.85, .28);
+  // 핸들
+  add(new THREE.TorusGeometry(.25, .04, 6, 14), dark, 0, 1.3, .55).rotation.x = -.9;
+  // 바퀴
+  const wheels = [];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const wg = new THREE.Group(); wg.position.set(sx * 1.0, .45, sz * 1.2 + (body === 1 ? sz * .1 : 0));
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, .5, 16), dark); t.rotation.z = Math.PI / 2; wg.add(t);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(.25, .25, .52, 8), hubM); hub.rotation.z = Math.PI / 2; wg.add(hub);
+    inner.add(wg); wheels.push(wg);
+  }
+  // 부스터 불꽃
+  const flames = [];
+  for (const sx of [-.5, .5]) {
+    const f = new THREE.Mesh(new THREE.ConeGeometry(.28, 2, 8), new THREE.MeshBasicMaterial({ color: cos[2], transparent: true, opacity: .9 }));
+    f.rotation.x = -Math.PI / 2; f.position.set(sx, .7, -2.7); f.visible = false; inner.add(f); flames.push(f);
+  }
+  // 방어막
+  const shield = new THREE.Mesh(new THREE.SphereGeometry(2.6, 20, 14), new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: .28 }));
+  shield.position.y = 1.1; shield.visible = false; g.add(shield);
+  // 그림자
+  const blob = new THREE.Mesh(new THREE.CircleGeometry(2, 16), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: .35, depthWrite: false }));
+  blob.rotation.x = -Math.PI / 2; blob.position.y = .06; blob.scale.set(1, 1.5, 1);
+  g.userData = { inner, wheels, flames, shield, blob, wheelRot: 0 };
+  return g;
+}
+
+/* ============================== 트랙 ============================== */
+let track = null;
+function genTrack(map) {
+  if (map._g) return map._g;
+  // 제어점 → 폐곡선 Catmull-Rom → 호 길이 재샘플링. 도로끼리 너무 가까우면 전체를 키움
+  const cp = map.cp, nc = cp.length, base = [];
+  for (let i = 0; i < nc; i++) {
+    const p0 = cp[(i + nc - 1) % nc], p1 = cp[i], p2 = cp[(i + 1) % nc], p3 = cp[(i + 2) % nc];
+    for (let k = 0; k < 24; k++) {
+      const t = k / 24, t2 = t * t, t3 = t2 * t, f = (a, b, c, d) => .5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+      base.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
+    }
+  }
+  const M = base.length; let pl = 0; for (let i = 0; i < M; i++) { const a = base[i], b = base[(i + 1) % M]; pl += Math.hypot(b[0] - a[0], b[1] - a[1]); }
+  let sc = map.len / pl, pts = [], total = 0, minGap = 0, minR = 0;
+  const need = map.w + 16;
+  for (let iter = 0; iter < 12; iter++) {
+    const raw = base.map(q => [q[0] * sc, q[1] * sc]); total = pl * sc;
+    const cum = [0]; for (let i = 1; i <= M; i++) { const a = raw[i - 1], b = raw[i % M]; cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1])); }
+    pts = [];
+    for (let i = 0, j = 0; i < NSAMP; i++) {
+      const s = i / NSAMP * total; while (cum[j + 1] < s) j++;
+      const f = (s - cum[j]) / (cum[j + 1] - cum[j]), a = raw[j], b = raw[(j + 1) % M];
+      pts.push({ x: lerp(a[0], b[0], f), z: lerp(a[1], b[1], f) });
+    }
+    const sg = total / NSAMP, skip = Math.ceil(need * 2.2 / sg); minGap = 1e9;
+    for (let i = 0; i < NSAMP; i++) for (let j = i + skip; j < NSAMP; j++) {
+      if (NSAMP - (j - i) < skip) continue;
+      const d = Math.hypot(pts[i].x - pts[j].x, pts[i].z - pts[j].z); if (d < minGap) minGap = d;
+    }
+    minR = 1e9;
+    for (let i = 0; i < NSAMP; i++) {
+      const a = pts[(i + NSAMP - 3) % NSAMP], b = pts[i], c = pts[(i + 3) % NSAMP];
+      const h1 = Math.atan2(b.x - a.x, b.z - a.z), h2 = Math.atan2(c.x - b.x, c.z - b.z), d = Math.abs(angDiff(h1, h2));
+      if (d > 1e-4) minR = Math.min(minR, sg * 3 / d);
+    }
+    if (minGap >= need && minR >= 15) break;
+    sc *= Math.min(1.3, Math.max(minGap >= need ? 1 : need / minGap * 1.03, minR < 15 ? 15 / minR : 1));
+  }
+  let mcx = 0, mcz = 0; for (const p of pts) { mcx += p.x; mcz += p.z; } mcx /= NSAMP; mcz /= NSAMP;
+  let ext = 0; for (const p of pts) { p.x -= mcx; p.z -= mcz; ext = Math.max(ext, Math.abs(p.x), Math.abs(p.z)); }
+  for (let i = 0; i < NSAMP; i++) {
+    const a = pts[(i + NSAMP - 1) % NSAMP], b = pts[(i + 1) % NSAMP];
+    let tx = b.x - a.x, tz = b.z - a.z; const l = Math.hypot(tx, tz); tx /= l; tz /= l;
+    pts[i].tx = tx; pts[i].tz = tz; pts[i].nx = tz; pts[i].nz = -tx;   // (nx,nz) = 오른쪽
+    pts[i].h = Math.atan2(tx, tz);
+  }
+  const seg = total / NSAMP;
+  // 곡률 (AI 속도 제어용)
+  for (let i = 0; i < NSAMP; i++) { const a = pts[i], b = pts[(i + 8) % NSAMP]; pts[i].curv = Math.abs(angDiff(a.h, b.h)) / (seg * 8); }
+
+  const half = map.w / 2;
+  // 지름길 자동 탐색: 커브 안쪽을 가로지르는 직선 (다른 도로와 충분히 떨어진 후보 중 절약 거리가 큰 순)
+  const shortcuts = [], cand = [], SIDE = [-1, 1];
+  {
+    const ptSeg = (x, z, s) => { const t = clamp(((x - s.ax) * s.dx + (z - s.az) * s.dz) / s.l2, 0, 1); return Math.hypot(s.ax + s.dx * t - x, s.az + s.dz * t - z); };
+    const off = half * .7;
+    for (let i0 = 0; i0 < NSAMP; i0 += 8) for (let g = Math.ceil(90 / seg); g <= Math.floor(360 / seg); g += 2) {
+      const i1 = (i0 + g) % NSAMP, a = pts[i0], b = pts[i1], im = (i0 + (g >> 1)) % NSAMP, m = pts[im];
+      const mxx = (a.x + b.x) / 2 - m.x, mzz = (a.z + b.z) / 2 - m.z, side = (mxx * m.nx + mzz * m.nz) > 0 ? 1 : -1;
+      const ax = a.x + a.nx * off * side, az = a.z + a.nz * off * side, bx = b.x + b.nx * off * side, bz = b.z + b.nz * off * side;
+      const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz, len = Math.sqrt(l2), arc = g * seg;
+      if (len > arc * .9 || arc - len < 30 || arc - len > 130) continue;
+      const dA = (dx * a.tx + dz * a.tz) / len, dB = (dx * b.tx + dz * b.tz) / len;   // 입구/출구에서 도로 진행 방향과 비슷하게 이어져야 실제로 진입 가능 (U턴 가로지르기 제외)
+      if (dA < .7 || dB < .7) continue;
+      let ok = true;
+      for (let d = 12; d < len - 12 && ok; d += 7) {
+        const px = ax + dx * d / len, pz = az + dz * d / len, req = Math.min(half + 17, off + .32 * Math.min(d, len - d));
+        for (let j = 0; j < NSAMP; j += 2) if ((pts[j].x - px) ** 2 + (pts[j].z - pz) ** 2 < req * req) { ok = false; break; }
+      }
+      if (ok) cand.push({ ax, az, bx, bz, dx, dz, l2, len, i0, i1, side, g, save: arc - len });
+    }
+    cand.sort((p, q) => q.save - p.save);
+    for (const c of cand) {
+      if (shortcuts.length >= 2) break;
+      const dist = (u, v) => { const d = Math.abs(u - v) % NSAMP; return Math.min(d, NSAMP - d); };
+      if (shortcuts.every(o => Math.min(dist(c.i0, o.i0), dist(c.i1, o.i1), dist(c.i0, o.i1), dist(c.i1, o.i0)) > 60 && ptSeg(c.ax, c.az, o) > 40 && ptSeg(c.bx, c.bz, o) > 40)) shortcuts.push(c);
+    }
+  }
+  return (map._g = { pts, total, minGap, minR, ext, seg, shortcuts });
+}
+function buildTrack(map) {
+  const G = genTrack(map), { pts, total, minGap, minR, ext, seg, shortcuts } = G, half = map.w / 2;
+  const grp = new THREE.Group();
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(map.sky); scene.fog = new THREE.Fog(map.fog, map.fogN, map.fogF);
+  scene.add(grp);
+
+  const wallGap = (side, x, z) => shortcuts.some(s => s.side === side && Math.hypot(s.ax + s.dx * clamp(((x - s.ax) * s.dx + (z - s.az) * s.dz) / s.l2, 0, 1) - x, s.az + s.dz * clamp(((x - s.ax) * s.dx + (z - s.az) * s.dz) / s.l2, 0, 1) - z) < 12);
+  scene.add(new THREE.HemisphereLight(map.night ? 0x6a6cff : 0xffffff, map.night ? 0x120a30 : 0x556b3a, map.night ? .9 : 1.0));
+  const sun = new THREE.DirectionalLight(map.night ? 0x8a8aff : 0xfff2d0, map.night ? .8 : 1.7); sun.position.set(200, 300, 100); scene.add(sun);
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.MeshStandardMaterial({ color: map.ground, roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -.05; grp.add(ground);
+  if (map.night) {   // 네온 격자
+    const grid = new THREE.GridHelper(6000, 300, 0xff2bd6, 0x2a4cff); grid.position.y = 0; grid.material.transparent = true; grid.material.opacity = .35; grp.add(grid);
+  }
+
+  // 도로 텍스처
+  const tc = document.createElement('canvas'); tc.width = 256; tc.height = 128;
+  const x = tc.getContext('2d'); x.fillStyle = map.road; x.fillRect(0, 0, 256, 128);
+  for (let i = 0; i < 1500; i++) { x.fillStyle = `rgba(${Math.random() < .5 ? 255 : 0},${Math.random() < .5 ? 255 : 0},255,.04)`; x.fillRect(Math.random() * 256, Math.random() * 128, 2, 2); }
+  x.fillStyle = '#fff'; x.fillRect(0, 0, 256, 6); x.fillRect(0, 122, 256, 6);
+  x.fillStyle = map.night ? '#ff2bd6' : '#ffd23d'; x.fillRect(120, 0, 16, 64);
+  const roadTex = new THREE.CanvasTexture(tc); roadTex.wrapS = roadTex.wrapT = THREE.RepeatWrapping; roadTex.anisotropy = 4;
+  const rpos = [], ruv = [], ridx = [];
+  for (let i = 0; i <= NSAMP; i++) {
+    const p = pts[i % NSAMP];
+    rpos.push(p.x - p.nx * half, .02, p.z - p.nz * half, p.x + p.nx * half, .02, p.z + p.nz * half);
+    ruv.push(0, i * seg / 12, 1, i * seg / 12);
+    if (i < NSAMP) { const a = i * 2; ridx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  }
+  const rg = new THREE.BufferGeometry();
+  rg.setAttribute('position', new THREE.Float32BufferAttribute(rpos, 3)); rg.setAttribute('uv', new THREE.Float32BufferAttribute(ruv, 2));
+  rg.setIndex(ridx); rg.computeVertexNormals();
+  // 도로 윗면이 위를 향하도록 와인딩 보정
+  if (rg.attributes.normal.getY(0) < 0) { const idx = rg.index.array; for (let i = 0; i < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; } rg.computeVertexNormals(); }
+  grp.add(new THREE.Mesh(rg, new THREE.MeshStandardMaterial({ map: roadTex, roughness: .9, side: THREE.DoubleSide })));
+
+  // 연석 + 벽
+  const wallOff = half + 5, wallH = 1.6;
+  const wc = document.createElement('canvas'); wc.width = 64; wc.height = 16; const wx = wc.getContext('2d');
+  wx.fillStyle = '#fff'; wx.fillRect(0, 0, 64, 16); wx.fillStyle = map.night ? '#ff2bd6' : '#e8382e'; wx.fillRect(0, 0, 32, 16);
+  const wtex = new THREE.CanvasTexture(wc); wtex.wrapS = THREE.RepeatWrapping; wtex.wrapT = THREE.RepeatWrapping;
+  for (const side of [-1, 1]) {
+    const pos = [], uv = [], idx = [];
+    for (let i = 0; i <= NSAMP; i++) {
+      const p = pts[i % NSAMP], ox = p.x + p.nx * wallOff * side, oz = p.z + p.nz * wallOff * side;
+      pos.push(ox, 0, oz, ox, wallH, oz); uv.push(i * seg / 8, 0, i * seg / 8, 1);
+      if (i < NSAMP && !wallGap(side, ox, oz)) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: wtex, side: THREE.DoubleSide, roughness: .8, emissive: map.night ? 0x331144 : 0, emissiveMap: map.night ? wtex : null }));
+    grp.add(m);
+  }
+
+  // 출발선 + 게이트
+  const s0 = pts[0];
+  const cc = document.createElement('canvas'); cc.width = 128; cc.height = 32; const cx = cc.getContext('2d');
+  for (let i = 0; i < 16; i++) for (let j = 0; j < 4; j++) { cx.fillStyle = (i + j) % 2 ? '#fff' : '#111'; cx.fillRect(i * 8, j * 8, 8, 8); }
+  const line = new THREE.Mesh(new THREE.PlaneGeometry(map.w, 4), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cc) }));
+  line.rotation.x = -Math.PI / 2; line.rotation.z = -s0.h + Math.PI; line.position.set(s0.x, .06, s0.z); line.rotation.order = 'YXZ'; line.rotation.set(-Math.PI / 2, 0, 0);
+  line.rotation.y = 0; line.quaternion.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)); line.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), s0.h));
+  grp.add(line);
+  const gm = mat(0x2a2d4d);
+  for (const sd of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(1.2, 12, 1.2), gm); post.position.set(s0.x + s0.nx * (half + 3) * sd, 6, s0.z + s0.nz * (half + 3) * sd); grp.add(post); }
+  const bc = document.createElement('canvas'); bc.width = 512; bc.height = 96; const bx = bc.getContext('2d');
+  bx.fillStyle = '#e8382e'; bx.fillRect(0, 0, 512, 96); bx.fillStyle = '#fff'; bx.font = '900 64px sans-serif'; bx.textAlign = 'center'; bx.textBaseline = 'middle'; bx.fillText('START / GOAL', 256, 52);
+  const banner = new THREE.Mesh(new THREE.BoxGeometry(map.w + 8, 4, 1), [gm, gm, gm, gm, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc) }), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc) })]);
+  banner.position.set(s0.x, 12, s0.z); banner.rotation.y = s0.h + Math.PI / 2 * 0; banner.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), s0.h);
+  banner.rotation.y = s0.h; grp.add(banner);
+
+  // 부스트 패드 / 아이템 박스
+  const pads = [], boxes = [];
+  const arrowC = document.createElement('canvas'); arrowC.width = 64; arrowC.height = 64; const ax = arrowC.getContext('2d');
+  ax.fillStyle = '#ff9f1a'; ax.fillRect(0, 0, 64, 64); ax.fillStyle = '#fff'; for (const o of [0, 22]) { ax.beginPath(); ax.moveTo(8, 50 - o); ax.lineTo(32, 26 - o); ax.lineTo(56, 50 - o); ax.lineTo(56, 40 - o); ax.lineTo(32, 16 - o); ax.lineTo(8, 40 - o); ax.fill(); }
+  const arrowTex = new THREE.CanvasTexture(arrowC);
+  [.07, .30, .52, .76].forEach((f, k) => {
+    const i = Math.floor(f * NSAMP), p = pts[i], side = k % 2 ? .35 : -.35;
+    const px = p.x + p.nx * half * side, pz = p.z + p.nz * half * side;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(5, 9), new THREE.MeshBasicMaterial({ map: arrowTex }));
+    m.rotation.x = -Math.PI / 2; m.quaternion.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)); m.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.h + Math.PI));
+    m.position.set(px, .07, pz); grp.add(m); pads.push({ x: px, z: pz });
+  });
+  // 지름길 흙길 + 입구 표지
+  const dirtC = document.createElement('canvas'); dirtC.width = 64; dirtC.height = 64; const dcx = dirtC.getContext('2d');
+  dcx.fillStyle = map.night ? '#3a2a55' : '#9a7648'; dcx.fillRect(0, 0, 64, 64);
+  for (let i = 0; i < 300; i++) { dcx.fillStyle = `rgba(0,0,0,${Math.random() * .12})`; dcx.fillRect(Math.random() * 64, Math.random() * 64, 3, 3); }
+  const dirtTex = new THREE.CanvasTexture(dirtC); dirtTex.wrapS = dirtTex.wrapT = THREE.RepeatWrapping;
+  for (const sc of shortcuts) {
+    dirtTex.repeat.set(2, sc.len / 12);
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(14, sc.len), new THREE.MeshStandardMaterial({ map: dirtTex.clone(), roughness: 1 }));
+    pl.material.map.needsUpdate = true; pl.material.map.repeat.set(2, sc.len / 12);
+    pl.quaternion.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)); pl.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(sc.dx, sc.dz)));
+    pl.position.set((sc.ax + sc.bx) / 2, .035, (sc.az + sc.bz) / 2); grp.add(pl);
+    for (const [px, pz] of [[sc.ax, sc.az], [sc.bx, sc.bz]]) for (const o of [-1, 1]) {
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(.9, 2.4, 8), new THREE.MeshBasicMaterial({ color: 0xff9f1a }));
+      const lx = Math.cos(Math.atan2(sc.dx, sc.dz)) * 8.5 * o, lz = -Math.sin(Math.atan2(sc.dx, sc.dz)) * 8.5 * o;
+      cone.position.set(px + lx, 1.2, pz + lz); grp.add(cone);
+    }
+  }
+  // 점프대
+  const ramps = [];
+  [.2, .66].forEach(f => {
+    const p = pts[Math.floor(f * NSAMP)], g = new THREE.Group();
+    const rm = new THREE.Mesh(new THREE.BoxGeometry(12, .4, 9), new THREE.MeshStandardMaterial({ color: 0xff9f1a, roughness: .5 }));
+    rm.rotation.x = -.2; rm.position.y = .9; g.add(rm);
+    for (const sx of [-1, 1]) { const st = new THREE.Mesh(new THREE.BoxGeometry(.5, .45, 9.2), mat(0xffffff)); st.rotation.x = -.2; st.position.set(sx * 5.4, 1, 0); g.add(st); }
+    g.position.set(p.x, 0, p.z); g.rotation.y = p.h; grp.add(g); ramps.push({ x: p.x, z: p.z });
+  });
+  const boxGeo = new THREE.BoxGeometry(2.4, 2.4, 2.4);
+  const qc = document.createElement('canvas'); qc.width = 64; qc.height = 64; const qx = qc.getContext('2d');
+  qx.fillStyle = '#3aa0ff'; qx.fillRect(0, 0, 64, 64); qx.fillStyle = '#fff'; qx.font = '900 48px sans-serif'; qx.textAlign = 'center'; qx.textBaseline = 'middle'; qx.fillText('?', 32, 36);
+  const boxMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(qc), transparent: true, opacity: .85 });
+  [.14, .38, .62, .86].forEach(f => {
+    const i = Math.floor(f * NSAMP), p = pts[i];
+    for (let k = -1; k <= 1; k++) {
+      const bxx = p.x + p.nx * half * .55 * k, bzz = p.z + p.nz * half * .55 * k;
+      const m = new THREE.Mesh(boxGeo, boxMat); m.position.set(bxx, 2, bzz); grp.add(m);
+      boxes.push({ x: bxx, z: bzz, mesh: m, t: 0, idx: boxes.length });
+    }
+  });
+
+  // 장식
+  const decoPts = [];
+  const nearTrack = (x, z, d) => { for (let i = 0; i < NSAMP; i += 3) { const p = pts[i]; if ((p.x - x) ** 2 + (p.z - z) ** 2 < d * d) return true; } return false; };
+  const R = ext + 250;
+  if (map.deco === 'tree') {
+    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(.7, 1, 5, 6), mat(0x6b4a2a), 260), leaf = new THREE.InstancedMesh(new THREE.ConeGeometry(4, 11, 7), mat(0x1f7a38), 260);
+    const dm = new THREE.Object3D(); let n = 0;
+    for (let t = 0; t < 900 && n < 260; t++) { const px = rnd(-R, R), pz = rnd(-R, R); if (nearTrack(px, pz, half + 14)) continue;
+      const s = rnd(.8, 1.7); dm.position.set(px, 2.5 * s, pz); dm.scale.set(s, s, s); dm.updateMatrix(); trunk.setMatrixAt(n, dm.matrix);
+      dm.position.y = 9 * s; dm.updateMatrix(); leaf.setMatrixAt(n, dm.matrix); n++; }
+    trunk.count = leaf.count = n; grp.add(trunk, leaf);
+  } else if (map.deco === 'cactus') {
+    const cm = mat(0x3f8f4a), rm = mat(0x9a6a3a);
+    const cac = new THREE.InstancedMesh(new THREE.CylinderGeometry(.8, .9, 7, 8), cm, 160), rock = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(3, 0), rm, 120);
+    const dm = new THREE.Object3D(); let n = 0, m2 = 0;
+    for (let t = 0; t < 1200 && (n < 160 || m2 < 120); t++) { const px = rnd(-R, R), pz = rnd(-R, R); if (nearTrack(px, pz, half + 14)) continue;
+      const s = rnd(.7, 1.8);
+      if (n < 160 && Math.random() < .6) { dm.position.set(px, 3.5 * s, pz); dm.scale.set(s, s, s); dm.rotation.set(0, 0, 0); dm.updateMatrix(); cac.setMatrixAt(n++, dm.matrix); }
+      else if (m2 < 120) { dm.position.set(px, 1.2 * s, pz); dm.scale.set(s * 1.4, s, s * 1.2); dm.rotation.set(rnd(0, 3), rnd(0, 3), 0); dm.updateMatrix(); rock.setMatrixAt(m2++, dm.matrix); } }
+    cac.count = n; rock.count = m2; grp.add(cac, rock);
+    const mesa = new THREE.InstancedMesh(new THREE.CylinderGeometry(30, 45, 60, 7), mat(0xb5683a), 14); const dm2 = new THREE.Object3D(); let q = 0;
+    for (let t = 0; t < 200 && q < 14; t++) { const a = rnd(0, 6.28), d = rnd(620, 900); dm2.position.set(Math.cos(a) * d, 28, Math.sin(a) * d); dm2.scale.set(rnd(.8, 1.6), rnd(.6, 1.3), rnd(.8, 1.6)); dm2.updateMatrix(); mesa.setMatrixAt(q++, dm2.matrix); }
+    mesa.count = q; grp.add(mesa);
+  } else {
+    const wc2 = document.createElement('canvas'); wc2.width = 64; wc2.height = 128; const w2 = wc2.getContext('2d');
+    w2.fillStyle = '#10102a'; w2.fillRect(0, 0, 64, 128);
+    for (let i = 0; i < 10; i++) for (let j = 0; j < 4; j++) if (Math.random() < .55) { w2.fillStyle = ['#ffe14a', '#22e5ff', '#ff2bd6'][Math.floor(Math.random() * 3)]; w2.fillRect(6 + j * 14, 6 + i * 12, 8, 7); }
+    const wt = new THREE.CanvasTexture(wc2); wt.wrapS = wt.wrapT = THREE.RepeatWrapping;
+    const bm = new THREE.MeshStandardMaterial({ map: wt, emissive: 0xffffff, emissiveMap: wt, emissiveIntensity: .9 });
+    const b = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), bm, 150); const dm = new THREE.Object3D(); let n = 0;
+    for (let t = 0; t < 1200 && n < 150; t++) { const px = rnd(-R, R), pz = rnd(-R, R); if (nearTrack(px, pz, half + 22)) continue;
+      const w = rnd(14, 34), h = rnd(30, 140); dm.position.set(px, h / 2, pz); dm.scale.set(w, h, w); dm.updateMatrix(); b.setMatrixAt(n++, dm.matrix); }
+    b.count = n; grp.add(b);
+  }
+
+  return { map, pts, N: NSAMP, seg, total, half, wallOff, pads, boxes, grp, minGap, minR, shortcuts, ramps };
+}
+
+function onShortcut(x, z, r = 9.5) {
+  const sc = track.shortcuts;
+  for (let i = 0; i < sc.length; i++) {
+    const s = sc[i], t = ((x - s.ax) * s.dx + (z - s.az) * s.dz) / s.l2; if (t < -.03 || t > 1.03) continue;
+    const px = s.ax + s.dx * t - x, pz = s.az + s.dz * t - z; if (px * px + pz * pz < r * r) return true;
+  }
+  return false;
+}
+// 벽 메쉬를 만들 때 쓴 틈 판정과 동일 (보이는 틈 = 실제로 통과 가능한 틈)
+function wallGapAt(side, i) {
+  const T = track, p = T.pts[i], wx = p.x + p.nx * T.wallOff * side, wz = p.z + p.nz * T.wallOff * side;
+  return T.shortcuts.some(s => { if (s.side !== side) return false; const t = clamp(((wx - s.ax) * s.dx + (wz - s.az) * s.dz) / s.l2, 0, 1); return Math.hypot(s.ax + s.dx * t - wx, s.az + s.dz * t - wz) < 12; });
+}
+/* 가장 가까운 샘플 탐색 (hint 주변 → 실패하면 전체) */
+function nearest(x, z, hint) {
+  const P = track.pts, N = track.N; let best = -1, bd = 1e12;
+  const scan = (i0, cnt) => { for (let k = 0; k < cnt; k++) { const i = ((i0 + k) % N + N) % N, p = P[i], d = (p.x - x) ** 2 + (p.z - z) ** 2; if (d < bd) { bd = d; best = i; } } };
+  if (hint != null) { scan(hint - 25, 51); if (bd > 80 * 80) { bd = 1e12; scan(0, N); } } else scan(0, N);
+  const p = P[best];
+  return { i: best, lat: (x - p.x) * p.nx + (z - p.z) * p.nz, d: Math.sqrt(bd) };
+}
+
+/* ============================== 네트워크 ============================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyBPgoO4EXWFagGEutquysQPmcvFk37eXbU", authDomain: "game-81004.firebaseapp.com", projectId: "game-81004",
+  storageBucket: "game-81004.firebasestorage.app", messagingSenderId: "217133907611", appId: "1:217133907611:web:a62de72fc5c909390bd03e"
+};
+let db = null, fs = null, rooms = [], hbTimer = null;
+const net = { host: false, conns: new Map(), code: '', myId: 'p0', online: false, joined: false, primed: false, unsubs: [], timers: [], seen: {}, lastPush: 0 };
+
+async function initLobbyDb() {
+  try {
+    const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+    const [app, f] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-firestore.js')]);
+    db = f.getFirestore(app.initializeApp(firebaseConfig, 'kart')); fs = f;
+    fs.onSnapshot(fs.collection(db, 'kart_rooms'), snap => {
+      rooms = snap.docs.map(d => ({ code: d.id, ...d.data() }));
+      rooms.filter(r => Date.now() - r.hb > 120000).forEach(r => fs.deleteDoc(fs.doc(db, 'kart_rooms', r.code)).catch(() => {}));
+      renderRooms();
+    }, () => { db = null; $('roomList').innerHTML = '<div class="empty">방 목록을 불러올 수 없어요. 코드로 입장하세요.</div>'; });
+  } catch (e) { $('roomList').innerHTML = '<div class="empty">방 목록을 불러올 수 없어요. 코드로 입장하세요.</div>'; }
+}
+function renderRooms() {
+  if (!db) return;
+  const live = rooms.filter(r => Date.now() - r.hb < 25000 && r.code !== net.code).sort((a, b) => b.hb - a.hb);
+  $('roomCount').textContent = live.length ? live.length + '개' : '';
+  $('roomList').innerHTML = live.length ? live.map(r => `<div class="room"><b>${esc(r.name)}</b><small>${r.playing ? '레이스 중' : '대기 중'}</small>` +
+    (r.playing ? '' : `<button data-c="${esc(r.code)}">입장</button>`) + '</div>').join('') : '<div class="empty">열린 방이 없어요. 방을 만들어 보세요!</div>';
+}
+setInterval(renderRooms, 5000);
+$('roomList').addEventListener('click', e => { const c = e.target.dataset && e.target.dataset.c; if (c) joinRoom(c); });
+const putRoom = () => { if (db && net.code && net.host) fs.setDoc(fs.doc(db, 'kart_rooms', net.code), { name: me.name, hb: Date.now(), playing: state === 'race' }).catch(() => {}); };
+function publishRoom() { if (db) { putRoom(); hbTimer = setInterval(putRoom, 8000); } }
+function unpublishRoom() { clearInterval(hbTimer); hbTimer = null; if (db && net.code && net.host) fs.deleteDoc(fs.doc(db, 'kart_rooms', net.code)).catch(() => {}); }
+
+// 기록 (맵별 최고 랩)
+async function loadRecords(mapId) {
+  const box = $('recBox');
+  const local = +localStorage.getItem('kart_best_' + mapId) || 0;
+  let html = local ? `내 최고: <b>${fmtT(local)}</b><br>` : '';
+  if (!db) { box.innerHTML = html + '온라인 기록을 불러올 수 없어요'; return; }
+  box.innerHTML = html + '불러오는 중…';
+  try {
+    const snap = await fs.getDocs(fs.query(fs.collection(db, 'kart_records'), fs.where('map', '==', mapId)));
+    const list = snap.docs.map(d => d.data()).sort((a, b) => a.time - b.time).slice(0, 5);
+    if (lobby.map !== mapId) return;
+    box.innerHTML = html + (list.length ? list.map((r, i) => `${i + 1}. ${esc(r.nick)} — ${fmtT(r.time)}`).join('<br>') : '아직 기록이 없어요');
+  } catch (e) { box.innerHTML = html + '기록을 불러올 수 없어요'; }
+}
+async function submitRecord(mapId, ms) {
+  const prev = +localStorage.getItem('kart_best_' + mapId) || 1e12;
+  if (ms < prev) localStorage.setItem('kart_best_' + mapId, ms);
+  if (!db || ms >= prev && prev < 1e12) return;
+  try { await fs.setDoc(fs.doc(db, 'kart_records', mapId + '__' + me.name), { map: mapId, nick: me.name, time: Math.round(ms) }); } catch (e) {}
+}
+
+/* ----- Firestore 전송 계층: 방 문서 아래 msgs(이벤트 로그) / peers(각자의 상태 문서)를 모두가 구독 ----- */
+const subCol = name => fs.collection(db, 'kart_rooms', net.code, name);
+function sendRaw(to, msg) {
+  if (!db || !net.online || !net.code) return;
+  fs.addDoc(subCol('msgs'), { from: net.myId, to, d: JSON.stringify(msg), ts: Date.now() }).catch(() => {});
+}
+const sendAll = msg => sendRaw('', msg);
+const sendTo = (c, msg) => sendRaw(typeof c === 'string' ? c : (c && c.pid) || '', msg);
+function netPushStates(list) {   // 내 카트(호스트는 AI 카트 포함) 상태를 내 문서 하나에 덮어씀
+  if (!db || !net.online) return;
+  net.lastPush = Date.now();
+  fs.setDoc(fs.doc(db, 'kart_rooms', net.code, 'peers', net.myId), { s: JSON.stringify(list), ts: Date.now() }).catch(() => {});
+}
+function startTransport() {
+  net.primed = false;
+  net.unsubs.push(fs.onSnapshot(subCol('msgs'), snap => {
+    if (!net.primed) { if (!snap.metadata.fromCache) net.primed = true; return; }   // 처음 받은 서버 스냅샷(이전 기록)은 무시
+    snap.docChanges().forEach(ch => {
+      if (ch.type !== 'added') return;
+      const m = ch.doc.data(); if (m.from === net.myId || (m.to && m.to !== net.myId)) return;
+      let msg; try { msg = JSON.parse(m.d); } catch (e) { return; }
+      if (msg && typeof msg === 'object') handleMsg(msg, { pid: m.from });
+    });
+  }, () => { if (!leaving) toMenu('서버 연결이 끊겼어요'); }));
+  net.unsubs.push(fs.onSnapshot(subCol('peers'), snap => {
+    snap.docChanges().forEach(ch => {
+      if (ch.type === 'removed') return;
+      const id = ch.doc.id; if (id === net.myId) return;
+      net.seen[id] = Date.now();
+      let list; try { list = JSON.parse(ch.doc.data().s); } catch (e) { return; }
+      if (Array.isArray(list)) for (const st of list) handleMsg(Object.assign({}, st, { t: 's' }), { pid: id });
+    });
+  }, () => {}));
+  net.timers.push(setInterval(netTick, 1000));
+}
+function netTick() {
+  const now = Date.now();
+  if (now - net.lastPush > 4000) netPushStates([]);   // 하트비트 (레이스 중에는 상태 전송이 대신함)
+  if (net.host) {
+    for (const p of humans()) if (p.id !== 'p0' && net.seen[p.id] && now - net.seen[p.id] > 16000) { net.conns.delete(p.id); dropPlayer(p.id); }
+  } else if (net.joined && net.seen.p0 && now - net.seen.p0 > 16000 && !leaving) toMenu('방장과 연결이 끊겼어요');
+}
+let leaving = false;
+function netReset() {
+  leaving = true;
+  unpublishRoom();
+  if (net.online && db) {
+    const code = net.code, id = net.myId, host = net.host;
+    sendRaw('', { t: 'bye', id });
+    fs.deleteDoc(fs.doc(db, 'kart_rooms', code, 'peers', id)).catch(() => {});
+    if (host) setTimeout(async () => {   // 방장이 나가면 방 기록 정리 (메시지가 전달될 시간을 둠)
+      for (const name of ['msgs', 'peers']) { try { const snap = await fs.getDocs(fs.collection(db, 'kart_rooms', code, name)); snap.docs.forEach(d => fs.deleteDoc(d.ref).catch(() => {})); } catch (e) {} }
+    }, 4000);
+  }
+  net.unsubs.forEach(u => { try { u(); } catch (e) {} }); net.unsubs = [];
+  net.timers.forEach(clearInterval); net.timers = [];
+  net.conns.clear(); net.seen = {}; net.host = false; net.online = false; net.code = ''; net.joined = false; net.primed = false;
+  leaving = false;
+}
+addEventListener('pagehide', () => { if (net.online) netReset(); });
+const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+async function createRoom() {
+  netReset();
+  if (!db) return toMenu('서버에 연결할 수 없어요. 잠시 후 다시 시도하세요');
+  for (let t = 0; t < 8; t++) {
+    const code = Array.from({ length: 4 }, () => CODE_CH[Math.floor(Math.random() * 32)]).join('');
+    try {
+      const ex = await fs.getDoc(fs.doc(db, 'kart_rooms', code));
+      if (ex.exists() && Date.now() - ex.data().hb < 30000) continue;
+      await fs.setDoc(fs.doc(db, 'kart_rooms', code), { name: me.name, hb: Date.now(), playing: false });
+    } catch (e) { return toMenu('방을 만들 수 없어요. 서버 연결과 Firestore 규칙을 확인하세요'); }
+    net.host = true; net.myId = 'p0'; net.code = code; net.online = true;
+    startTransport(); publishRoom(); enterLobby(); return;
+  }
+  toMenu('방 코드를 만들 수 없어요. 다시 시도하세요');
+}
+async function joinRoom(code) {
+  code = (code || '').toUpperCase().trim(); if (code.length !== 4) return toast0('방 코드 4자리를 입력하세요');
+  netReset();
+  if (!db) return toMenu('서버에 연결할 수 없어요. 잠시 후 다시 시도하세요');
+  try {
+    const r = await fs.getDoc(fs.doc(db, 'kart_rooms', code));
+    if (!r.exists() || Date.now() - r.data().hb > 30000) return toMenu('방을 찾을 수 없어요');
+  } catch (e) { return toMenu('서버에 연결할 수 없어요'); }
+  net.host = false; net.myId = 'p' + Math.random().toString(36).slice(2, 7); net.code = code; net.online = true; net.joined = false;
+  startTransport();
+  const t0 = Date.now();
+  const tryJoin = () => {   // 입장 요청은 방장이 응답할 때까지 반복
+    if (net.joined || net.code !== code || !net.online) return;
+    if (Date.now() - t0 > 15000) return toMenu('연결 시간 초과. 다른 방을 시도하세요');
+    if (net.primed) sendRaw('p0', { t: 'join' });
+    setTimeout(tryJoin, net.primed ? 2500 : 200);
+  };
+  tryJoin();
+}
+function toast0(t) { alert(t); }
+
+/* ============================== 상태 ============================== */
+const jget = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
+const me = { name: localStorage.getItem('kart_nick') || '', color: colorOf(localStorage.getItem('kart_hex') || (+localStorage.getItem('kart_color') || 0)), body: +localStorage.getItem('kart_body') || 0,
+  cos: cleanCos(jget('kart_cos2', null)) };
+const saveLook = () => { try { localStorage.setItem('kart_hex', me.color); localStorage.setItem('kart_body', me.body); localStorage.setItem('kart_cos2', JSON.stringify(me.cos)); } catch (e) {} };
+const lobby = { map: 0, laps: 2, bots: 3, diff: 1, items: true, uniq: false, players: [] };   // players: {id,name,color,body}
+let state = 'menu';       // menu | lobby | race
+let karts = [], myKart = null, bananas = [], missiles = [], particles = [], skid = null, spec = null;
+let race = null;          // {phase:'count'|'go', t0, count, finished:{}, over}
+const humans = () => lobby.players.filter(p => !p.bot);
+
+function show(id) { for (const s of document.querySelectorAll('.scr')) s.classList.toggle('on', s.id === id); }
+function toMenu(msg) {
+  const wasNet = net.online; netReset(); state = 'menu';
+  clearRace(); $('hud').classList.remove('on'); $('touch').classList.remove('on'); show('scrMenu');
+  if (msg) setTimeout(() => alert(msg), 50); void wasNet;
+}
+
+/* ----- 로비 ----- */
+function enterLobby() {
+  state = 'lobby'; clearRace();
+  $('hud').classList.remove('on'); $('touch').classList.remove('on');
+  if (net.host) {
+    if (!lobby.players.some(p => p.id === 'p0')) lobby.players = [];
+    lobby.players = lobby.players.filter(p => p.id === 'p0' || net.conns.size);
+    setPlayer({ id: 'p0', name: me.name, color: me.color, body: me.body, cos: me.cos });
+    net.myId = 'p0'; broadcastLobby();
+  } else {
+    sendAll({ t: 'hello', name: me.name, color: me.color, body: me.body, cos: me.cos });
+  }
+  show('scrLobby'); renderLobby();
+}
+function setPlayer(p) { const i = lobby.players.findIndex(q => q.id === p.id); if (i >= 0) lobby.players[i] = p; else lobby.players.push(p); }
+function dropPlayer(id) { if (!id) return; lobby.players = lobby.players.filter(p => p.id !== id); if (state === 'lobby') { broadcastLobby(); renderLobby(); } else { const k = karts.find(k => k.id === id); if (k) botify(k); broadcastLobby(); } }
+// 레이스 중 나간 사람의 카트를 방장이 AI로 이어받음
+function botify(k) {
+  if (k.finished) { k.bot = true; sendAll({ t: 'botify', id: k.id }); return; }
+  k.local = true; k.bot = true; k.auto = false; k.gone = false; k.burn = false; k.burnT = 0; k.beta = 0; k.boosts = 0; k.item2 = null;
+  k.vx = k.tvx || 0; k.vz = k.tvz || 0; k.spin = k.spinR || 0; k.boost = k.boostR ? 1 : 0; k.shield = k.shieldR ? 3 : 0; k.drift = 0; k.charge = 0;
+  k.idx = nearest(k.x, k.z, null).i; k.prevIdx = k.idx; k.lapStart = race ? performance.now() - race.t0 : 0;
+  k.fwd = k.vx * Math.sin(k.h) + k.vz * Math.cos(k.h); k.aiOff = rnd(-.5, .5); k.aiSkill = rnd(.9, 1.0); k.item = null; k.item2 = null; k.itemRoll = 0;
+  sendAll({ t: 'botify', id: k.id });
+}
+function fixColors() {
+  if (!lobby.uniq) return; const used = new Set();
+  for (const p of humans()) {
+    let c = colorOf(p.color).toLowerCase();
+    if (used.has(c)) { const f = COLORS.find(x => !used.has(x)); if (f) { p.color = f; c = f; } }
+    used.add(c);
+  }
+}
+function broadcastLobby() { fixColors(); if (net.host && net.online) sendAll({ t: 'lobby', players: lobby.players, map: lobby.map, laps: lobby.laps, bots: lobby.bots, diff: lobby.diff, items: lobby.items, uniq: lobby.uniq }); }
+function seg(el, items, sel, cb, disabled) {
+  el.innerHTML = ''; items.forEach((it, i) => { const b = document.createElement('button'); b.textContent = it; if (i === sel) b.className = 'sel'; b.disabled = !!disabled; b.onclick = () => cb(i); el.appendChild(b); });
+}
+const THEME_NAME = { meadow: '초원', desert: '사막', neon: '야간 도심' };
+function thumbOf(m) {
+  if (m._thumb) return m._thumb;
+  const G = genTrack(m), c = document.createElement('canvas'); c.width = 240; c.height = 160; const x = c.getContext('2d'), P = G.pts;
+  let mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9; for (const p of P) { mnx = Math.min(mnx, p.x); mxx = Math.max(mxx, p.x); mnz = Math.min(mnz, p.z); mxz = Math.max(mxz, p.z); }
+  const sc = Math.min(210 / (mxx - mnx), 130 / (mxz - mnz)), ox = 120 - (mxx + mnx) / 2 * sc, oz = 80 - (mxz + mnz) / 2 * sc;
+  const path = pts => { x.beginPath(); pts.forEach((p, i) => i ? x.lineTo(p.x * sc + ox, p.z * sc + oz) : x.moveTo(p.x * sc + ox, p.z * sc + oz)); x.closePath(); };
+  x.lineJoin = 'round'; x.lineWidth = 11; x.strokeStyle = '#000'; path(P); x.stroke();
+  x.lineWidth = 7; x.strokeStyle = '#e8ecff'; path(P); x.stroke();
+  x.lineWidth = 3; x.strokeStyle = '#ffb347'; x.setLineDash([6, 4]);
+  for (const s2 of G.shortcuts) { x.beginPath(); x.moveTo(s2.ax * sc + ox, s2.az * sc + oz); x.lineTo(s2.bx * sc + ox, s2.bz * sc + oz); x.stroke(); }
+  x.setLineDash([]); x.fillStyle = '#e8382e'; x.beginPath(); x.arc(P[0].x * sc + ox, P[0].z * sc + oz, 6, 0, 7); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 2; x.stroke();
+  return (m._thumb = c.toDataURL());
+}
+let thumbBusy = false;
+function fillThumbs() {
+  if (thumbBusy) return; thumbBusy = true;
+  const next = () => {
+    const i = MAPS.findIndex(m => !m._thumb); if (i < 0) { thumbBusy = false; updateMapInfo(); return; }
+    thumbOf(MAPS[i]); const im = document.querySelector('img[data-m="' + i + '"]'); if (im) im.src = MAPS[i]._thumb; updateMapInfo(); setTimeout(next, 20);
+  };
+  setTimeout(next, 30);
+}
+function updateMapInfo() {
+  const m = MAPS[lobby.map], el = $('mapInfo'); if (!el) return;
+  if (!m._g) { el.textContent = m.name + ' 불러오는 중…'; return; }
+  const G = m._g; el.innerHTML = `<b>${m.name}</b> · 1랩 ${(G.total / 1000).toFixed(1)}km · ${lobby.laps}랩 = ${(G.total * lobby.laps / 1000).toFixed(1)}km<br>배경 ${THEME_NAME[m.th]} · 지름길 ${G.shortcuts.length}개 · 점프대 2개 <span style="color:#ffb347">(점선 = 지름길)</span>`;
+}
+function renderMapCards(host) {
+  const el = $('mapSeg'); el.className = 'mapgrid' + (host ? '' : ' lock');
+  el.innerHTML = MAPS.map((m, i) => `<div class="mcard${i === lobby.map ? ' sel' : ''}" data-i="${i}"><img data-m="${i}" alt="" ${m._thumb ? 'src="' + m._thumb + '"' : ''}>${m.name}</div>`).join('');
+  el.onclick = e => { const c = e.target.closest('.mcard'); if (!c || !host) return; lobby.map = +c.dataset.i; broadcastLobby(); renderLobby(); };
+  updateMapInfo(); fillThumbs();
+}
+function renderLobby() {
+  const host = net.host || !net.online;
+  $('lobTitle').textContent = net.online ? (host ? '대기실 (방장)' : '대기실') : '혼자 하기';
+  $('codeBox').style.display = net.online && net.code ? 'block' : 'none'; $('roomCode').textContent = net.code;
+  $('plist').innerHTML = humans().map(p => `<div class="pl"><span class="dot" style="background:${colorOf(p.color)}"></span>${esc(p.name)}${p.id === net.myId ? ' <span class="tag">나</span>' : ''}${p.id === 'p0' && net.online ? ' <span class="tag">방장</span>' : ''}</div>`).join('') +
+    (lobby.bots ? `<div class="pl" style="color:#9aa4ff"><span class="dot" style="background:#667"></span>🤖 AI 카트 ${lobby.bots}대</div>` : '');
+  $('mapNote').style.display = host ? 'none' : 'inline-block';
+  renderMapCards(host);
+  seg($('lapSeg'), [1, 2, 3].map(n => n + '랩'), [1, 2, 3].indexOf(lobby.laps), i => { lobby.laps = [1, 2, 3][i]; broadcastLobby(); renderLobby(); }, !host);
+  seg($('botSeg'), [0, 1, 3, 5, 7].map(n => 'AI ' + n), [0, 1, 3, 5, 7].indexOf(lobby.bots), i => { lobby.bots = [0, 1, 3, 5, 7][i]; broadcastLobby(); renderLobby(); }, !host);
+  seg($('diffSeg'), ['AI 쉬움', 'AI 보통', 'AI 어려움'], lobby.diff, i => { lobby.diff = i; broadcastLobby(); renderLobby(); }, !host);
+  seg($('itemSeg'), ['아이템 ON', '아이템 OFF'], lobby.items ? 0 : 1, i => { lobby.items = i === 0; broadcastLobby(); renderLobby(); }, !host);
+  seg($('uniqSeg'), ['색 중복 허용', '색 중복 금지'], lobby.uniq ? 1 : 0, i => { lobby.uniq = i === 1; broadcastLobby(); renderLobby(); }, !host);
+  $('btnStart').style.display = host ? '' : 'none';
+  $('btnStart').disabled = humans().length + lobby.bots < 2 && !!lobby.bots === false && humans().length < 2 && false;
+  loadRecords(MAPS[lobby.map].id);
+}
+$('btnLeave').onclick = () => toMenu();
+$('btnStart').onclick = () => { if (net.host || !net.online) startRaceHost(); };
+
+/* ----- 메시지 처리 ----- */
+function handleMsg(m, from) {
+  switch (m.t) {
+    case 'join': if (net.host && from && from.pid) {
+      const pid = from.pid;
+      if (state !== 'lobby') sendTo(pid, { t: 'full', why: '레이스 진행 중이에요' });
+      else if (humans().length >= 8 && !lobby.players.some(p => p.id === pid)) sendTo(pid, { t: 'full', why: '방이 가득 찼어요' });
+      else { net.conns.set(pid, true); net.seen[pid] = Date.now(); sendTo(pid, { t: 'welcome', id: pid }); }
+    } break;
+    case 'welcome': if (net.host || net.joined) break; net.joined = true; net.myId = m.id; sendAll({ t: 'hello', name: me.name, color: me.color, body: me.body, cos: me.cos }); enterLobby(); break;
+    case 'bye': if (m.id === 'p0') { if (!net.host && !leaving) toMenu('방장이 나갔어요'); } else if (net.host && m.id) { net.conns.delete(m.id); dropPlayer(m.id); } break;
+    case 'full': toMenu(m.why); break;
+    case 'hello': if (net.host && from && net.conns.has(from.pid)) { const pid = from.pid; setPlayer({ id: pid, name: String(m.name).slice(0, 10), color: colorOf(m.color), body: m.body | 0, cos: cleanCos(m.cos) }); broadcastLobby(); renderLobby(); } break;
+    case 'lobby': if (!net.host) {
+      lobby.players = m.players; lobby.map = m.map; lobby.laps = m.laps; lobby.bots = m.bots; lobby.diff = m.diff | 0; lobby.items = m.items !== false; lobby.uniq = !!m.uniq;
+      if (state === 'lobby') renderLobby(); else if (state === 'menu') { /* ignore */ }
+    } break;
+    case 'start': if (!net.host) { lobby.map = m.map; lobby.laps = m.laps; lobby.players = m.players; lobby.diff = m.diff | 0; lobby.items = m.items !== false; lobby.uniq = !!m.uniq; startRace(m.grid, m.bots); } break;
+    case 's': { const k = karts.find(k => k.id === m.id); if (k && !k.local) applyRemote(k, m); } break;
+    case 'ban': bananas.push(makeBanana(m.id, m.x, m.z, m.o, m.kd)); break;
+    case 'thunder': applyThunder(m.o); break;
+    case 'banrm': { const i = bananas.findIndex(b => b.id === m.id); if (i >= 0) removeBanana(i); } break;
+    case 'mis': missiles.push(makeMissile(m.id, m.o, m.to, m.x, m.z, m.h)); break;
+    case 'misrm': { const i = missiles.findIndex(b => b.id === m.id); if (i >= 0) removeMissile(i); } break;
+    case 'box': if (track && track.boxes[m.i]) { track.boxes[m.i].t = 5; track.boxes[m.i].mesh.visible = false; } break;
+    case 'fin': if (race) { race.finished[m.id] = m.time; race.order.includes(m.id) || race.order.push(m.id); if (m.lap) race.bestLap[m.id] = m.lap; renderResult(); } break;
+    case 'botify': { const k = karts.find(k => k.id === m.id); if (k && !k.local) k.bot = true; } break;
+    case 'tolobby': if (!net.host) enterLobby(); break;
+  }
+}
+
+/* ============================== 카트 상태 ============================== */
+function makeKart(id, name, color, body, local, bot, cos) {
+  const mesh = buildKart(colorOf(color), body, cos); scene.add(mesh);
+  const tag = nameSprite(name); tag.position.y = 4.4; mesh.add(tag); if (local && !bot) tag.visible = false;
+  return { id, name, color, body, local, bot, mesh, tag,
+    x: 0, z: 0, h: 0, vx: 0, vz: 0, spd: 0, drift: 0, charge: 0, boost: 0, shield: 0, spin: 0, inv: 0, item: null, item2: null, itemRoll: 0,
+    y: 0, vy: 0, oil: 0, magnet: 0, n2o: 0, boosts: 0, burn: false, burnT: 0, n2oHeld: false, recov: 0, driftTime: 0, beta: 0, lap: 0, idx: null, prog: 0, finished: false, finT: 0, lapStart: 0, bestLap: 0, rank: 1,
+    tx: 0, tz: 0, th: 0, tvx: 0, tvz: 0, lastRecv: 0, lat: 0, offroad: false, wrong: 0, yaw: 0, sparkT: 0, auto: false, aiOff: rnd(-.5, .5), aiSkill: rnd(.9, 1.0), gone: false };
+}
+function clearRace() {
+  document.body.classList.remove('racing');
+  for (const k of karts) scene.remove(k.mesh);
+  for (const b of bananas) scene.remove(b.mesh); for (const m of missiles) scene.remove(m.mesh); for (const p of particles) scene.remove(p.mesh);
+  karts = []; bananas = []; missiles = []; particles = []; myKart = null; race = null; skid = null; spec = null; $('specbar').style.display = 'none';
+  if (engGain) engGain.gain.value = 0;
+}
+
+function startRaceHost() {
+  fixColors();
+  const humansL = humans(), bots = lobby.bots, total = humansL.length + bots;
+  const order = humansL.map(p => p.id); for (let i = 0; i < bots; i++) order.push('b' + (i + 1));
+  const grid = order.slice(); for (let i = grid.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [grid[i], grid[j]] = [grid[j], grid[i]]; }
+  if (net.online) { fixColors(); sendAll({ t: 'start', map: lobby.map, laps: lobby.laps, players: lobby.players, grid, bots, diff: lobby.diff, items: lobby.items, uniq: lobby.uniq }); putRoom(); }
+  void total; startRace(grid, bots);
+}
+const BOTNAMES = ['쌩쌩이', '번개', '드리프트왕', '초보', '로켓', '터보', '꿀벌', '바람'];
+function startRace(grid, nBots) {
+  clearRace(); state = 'race';
+  const map = MAPS[lobby.map]; track = buildTrack(map);
+  show(''); $('hud').classList.add('on'); document.body.classList.add('racing');
+  if (isTouch) $('touch').classList.add('on');
+  grid.forEach((id, slot) => {
+    let k;
+    if (id[0] === 'b') {
+      const bn = +id.slice(1), free = COLORS.filter(c => !humans().some(h => colorOf(h.color).toLowerCase() === c));
+      const bc = lobby.uniq && free.length ? free[(bn - 1) % free.length] : (bn * 3 + 1) % 8;
+      k = makeKart(id, BOTNAMES[(bn - 1) % BOTNAMES.length], bc, bn % 3, net.host || !net.online, true, [['#cfd6e6', '#ffc93d', '#ff3fb4', '#22e5ff'][bn % 4], bn % 3 === 0 ? '#ffffff' : '', ['#5fd0ff', '#b04dff', '#3dff7a', '#ff5fb7'][bn % 4]]);
+      k.aiSkill = [.92, 1.04, 1.14][lobby.diff | 0] * rnd(.97, 1); k.useSC = lobby.diff >= 2 || (lobby.diff === 1 && bn % 2 === 1);
+    } else { const p = lobby.players.find(q => q.id === id) || { name: '?', color: 0, body: 0 }; k = makeKart(id, p.name, p.color, p.body, id === net.myId, false, p.cos); }
+    // 출발 그리드 (2열)
+    const row = Math.floor(slot / 2), col = slot % 2, i = (track.N - Math.round((10 + row * 14) / track.seg) + track.N) % track.N, p = track.pts[i];
+    const off = (col ? 1 : -1) * track.half * .35;
+    k.x = p.x + p.nx * off; k.z = p.z + p.nz * off; k.h = p.h; k.idx = i; k.slot = slot;
+    k.th = k.h; k.tx = k.x; k.tz = k.z;
+    k.mesh.position.set(k.x, 0, k.z); k.mesh.rotation.y = k.h;
+    karts.push(k); if (k.id === net.myId || (!net.online && k.id === 'p0')) myKart = k;
+  });
+  if (!myKart) myKart = karts[0];
+  if (!lobby.items) for (const b of track.boxes) { b.mesh.visible = false; b.t = 1e9; }
+  skid = { m: new THREE.InstancedMesh(new THREE.PlaneGeometry(.55, 1.4), new THREE.MeshBasicMaterial({ color: 0x0a0a0a, transparent: true, opacity: .55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), 600), n: 0 };
+  { const z0 = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < 600; i++) skid.m.setMatrixAt(i, z0); skid.m.frustumCulled = false; scene.add(skid.m); }
+  spec = null; $('specbar').style.display = 'none';
+  toast(isTouch ? '스타트 대시: GO 직전 1초 안에 N2O 버튼을 누르세요' : '스타트 대시: GO 직전 1초 안에 ↑를 누르세요 (미리 누르고 있으면 안 돼요)', 3600);
+  race = { phase: 'count', t0: performance.now() + 3200, last: 3, finished: {}, order: [], bestLap: {}, over: false, startT: 0 };
+  $('msg').textContent = '';
+  camReset = true; $('best').textContent = ''; $('toast').textContent = '';
+  audioInit(); drawMinimapBase();
+}
+
+/* ============================== 입력 ============================== */
+const keys = {};
+const touch = { sx: 0, d: 0, b: 0, i1: 0, i2: 0, ret: 0, n: 0 };
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  keys[e.code] = true;
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+  if (state === 'race' && (e.code === 'Space' || e.code === 'KeyE') && !e.repeat) useItem(myKart, 0);
+  if (state === 'race' && e.code === 'KeyQ' && !e.repeat) useItem(myKart, 1);
+  if (state === 'race' && e.code === 'KeyR' && !e.repeat) returnToTrack(myKart);
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+function bindTouch(id, key, fn) {
+  const el = $(id);
+  const on = e => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (er) {} touch[key] = 1; el.classList.add('on'); audioInit(); if (fn) fn(); };
+  const off = () => { touch[key] = 0; el.classList.remove('on'); };   // 손가락이 버튼 밖으로 밀려나도 계속 눌린 상태 유지
+  el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('lostpointercapture', off);
+}
+bindTouch('tD', 'd'); bindTouch('tB', 'b'); bindTouch('tN', 'n');
+bindTouch('tI1', 'i1', () => { if (state === 'race') useItem(myKart, 0); });
+bindTouch('tI2', 'i2', () => { if (state === 'race') useItem(myKart, 1); });
+bindTouch('tRet', 'ret', () => { if (state === 'race') returnToTrack(myKart); });
+(function () {   // 조향 패드: 손가락 위치로 좌/우 (슬라이드 가능)
+  const pad = $('tPad'), L = $('tpL'), R = $('tpR');
+  const set = e => { const r = pad.getBoundingClientRect(), v = clamp(((e.clientX - r.left) / r.width - .5) / .32, -1, 1); touch.sx = Math.abs(v) < .12 ? 0 : v; L.classList.toggle('on', touch.sx < 0); R.classList.toggle('on', touch.sx > 0); };
+  const end = () => { touch.sx = 0; L.classList.remove('on'); R.classList.remove('on'); };
+  pad.addEventListener('pointerdown', e => { e.preventDefault(); audioInit(); pad.setPointerCapture(e.pointerId); set(e); });
+  pad.addEventListener('pointermove', e => { if (pad.hasPointerCapture(e.pointerId)) set(e); });
+  pad.addEventListener('pointerup', end); pad.addEventListener('pointercancel', end); pad.addEventListener('lostpointercapture', end);
+})();
+const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+function readInput() {
+  const L = keys.ArrowLeft || keys.KeyA, Rr = keys.ArrowRight || keys.KeyD;
+  const gas = keys.ArrowUp || keys.KeyW || (isTouch && !touch.b);
+  return { steer: ((L ? 1 : 0) - (Rr ? 1 : 0)) || -touch.sx, gas: gas ? 1 : 0, brake: (keys.ArrowDown || keys.KeyS || touch.b) ? 1 : 0, drift: (keys.ShiftLeft || keys.ShiftRight || keys.KeyZ || touch.d) ? 1 : 0, n2o: (keys.KeyX || keys.ControlLeft || keys.ControlRight || touch.n) ? 1 : 0 };
+}
+
+/* ============================== 물리 ============================== */
+const turnMax = v => 1.9 * (1 - .7 * clamp((v - 12) / (MAXSPD - 12), 0, 1));   // 속도가 빠를수록 일반 조향각이 크게 줄어듦 → 급커브는 드리프트 필수
+function stepKart(k, inp, dt) {
+  const T = track, half = T.half;
+  if (k.spin > 0) { k.spin -= dt; inp = { steer: 0, gas: 0, brake: 0, drift: 0 }; k.drift = 0; k.charge = 0; }
+  // 조향 입력은 서서히 들어가고 빠르게 풀림 (살짝 톡 치면 조금만 꺾임)
+  { const cs = k.steerS || 0, rs = Math.abs(inp.steer) > Math.abs(cs) ? (k.drift ? 7 : 2.6) : 6; k.steerS = cs + clamp(inp.steer - cs, -rs * dt, rs * dt); inp = Object.assign({}, inp, { steer: k.steerS }); }
+  k.inv = Math.max(0, k.inv - dt); k.shield = Math.max(0, k.shield - dt);
+  if (k.oil > 0) k.oil -= dt;
+  if (k.y > 0 || k.vy > 0) {
+    k.vy -= 26 * dt; k.y += k.vy * dt;
+    if (k.y <= 0) { k.y = 0; k.vy = 0; k.boost = Math.max(k.boost, .4); for (let q = 0; q < 8; q++) spawnParticle(k.x, .3, k.z, 0xcccccc, .5, 3); if (k.local && !k.bot) { camShake = .4; sfx.hit(); } }
+  }
+  const air = k.y > .05;
+  const fx = Math.sin(k.h), fz = Math.cos(k.h), rx = Math.cos(k.h), rz = -Math.sin(k.h);
+  let vf = k.vx * fx + k.vz * fz;
+  // 부스트 키: 게이지 100일 때만, 눌렀을 때 1회 발동 (이미 켜져 있으면 연장/중첩 없음)
+  const n2oPress = !!inp.n2o && !k.n2oHeld; k.n2oHeld = !!inp.n2o;
+  if (n2oPress && k.boosts > 0 && !(k.burnT > 0) && k.spin <= 0) { k.boosts--; k.burnT = BOOST_DUR; if (k.local && !k.bot) { sfx.boost(); camKick = 1; } }
+  if (k.burnT > 0) k.burnT = Math.max(0, k.burnT - dt);
+  if (k.recov > 0) k.recov -= dt;
+  k.burn = k.burnT > 0;
+  const boosting = k.boost > 0 || k.burn; k.boost = Math.max(0, k.boost - dt);
+  const near = nearest(k.x, k.z, k.idx); k.idx = near.i; k.lat = near.lat;
+  k.offroad = Math.abs(near.lat) > half && !air && !onShortcut(k.x, k.z);
+  let maxS = MAXSPD * (boosting ? BOOST_VMAX : 1) * (k.offroad && !boosting ? .55 : 1);
+  if (k.spin > 0) maxS = 8;
+  if (k.oil > 0) maxS *= .85;
+  // 드리프트 시작 (클래식 카트라이더): 일정 속도 이상에서 방향키 + 드리프트 키
+  if (inp.drift && !k.drift && Math.abs(inp.steer) > .2 && vf > 16 && k.spin <= 0 && !(k.oil > 0) && !air) {
+    k.drift = inp.steer > 0 ? 1 : -1; k.driftTime = 0;
+    vf *= .97; if (k.local && !k.bot) sfx.drift();   // 진입 시 약간 감속, 차체는 아래에서 서서히 돌아감 (순간이동 없음)
+  }
+  if (k.drift && (!inp.drift || vf < 11)) endDrift(k);
+  // 차체 방향(h)과 이동 방향(course)이 분리되는 모드: 드리프트 중 + 종료 후 차체가 정렬될 때까지
+  const kin = !!k.drift || Math.abs(k.beta || 0) > .02;
+  if (kin) vf = Math.max(Math.hypot(k.vx, k.vz), 0);   // 이동 방향 속도로 계산
+  // 게이지: 기본 초당 3% 충전, 100%가 되면 부스트 칸에 1개 적립
+  if (k.boosts < MAX_BOOSTS) {
+    k.n2o += BOOST_PASSIVE * dt;
+    while (k.n2o >= 100 && k.boosts < MAX_BOOSTS) { k.n2o -= 100; k.boosts++; if (k.local && !k.bot) { sfx.item(); toast('⚡ 부스트 +1'); } }
+  }
+  if (k.boosts >= MAX_BOOSTS) k.n2o = 0;
+  // 가속 / 브레이크
+  if (inp.gas) vf += ACC * (1 - clamp(vf / maxS, 0, 1.2) * .85) * dt * (boosting ? BOOST_ACC : 1);
+  else vf -= vf * .5 * dt;
+  if (inp.brake) vf -= (vf > 0 ? 55 : 14) * dt;
+  if (vf > maxS) vf = lerp(vf, maxS, Math.min(1, dt * 1.2));   // 부스트가 끝나도 속도가 서서히 줄어듦
+  vf = Math.min(vf, MAXSPD * BOOST_VMAX * 1.08);   // 물리적 상한
+  if (vf < -12) vf = -12;
+  let vl = 0;
+  if (kin) {
+    const sp = Math.max(vf, 0), course = sp > .5 ? Math.atan2(k.vx, k.vz) : k.h - (k.beta || 0);
+    let beta = k.beta || 0, wc;
+    if (k.drift) {
+      k.driftTime = (k.driftTime || 0) + dt; const dtm = k.driftTime;
+      const sIn = clamp(inp.steer * k.drift, -1, 1);                                   // + 안쪽: 각도를 키우며 더 급하게 / − 바깥쪽: 각도를 줄이며 완만하게
+      beta += (k.drift * (.15 + .8 * (sIn + 1) / 2) - beta) * Math.min(1, dt * 5.5);    // 목표 미끄러짐 각 약 9°~54°, 차체가 서서히 회전
+      const bm = clamp(Math.abs(beta), .15, .95);
+      wc = k.drift * (.55 + 1.35 * (bm - .15) / .8);                                   // 각도가 클수록 코스가 급하게 휨
+      vf -= vf * (.035 + .02 * clamp(dtm / 3, 0, 1.5)) * (.6 + .8 * Math.abs(beta) / .95) * dt;   // 감속: 각도가 클수록, 오래 끌수록 커짐
+      const longPen = dtm > 3 ? Math.max(.35, 1 - (dtm - 3) * .3) : 1;
+      const eff = clamp(Math.abs(vf) / MAXSPD, .4, 1.1) * (.6 + .8 * Math.abs(beta) / .95) * longPen;   // 충전 보정값: 속도·각도 비례
+      if (k.boosts < MAX_BOOSTS) k.n2o += DRIFT_CHARGE * dt * eff;                     // 드리프트 충전 (부스트 중에도)
+    } else {                                                                            // 드리프트 종료: 차체가 이동 방향으로 빠르게 정렬 (속도 손실 없음)
+      beta *= Math.exp(-9 * dt); wc = inp.steer * turnMax(Math.abs(vf)) * .6;
+    }
+    if (k.oil > 0) wc += Math.sin(performance.now() / 110) * .9;
+    if (air) wc *= .35;
+    const course2 = course + wc * clamp(sp / 14, 0, 1) * dt;
+    k.h = course2 + beta; k.beta = beta;
+    k.vx = Math.sin(course2) * sp; k.vz = Math.cos(course2) * sp;
+    vl = -sp * Math.sin(beta); vf = sp * Math.cos(beta);
+  } else {
+    k.beta = 0;
+    // 조향
+    const sf = clamp(Math.abs(vf) / 14, 0, 1) * (vf >= 0 ? 1 : -1);
+    let rate = inp.steer * turnMax(Math.abs(vf)); vf -= Math.abs(rate) * vf * .2 * dt * clamp(vf / 20, 0, 1);   // 핸들을 꺾으면 속도 손실
+    if (k.oil > 0) rate += Math.sin(performance.now() / 110) * .9;
+    if (air) rate *= .35;
+    k.h += rate * sf * dt;
+    // 옆미끄러짐 감쇠
+    const fx2 = Math.sin(k.h), fz2 = Math.cos(k.h);
+    vl = k.vx * Math.cos(k.h) - k.vz * Math.sin(k.h); vl *= Math.exp(-(k.oil > 0 ? 1.1 : 9) * dt);
+    k.vx = fx2 * vf + Math.cos(k.h) * vl; k.vz = fz2 * vf - Math.sin(k.h) * vl;
+  }
+  k.x += k.vx * dt; k.z += k.vz * dt;
+  k.spd = Math.hypot(k.vx, k.vz) * (vf >= 0 ? 1 : -1); k.fwd = vf; k.slide = vl;
+  // 벽
+  const n2 = nearest(k.x, k.z, k.idx), lim = T.wallOff - 1.6, p = T.pts[n2.i];
+  if (Math.abs(n2.lat) > lim && !onShortcut(k.x, k.z) && !wallGapAt(Math.sign(n2.lat), n2.i)) {
+    const sgn = Math.sign(n2.lat), push = Math.abs(n2.lat) - lim;
+    k.x -= p.nx * sgn * push; k.z -= p.nz * sgn * push;
+    const vn = k.vx * p.nx * sgn + k.vz * p.nz * sgn;
+    if (vn > 0) { k.vx -= p.nx * sgn * vn * 1.4; k.vz -= p.nz * sgn * vn * 1.4; k.vx *= .92; k.vz *= .92; if (vn > 8 && k.local && !k.bot) { sfx.hit(); camShake = .5; } }
+  }
+  // 진행도 / 랩
+  const old = k.prevIdx == null ? k.idx : k.prevIdx; const N = T.N;
+  if (old > N * .75 && k.idx < N * .25) { k.lap++; onLap(k); }
+  else if (old < N * .25 && k.idx > N * .75) k.lap--;
+  k.prevIdx = k.idx; k.prog = (k.lap - 1) * N + k.idx;
+  // 역주행 검사
+  const dotF = Math.sin(k.h) * T.pts[k.idx].tx + Math.cos(k.h) * T.pts[k.idx].tz;
+  k.wrong = (dotF < -.4 && Math.abs(vf) > 5) ? k.wrong + dt : 0;
+}
+// 어디서든 가장 가까운 도로 중앙으로 복귀 (복귀 버튼 / R키)
+function returnToTrack(k) {
+  if (!k || !race || race.phase === 'count' || performance.now() - (k.retT || 0) < 800) return;
+  k.retT = performance.now();
+  const n = nearest(k.x, k.z, null), q = track.pts[n.i], sp = Math.min(Math.hypot(k.vx, k.vz), 14);
+  k.x = q.x; k.z = q.z; k.h = q.h; k.vx = q.tx * sp; k.vz = q.tz * sp; k.y = 0; k.vy = 0;
+  k.drift = 0; k.beta = 0; k.steerS = 0; k.spin = 0; k.oil = 0; k.driftTime = 0; k.inv = Math.max(k.inv, 1.5);
+  k.idx = n.i; k.prevIdx = n.i; k.lat = 0; camReset = true; if (k === myKart) toast('도로로 복귀!');
+}
+function endDrift(k) {
+  // 충전된 게이지는 유지. 차체/이동 방향 차이는 recov 동안 서서히 줄어듦
+  k.drift = 0; k.charge = 0; k.lvPrev = 0; k.driftTime = 0;   // 게이지는 유지, 차체는 beta 감쇠로 정렬
+}
+function onLap(k) {
+  const now = performance.now() - race.t0;
+  if (k.lap >= 2 && k.lap - 1 <= lobby.laps + 0) {
+    const lt = now - k.lapStart; if (!k.bestLap || lt < k.bestLap) k.bestLap = lt;
+    if (k.id === net.myId || (k.local && !k.bot)) { if (k.lap - 1 < lobby.laps) toast('랩 타임 ' + fmtT(lt)); }
+  }
+  k.lapStart = now;
+  if (k.lap > lobby.laps && !k.finished) {
+    k.finished = true; k.finT = now; k.auto = true;
+    race.finished[k.id] = now; race.order.push(k.id); race.bestLap[k.id] = k.bestLap;
+    if (k.local && !k.bot) { toast('FINISH! ' + fmtT(now)); if (k.bestLap) submitRecord(MAPS[lobby.map].id, k.bestLap); }
+    if (k.local) sendAll({ t: 'fin', r: 1, id: k.id, time: now, lap: k.bestLap });
+    renderResult();
+  }
+}
+
+/* ============================== AI ============================== */
+function aiInput(k, dt) {
+  const T = track, N = T.N, ds = lobby.diff | 0, look = Math.floor(clamp((8 + Math.abs(k.spd) * .3) / T.seg * 2.4, 5, 20));
+  // 막힘 복구: 벽에 끼면 도로 중앙으로 되돌림
+  if (race.phase !== 'count' && !k.finished && Math.abs(k.fwd) < 3 && k.spin <= 0) k.stuckT = (k.stuckT || 0) + dt; else k.stuckT = 0;
+  if (k.stuckT > 1) { const n = nearest(k.x, k.z, null), q = T.pts[n.i]; k.x -= q.nx * n.lat * .7; k.z -= q.nz * n.lat * .7; k.h = q.h; k.vx = q.tx * 10; k.vz = q.tz * 10; k.steerS = 0; k.stuckT = 0; k.drift = 0; k.charge = 0; }
+  // 앞쪽 곡률 / 커브 방향 (sgn > 0: 왼쪽 커브)
+  let c = 0; for (let j = 0; j < 30; j += 4) c = Math.max(c, T.pts[(k.idx + j) % N].curv);
+  const turn = angDiff(T.pts[k.idx].h, T.pts[(k.idx + 14) % N].h), sgn = Math.sign(turn);
+  let c1 = 0; for (let j = 0; j < 11; j += 2) c1 = Math.max(c1, T.pts[(k.idx + j) % N].curv);   // 바로 앞(약 35m) 곡률: 드리프트 시작/종료 판단용
+  const turn1 = angDiff(T.pts[k.idx].h, T.pts[(k.idx + 11) % N].h), sgn1 = Math.sign(turn1);
+  // 레이싱 라인: 커브 안쪽으로 붙기
+  const useSC = false;   // AI 지름길 이용은 입구에서 벽에 끼는 문제가 있어 비활성화 (코드는 남겨 둠)
+  let off = clamp(k.aiOff * T.half * .3 + sgn * T.half * .35 * clamp(c * 45, 0, 1), -T.half * .6, T.half * .6);
+  if (!useSC) for (const sc of T.shortcuts) {   // 지름길을 안 쓰는 AI는 입구/출구 근처에서 반대편으로 붙어 벽 틈으로 새지 않게 함
+    const near = i => Math.min((i - k.idx + N) % N, (k.idx - i + N) % N) < 35;
+    if (near(sc.i0) || near(sc.i1)) off = -sc.side * T.half * .35;
+  }
+  const p = T.pts[(k.idx + look) % N];
+  let tx = p.x + p.nx * off, tz = p.z + p.nz * off, scAim = false;
+  if (useSC) {   // 지름길 이용: 입구 근처면 입구로, 안에 들어왔으면 출구로
+    const onSC = onShortcut(k.x, k.z);
+    for (const sc of T.shortcuts) {
+      const di = (sc.i0 - k.idx + N) % N, dB = Math.hypot(sc.bx - k.x, sc.bz - k.z);
+      if (onSC && dB > 10 && dB < sc.len + 25) { tx = sc.bx; tz = sc.bz; scAim = true; break; }
+      if (di < Math.ceil(60 / T.seg) && di > 1) { tx = sc.ax; tz = sc.az; scAim = true; break; }
+    }
+  }
+  const want = Math.atan2(tx - k.x, tz - k.z), d = angDiff(k.h, want);
+  const humanBest = karts.filter(o => !o.bot).reduce((m, o) => Math.max(m, o.prog), -1e9);
+  let rb = 1; if (humanBest > -1e8) rb = clamp(1 + (humanBest - k.prog) / T.N * 1.2, [.9, .94, .97][ds], [1.03, 1.1, 1.17][ds]);
+  // 드리프트: 일반 조향으로 못 도는 커브에서 사용
+  let wantDrift = false;
+  if (ds >= 1 && !scAim && k.spin <= 0 && !(k.oil > 0) && k.y < .1) {
+    if (k.drift) wantDrift = c1 > .007 && Math.sign(k.drift) === sgn1 && Math.abs(k.lat) < T.half * .9;
+    else wantDrift = c1 > .014 && Math.abs(turn1) > .22 && k.fwd > 18 && k.fwd * c1 > turnMax(k.fwd) * .8;
+  }
+  const vmax = MAXSPD * k.aiSkill * rb; let target = vmax;
+  if (scAim) target = Math.min(vmax, 34);
+  else if (wantDrift || k.drift) { while (target > 14 && target * c > 1.55) target -= 1.5; }
+  else while (target > 14 && target * c > turnMax(target) * .75) target -= 1.5;
+  if ((k.boost > 0 || k.burn) && c < .012) target = MAXSPD * 1.4;
+  target = clamp(target, 14, MAXSPD * (k.boost > 0 || k.burn ? 1.45 : [1.02, 1.1, 1.2][ds]));
+  const vh = Math.hypot(k.vx, k.vz) > 5 ? Math.atan2(k.vx, k.vz) : k.h, dv = angDiff(vh, want);   // 드리프트 중엔 진행 방향 기준으로 조향 (바깥으로 밀리지 않게)
+  let steer = clamp((k.drift && !scAim ? dv : d) * 2.6, -1, 1);
+  if (wantDrift && !k.drift) steer = sgn1 * .9;   // 드리프트 진입 방향
+  const useN2o = k.boosts > 0 && c1 < .004 && c < .02 && !k.offroad && k.fwd > 24;
+  return { steer, gas: k.fwd < target ? 1 : 0, brake: k.fwd > target + 6 && !k.drift ? 1 : 0, drift: wantDrift ? 1 : 0, n2o: useN2o ? 1 : 0 };
+}
+
+/* ============================== 아이템 ============================== */
+function botUseItem(k, dt) {
+  if (!k.item || k.spin > 0 || k.finished || race.phase === 'count') return;
+  k.itemAge = (k.itemAge || 0) + dt;
+  if (k.itemAge < (k.useDelay || 1.5)) return;
+  const N = track.N, seg = track.seg;
+  const gapM = o => (o.prog - k.prog) * seg;              // 양수: o가 앞
+  let go = k.itemAge > 12;                                // 너무 오래 들고 있으면 사용
+  if (k.item === 'boost') go = go || Math.abs(track.pts[k.idx].curv) < .004 && !k.offroad;
+  else if (k.item === 'missile') go = go || karts.some(o => o !== k && !o.gone && !o.finished && gapM(o) > 8 && gapM(o) < 160);
+  else if (k.item === 'thunder') go = go || karts.some(o => o !== k && !o.gone && !o.finished && gapM(o) > 0);
+  else if (k.item === 'magnet') go = go || karts.some(o => o !== k && !o.gone && !o.finished && gapM(o) > 15 && gapM(o) < 120);
+  else if (k.item === 'banana' || k.item === 'oil') go = go || karts.some(o => o !== k && !o.gone && !o.finished && gapM(o) < -4 && gapM(o) > -35);
+  else if (k.item === 'shield') go = go || missiles.some(m => m.to === k.id && (m.x - k.x) ** 2 + (m.z - k.z) ** 2 < 120 * 120) ||
+    bananas.some(b => b.o !== k.id && (b.x - k.x) ** 2 + (b.z - k.z) ** 2 < 30 * 30);
+  if (go) { useItem(k); k.itemAge = 0; }
+}
+function rollItem(k) {
+  const r = karts.filter(o => !o.gone).sort((a, b) => b.prog - a.prog).indexOf(k), n = Math.max(1, karts.length - 1), f = r / n;   // 0=1등
+  const w = { banana: lerp(4, 1, f), oil: lerp(3, 1, f), shield: lerp(3, 1, f), boost: lerp(2, 4, f), missile: lerp(0, 4.5, f), magnet: lerp(0, 3.5, f), thunder: lerp(0, 3, f) };
+  let tot = 0; for (const v in w) tot += w[v]; let x = Math.random() * tot;
+  for (const v in w) { x -= w[v]; if (x <= 0) return v; } return 'boost';
+}
+function useItem(k, slot = 0) {
+  const cur = k ? (slot === 1 ? k.item2 : k.item) : null;
+  if (!k || !cur || k.spin > 0 || race.phase !== 'go' && race.phase !== 'run') return;
+  const it = cur;
+  if (slot === 1) k.item2 = null; else { k.item = k.item2; k.item2 = null; k.itemAge = 0; k.useDelay = rnd(.8, 2); }
+  updateItemHud();
+  if (it === 'boost') { k.boost = Math.max(k.boost, 2.2); sfx.boost(); camKick = 1; }
+  else if (it === 'shield') { k.shield = 6; sfx.item(); }
+  else if (it === 'banana') {
+    const id = k.id + '_' + (++itemSeq), x = k.x - Math.sin(k.h) * 3.2, z = k.z - Math.cos(k.h) * 3.2;
+    bananas.push(makeBanana(id, x, z, k.id, 'ban')); sendAll({ t: 'ban', r: 1, id, x, z, o: k.id, kd: 'ban' }); sfx.fire();
+  } else if (it === 'oil') {
+    const id = k.id + '_' + (++itemSeq), x = k.x - Math.sin(k.h) * 4, z = k.z - Math.cos(k.h) * 4;
+    bananas.push(makeBanana(id, x, z, k.id, 'oil')); sendAll({ t: 'ban', r: 1, id, x, z, o: k.id, kd: 'oil' }); sfx.fire();
+  } else if (it === 'magnet') { k.magnet = 3.2; sfx.item(); }
+  else if (it === 'thunder') { sendAll({ t: 'thunder', r: 1, o: k.id }); applyThunder(k.id); }
+  else if (it === 'missile') {
+    const ahead = karts.filter(o => o !== k && !o.gone && !o.finished && o.prog > k.prog).sort((a, b) => a.prog - b.prog)[0];
+    const id = k.id + '_' + (++itemSeq), x = k.x + Math.sin(k.h) * 3, z = k.z + Math.cos(k.h) * 3, to = ahead ? ahead.id : '';
+    missiles.push(makeMissile(id, k.id, to, x, z, k.h)); sendAll({ t: 'mis', r: 1, id, o: k.id, to, x, z, h: k.h }); sfx.fire();
+  }
+}
+let itemSeq = 0;
+function applyThunder(oid) {
+  const o = karts.find(k => k.id === oid); if (!o) return;
+  const f = $('flash'); f.style.transition = 'none'; f.style.opacity = '.85'; requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transition = 'opacity .6s'; f.style.opacity = '0'; }));
+  sfx.hit(); camShake = 1;
+  for (const k of karts) if (k.local && !k.gone && k !== o && !k.finished && k.prog > o.prog) hitKart(k, 't');
+}
+function makeBanana(id, x, z, o, kind) {
+  if (kind === 'oil') {
+    const g = new THREE.Group(), d = new THREE.Mesh(new THREE.CircleGeometry(3.6, 20), new THREE.MeshStandardMaterial({ color: 0x07070c, roughness: .08, metalness: .6 }));
+    d.rotation.x = -Math.PI / 2; d.position.y = .08; g.add(d); g.position.set(x, 0, z); scene.add(g);
+    return { id, x, z, o, mesh: g, age: 0, kind: 'oil', r: 3.6 };
+  }
+  const m = new THREE.Mesh(new THREE.TorusGeometry(.7, .32, 8, 12, Math.PI * 1.3), mat(0xffe14a)); m.rotation.x = Math.PI / 2; m.position.set(x, .5, z);
+  const g = new THREE.Group(); g.add(m); g.position.set(x, 0, z); m.position.set(0, .6, 0); scene.add(g);
+  return { id, x, z, o, mesh: g, age: 0, kind: 'ban', r: 2.6 };
+}
+function removeBanana(i) { scene.remove(bananas[i].mesh); bananas.splice(i, 1); }
+function makeMissile(id, o, to, x, z, h) {
+  const g = new THREE.Group();
+  const b = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 2.2, 8), mat(0xdd2222)); b.rotation.x = Math.PI / 2; g.add(b);
+  const n = new THREE.Mesh(new THREE.ConeGeometry(.35, .8, 8), mat(0xffffff)); n.rotation.x = Math.PI / 2; n.position.z = 1.5; g.add(n);
+  const f = new THREE.Mesh(new THREE.ConeGeometry(.3, 1.6, 6), new THREE.MeshBasicMaterial({ color: 0xffaa22 })); f.rotation.x = -Math.PI / 2; f.position.z = -1.8; g.add(f);
+  g.position.set(x, 1.2, z); g.rotation.y = h; scene.add(g);
+  return { id, o, to, x, z, h, mesh: g, life: 6 };
+}
+function removeMissile(i) { scene.remove(missiles[i].mesh); missiles.splice(i, 1); }
+function hitKart(k, why) {
+  if (k.inv > 0 || k.finished) return false;
+  if (k.shield > 0) { k.shield = 0; k.inv = 1; if (k.local && !k.bot) toast('방어막으로 막았다!'); return true; }
+  if (why === 'o') { k.oil = 1.8; k.inv = .5; k.drift = 0; k.charge = 0; if (k.local && !k.bot) { camShake = .4; toast('오일 미끄러짐!'); } return true; }
+  if (why === 't') { k.spin = .9; k.inv = 1.5; k.drift = 0; k.charge = 0; k.boost = 0; k.vx *= .5; k.vz *= .5; if (k.local && !k.bot) toast('번개 감전!'); return true; }
+  k.spin = 1.3; k.inv = 2.2; k.drift = 0; k.charge = 0; k.boost = 0; k.vx *= .35; k.vz *= .35;
+  if (k.local && !k.bot) { sfx.hit(); camShake = 1; toast(why === 'm' ? '미사일 명중!' : '바나나 미끄러짐!'); }
+  return true;
+}
+function updateItems(dt) {
+  const locals = karts.filter(k => k.local && !k.gone && !k.finished);
+  for (let i = bananas.length - 1; i >= 0; i--) {
+    const b = bananas[i]; b.age += dt;
+    if (b.kind === 'oil') { if (b.age > 25) { removeBanana(i); continue; } } else b.mesh.rotation.y += dt * 2;
+    for (const k of locals) {
+      if (b.o === k.id && b.age < 1 || k.y > .6) continue;
+      if ((k.x - b.x) ** 2 + (k.z - b.z) ** 2 < b.r * b.r && hitKart(k, b.kind === 'oil' ? 'o' : 'b') && b.kind !== 'oil') { sendAll({ t: 'banrm', r: 1, id: b.id }); removeBanana(i); break; }
+    }
+  }
+  for (let i = missiles.length - 1; i >= 0; i--) {
+    const m = missiles[i]; m.life -= dt;
+    const tgt = m.to ? karts.find(k => k.id === m.to) : null;
+    if (tgt && !tgt.gone) { const want = Math.atan2(tgt.x - m.x, tgt.z - m.z); m.h += clamp(angDiff(m.h, want), -3.5 * dt, 3.5 * dt); }
+    else if (track) { const n = nearest(m.x, m.z, null), p = track.pts[(n.i + 10) % track.N]; m.h += clamp(angDiff(m.h, Math.atan2(p.x - m.x, p.z - m.z)), -2 * dt, 2 * dt); }
+    m.x += Math.sin(m.h) * 85 * dt; m.z += Math.cos(m.h) * 85 * dt;
+    m.mesh.position.set(m.x, 1.2, m.z); m.mesh.rotation.y = m.h;
+    if (Math.random() < .6) spawnParticle(m.x - Math.sin(m.h) * 2, 1.2, m.z - Math.cos(m.h) * 2, 0xffaa33, .4, 1.2);
+    let dead = m.life <= 0;
+    for (const k of locals) {
+      if (k.id === m.o || dead) continue;
+      if ((k.x - m.x) ** 2 + (k.z - m.z) ** 2 < 3 * 3) { hitKart(k, 'm'); dead = true; for (let q = 0; q < 14; q++) spawnParticle(m.x, 1.5, m.z, 0xff7722, rnd(.3, .8), 4); }
+    }
+    if (dead) { sendAll({ t: 'misrm', r: 1, id: m.id }); removeMissile(i); }
+  }
+  // 박스 / 패드
+  for (const bx of track.boxes) {
+    if (bx.t > 0) { bx.t -= dt; if (bx.t <= 0) bx.mesh.visible = true; continue; }
+    bx.mesh.rotation.y += dt * 2; bx.mesh.position.y = 2 + Math.sin(performance.now() / 300 + bx.idx) * .3;
+    for (const k of locals) {
+      if ((k.x - bx.x) ** 2 + (k.z - bx.z) ** 2 < 3.2 * 3.2) {
+        bx.t = 5; bx.mesh.visible = false; sendAll({ t: 'box', r: 1, i: bx.idx });
+        if (!(k.item && k.item2) && !k.itemRoll) { k.itemRoll = 1; k.pendItem = rollItem(k); if (!k.bot) sfx.item(); }
+        break;
+      }
+    }
+  }
+  for (const k of locals) {
+    if (k.magnet > 0) {
+      k.magnet -= dt;
+      const t = karts.filter(o => o !== k && !o.gone && !o.finished && o.prog > k.prog).sort((a, b) => a.prog - b.prog)[0];
+      if (t) { const dx = t.x - k.x, dz = t.z - k.z, d = Math.hypot(dx, dz); if (d < 140 && d > 4) { k.vx += dx / d * 30 * dt; k.vz += dz / d * 30 * dt; } }
+      k.boost = Math.max(k.boost, .2); if (Math.random() < .5) spawnParticle(k.x, 1.5, k.z, 0xb04dff, .4, 2);
+    }
+    for (const r of track.ramps) if (k.y < .2 && k.vy <= 0 && (k.x - r.x) ** 2 + (k.z - r.z) ** 2 < 5.5 * 5.5 && k.fwd > 8) { k.vy = 13; k.y = .1; k.boost = Math.max(k.boost, .6); if (!k.bot) { sfx.boost(); camKick = 1; } }
+    for (const p of track.pads) if ((k.x - p.x) ** 2 + (k.z - p.z) ** 2 < 4.5 * 4.5 && k.boost < 1.2) { k.boost = 1.2; if (!k.bot) { sfx.boost(); camKick = 1; } }
+    if (k.itemRoll > 0) { k.itemRoll -= dt; if (k.itemRoll <= 0) { k.itemRoll = 0; if (!k.item) { k.item = k.pendItem; k.itemAge = 0; k.useDelay = rnd(.8, 3); } else k.item2 = k.pendItem; if (k === myKart) updateItemHud(); } }
+  }
+}
+function updateItemHud() {
+  const k = myKart; if (!k) return;
+  const roll = k.itemRoll > 0, ic = () => ITEM_ICONS[Math.floor(performance.now() / 90) % ITEM_ICONS.length];
+  const s1 = k.item ? ITEMS[k.item] : (roll ? ic() : ''), s2 = k.item2 ? ITEMS[k.item2] : (roll && k.item ? ic() : '');
+  hudSet('item', s1); hudSet('item2', s2); hudSet('tI1', s1 || '1'); hudSet('tI2', s2 || '2');
+  $('tI1').classList.toggle('has', !!s1 && !!k.item); $('tI2').classList.toggle('has', !!k.item2);
+}
+
+/* ============================== 이펙트 ============================== */
+const pGeo = new THREE.BoxGeometry(.35, .35, .35), _dm = new THREE.Object3D();
+function addSkid(x, z, h) {
+  if (!skid) return; _dm.position.set(x, .05, z); _dm.quaternion.setFromEuler(new THREE.Euler(-Math.PI / 2, h, 0, 'YXZ')); _dm.scale.set(1, 1, 1); _dm.updateMatrix();
+  skid.m.setMatrixAt(skid.n++ % 600, _dm.matrix); skid.m.instanceMatrix.needsUpdate = true;
+}
+const pMats = {};
+function spawnParticle(x, y, z, color, life, speed) {
+  if (particles.length > 200) return;
+  const m = new THREE.Mesh(pGeo, pMats[color] || (pMats[color] = new THREE.MeshBasicMaterial({ color }))); m.position.set(x, y, z); scene.add(m);
+  particles.push({ mesh: m, vx: rnd(-1, 1) * speed, vy: rnd(.5, 2) * speed * .6, vz: rnd(-1, 1) * speed, life, max: life });
+}
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i]; p.life -= dt; p.mesh.position.x += p.vx * dt; p.mesh.position.y += p.vy * dt; p.mesh.position.z += p.vz * dt; p.vy -= 9 * dt;
+    p.mesh.scale.setScalar(Math.max(.01, p.life / p.max) * 1.1);
+    if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); }
+  }
+}
+const SPARK = [0x4aa8ff, 0x4aa8ff, 0xff9f1a, 0xd04dff];
+function visualKart(k, dt) {
+  const m = k.mesh, u = m.userData;
+  m.position.set(k.x, k.y || 0, k.z); u.blob.position.y = .06 - (k.y || 0);
+  const target = k.h + (k.spin > 0 ? (1.3 - k.spin) * Math.PI * 2 * 1.6 : 0) + (k.drift ? -k.drift * .35 : 0) * 0;
+  k.yaw = k.spin > 0 ? target : k.h;
+  m.rotation.y = k.yaw;
+  u.wheelRot += (k.spd || 0) * dt / .5; for (const w of u.wheels) w.rotation.x = u.wheelRot;
+  u.shield.visible = k.shield > 0 && (k.shield > 1.5 || Math.floor(performance.now() / 100) % 2 === 0);
+  const bs = k.boost > 0 || k.burn; for (const f of u.flames) { f.visible = bs; if (bs) f.scale.set(1, 1 + Math.random() * .5, 1); }
+  u.blob.visible = true;
+  m.visible = !k.gone && (k.inv > 0 && k.spin <= 0 ? Math.floor(performance.now() / 80) % 3 !== 0 : true);
+  if (k.drift && (k.y || 0) < .1 && !k.offroad && skid) {   // 스키드 마크만
+    k.skidT = (k.skidT || 0) - dt;
+    if (k.skidT <= 0) {
+      k.skidT = .04; const fx = Math.sin(k.h), fz = Math.cos(k.h), rx = Math.cos(k.h), rz = -Math.sin(k.h), sh = Math.hypot(k.vx, k.vz) > 3 ? Math.atan2(k.vx, k.vz) : k.h;
+      for (const sd of [-1, 1]) addSkid(k.x - fx * 1.2 + rx * sd, k.z - fz * 1.2 + rz * sd, sh);
+    }
+  }
+  const cd = Math.hypot(camera.position.x - k.x, camera.position.z - k.z);
+  k.tag.visible = !(k.local && !k.bot) && cd > 9; k.tag.scale.set(6, 1.5, 1).multiplyScalar(clamp(cd / 24, .5, 2));
+}
+
+/* ============================== 원격 카트 보간 ============================== */
+function sendState() {
+  const k = myKart; if (!k || !net.online) return;
+  // Firestore 읽기/쓰기 횟수를 줄이기 위해 전송 간격을 인원수에 따라 늘림 (2명 0.26초 ~ 8명 0.62초)
+  const now = performance.now(), iv = 200 + 60 * Math.max(1, humans().length - 1);
+  if (now - (sendState.t || 0) < iv) return; sendState.t = now;
+  const pack = k => ({ t: 's', id: k.id, x: +k.x.toFixed(2), z: +k.z.toFixed(2), h: +k.h.toFixed(3), vx: +k.vx.toFixed(2), vz: +k.vz.toFixed(2),
+    d: k.drift, c: Math.round(k.n2o), b: (k.boost > 0 || k.burn) ? 1 : 0, sh: k.shield > 0 ? 1 : 0, sp: k.spin > 0 ? +k.spin.toFixed(2) : 0, p: k.prog, l: k.lap, f: k.finished ? 1 : 0, w: +k.fwd.toFixed(2), y: +(k.y || 0).toFixed(2) });
+  const list = [pack(k)];
+  if (net.host) for (const b of karts) if (b.bot && b.local) list.push(pack(b));
+  const sig = JSON.stringify(list.map(o => [o.x, o.z, o.h, o.b, o.sp, o.d, o.l, o.f]));
+  if (sig === sendState.sig) return;   // 정지 상태(카운트다운 등)면 쓰지 않음
+  sendState.sig = sig; netPushStates(list);
+}
+function applyRemote(k, m) {
+  k.tx = m.x; k.tz = m.z; k.th = m.h; k.tvx = m.vx; k.tvz = m.vz; k.lastRecv = performance.now();
+  k.drift = m.d; k.n2o = m.c; k.boostR = m.b; k.shieldR = m.sh; k.spinR = m.sp; k.prog = m.p; k.lap = m.l; k.fwd = m.w; k.ty = m.y || 0;
+  if (m.f && !k.finished) k.finished = true;
+}
+function stepRemote(k, dt) {
+  const age = Math.min(.7, (performance.now() - k.lastRecv) / 1000);   // 전송 지연이 있어서 최대 0.7초까지 위치를 예측
+  const ex = k.tx + k.tvx * age, ez = k.tz + k.tvz * age, a = Math.min(1, dt * 10);
+  k.x = lerp(k.x, ex, a); k.z = lerp(k.z, ez, a); k.h += angDiff(k.h, k.th) * a;
+  k.vx = k.tvx; k.vz = k.tvz; k.spd = k.fwd || 0;
+  k.boost = k.boostR ? 1 : 0; k.shield = k.shieldR ? 1 : 0; k.spin = k.spinR || 0; k.y = lerp(k.y || 0, k.ty || 0, a);
+}
+
+/* ============================== 레이스 루프 ============================== */
+let camRoll = 0, camReset = true, camShake = 0, camKick = 0, camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), camH = 0, netT = 0;
+function toast(t, ms = 1800) { const el = $('toast'); el.textContent = t; clearTimeout(toast.t); toast.t = setTimeout(() => { el.textContent = ''; }, ms); }
+
+function updateRace(dt) {
+  const now = performance.now(), R = race;
+  if (R.phase === 'count') {
+    const left = (R.t0 - now) / 1000, n = Math.ceil(left);
+    if (n <= 3 && n >= 1 && n !== R.last) { R.last = n; sfx.count(); }
+    $('msg').textContent = left > 0 ? (n <= 3 ? n : '') : '';
+    const mk = myKart; if (mk && !mk.auto) { if (isTouch ? touch.n : readInput().gas) { if (mk.gasSince == null) mk.gasSince = left; } else mk.gasSince = null; }
+    if (left <= 0) { R.phase = 'go'; $('msg').textContent = 'GO!'; sfx.go(); setTimeout(() => { if (race === R) $('msg').textContent = ''; }, 900); for (const k of karts) k.lapStart = 0;
+      const mk = myKart; if (mk && mk.gasSince != null && mk.gasSince < 1 && mk.gasSince > -1) { mk.boost = 1.6; camKick = 1; sfx.boost(); toast('스타트 대시!'); }
+      for (const k of karts) if (k.local && k.bot && Math.random() < (.35 + .2 * (lobby.diff | 0))) k.boost = 1.2; }
+  }
+  const canDrive = R.phase !== 'count';
+  for (const k of karts) {
+    if (k.gone) continue;
+    if (k.local) {
+      let inp;
+      if (!canDrive) inp = { steer: 0, gas: 0, brake: 0, drift: 0 };
+      else if (k.bot || k.auto) inp = aiInput(k, dt);
+      else inp = readInput();
+      // 출발 부스트: 카운트다운 중 가속
+      stepKart(k, inp, dt);
+    } else stepRemote(k, dt);
+  }
+  // 카트끼리 충돌: 겹침 해소 + 탄성 충격량 (각자 자기 카트만 처리, 양쪽이 대칭으로 계산)
+  for (const a of karts) {
+    if (!a.local || a.gone || a.spin > 0 && false) continue;
+    for (const b of karts) {
+      if (a === b || b.gone) continue;
+      const dx = a.x - b.x, dz = a.z - b.z, d2 = dx * dx + dz * dz, R2 = 3.4 * 3.4;
+      if (d2 >= R2 || d2 < .0001) continue;
+      const d = Math.sqrt(d2), nx = dx / d, nz = dz / d, o = (3.4 - d) * .65;
+      a.x += nx * o; a.z += nz * o;
+      const vn = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;      // 음수면 서로 접근 중
+      if (vn < 0) {
+        const j = (-(1 + 1.4) * vn + 3) * .5, boostEdge = (a.boost > 0 ? .85 : 1) * (b.boost > 0 ? 1.15 : 1);   // 부스트 중이면 덜 밀림
+        a.vx += nx * j * boostEdge; a.vz += nz * j * boostEdge;
+        if (-vn > 6) {
+          a.bumpT = a.bumpT || 0;
+          if (performance.now() - a.bumpT > 300) {
+            a.bumpT = performance.now();
+            for (let q = 0; q < 6; q++) spawnParticle(a.x - nx * 1.7, 1, a.z - nz * 1.7, 0xffd23d, .3, 3);
+            if (!a.bot) { sfx.hit(); camShake = Math.min(1, -vn / 20); }
+          }
+        }
+      }
+    }
+  }
+  for (const k of karts) if (k.local && k.bot && !k.gone) botUseItem(k, dt);
+  if (canDrive) updateItems(dt);
+  // 랭크
+  const sorted = karts.filter(k => !k.gone).slice().sort((a, b) => (b.finished - a.finished) || (a.finished && b.finished ? a.finT - b.finT : b.prog - a.prog));
+  sorted.forEach((k, i) => k.rank = i + 1);
+  for (const k of karts) visualKart(k, dt);
+  updateParticles(dt);
+  // 네트워크 송신 (~15Hz)
+  netT += dt; if (netT > .066) { netT = 0; sendState(); }
+  // 레이스 종료 처리: 모든 사람이 끝나면 결과
+  if (!R.over && humans().every(p => R.finished[p.id] != null || (karts.find(k => k.id === p.id) || {}).gone)) { R.over = true; renderResult(true); }
+  // 호스트의 봇 완주 알림
+  if (net.host || !net.online) for (const k of karts) if (k.bot && k.finished && !k.reported) { k.reported = true; sendAll({ t: 'fin', r: 1, id: k.id, time: k.finT, lap: k.bestLap }); }
+}
+
+const ARROWS = { 0: '▲', 1: '◤', 2: '◀', 3: '◣', 4: '▼', '-4': '▼', '-3': '◢', '-2': '▶', '-1': '◥' };   // +h 방향이 화면 왼쪽
+let lastWarn = 0;
+function updateWarn(k) {
+  const el = $('warn'), edge = $('warnEdge'); let html = '', danger = 0;
+  if (race.phase !== 'count' && !k.finished && !spec) {
+    let best = null, bd = 1e9;
+    for (const m of missiles) {
+      if (m.o === k.id) continue;
+      const d = Math.hypot(m.x - k.x, m.z - k.z);
+      if ((m.to === k.id || (!m.to && d < 60)) && d < 150 && d < bd) { bd = d; best = m; }
+    }
+    if (best) {
+      const rel = angDiff(k.h, Math.atan2(best.x - k.x, best.z - k.z)), arrow = ARROWS[Math.round(rel / (Math.PI / 4))] || '▲';
+      html += '⚠ 미사일 접근! ' + arrow + ' ' + Math.round(bd) + 'm'; danger = bd < 60 ? 1 : .6;
+      const now = performance.now(); if (now - lastWarn > Math.max(180, bd * 4)) { lastWarn = now; beep(bd < 60 ? 1100 : 800, .09, 'square', .07); }
+    }
+  }
+  if (el._v !== html) { el._v = html; el.innerHTML = html; }
+  const eo = danger ? (Math.floor(performance.now() / 150) % 2 ? danger : danger * .35) : 0; if (edge._o !== eo) { edge._o = eo; edge.style.opacity = eo; }
+}
+const hudSet = (id, v, html) => { const e = $(id); if (e._v !== v) { e._v = v; if (html) e.innerHTML = v; else e.textContent = v; } };
+let hudN = 0;
+function updateHud() {
+  const k = myKart, R = race; if (!k) return;
+  hudSet('rank', k.rank + '<small>/' + karts.filter(o => !o.gone).length + '</small>', 1);
+  hudSet('lap', 'LAP ' + clamp(k.lap, 1, lobby.laps) + '/' + lobby.laps);
+  const t = R.phase === 'count' ? 0 : (k.finished ? k.finT : performance.now() - R.t0);
+  hudSet('time', fmtT(Math.floor(Math.max(0, t) / 50) * 50));
+  if (k.bestLap) hudSet('best', 'BEST LAP ' + fmtT(k.bestLap));
+  hudSet('speed', Math.round(Math.abs(k.spd) * 3.6 * 1.3) + '<small> km/h</small>', 1);
+  const g = $('gauge');   // 가운데 바: 부스트 남은 시간
+  const gw = Math.round(clamp((k.burnT || 0) / BOOST_DUR, 0, 1) * 50) * 2 + '%';
+  if (g._w !== gw) { g._w = gw; g.style.width = gw; }
+  const gc = (k.boost > 0 || k.burn) ? '#ffb02e' : '#3a9bff'; if (g._c !== gc) { g._c = gc; g.style.background = gc; }
+  const full = k.boosts >= MAX_BOOSTS, nw = (full ? 100 : Math.round(k.n2o / 2) * 2) + '%', nb = $('n2oBar'); if (nb._w !== nw) { nb._w = nw; nb.style.width = nw; }
+  nb.classList.toggle('full', full);
+  for (let i = 0; i < MAX_BOOSTS; i++) { const e = $('bp' + i), on = k.boosts > i; if (e._on !== on) { e._on = on; e.classList.toggle('on', on); } }
+  hudSet('n2oLbl', k.burn ? 'BOOST!' : full ? 'BOOST MAX [X]' : k.boosts ? 'BOOST ×' + k.boosts + ' [X]' : 'BOOST ' + Math.floor(k.n2o) + '%');
+  hudSet('tNn', String(k.boosts));
+  const wr = k.wrong > .8 && !k.finished ? 'block' : 'none'; if ($('wrong')._d !== wr) { $('wrong')._d = wr; $('wrong').style.display = wr; }
+  updateWarn(k);
+  updateItemHud();
+  if ((hudN++ & 1) === 0) drawMinimap();
+}
+/* 미니맵 */
+let mmBase = null;
+function drawMinimapBase() {
+  const c = document.createElement('canvas'); c.width = c.height = 300; const x = c.getContext('2d'), P = track.pts;
+  let mn = 1e9, mx = -1e9, mn2 = 1e9, mx2 = -1e9; for (const p of P) { mn = Math.min(mn, p.x); mx = Math.max(mx, p.x); mn2 = Math.min(mn2, p.z); mx2 = Math.max(mx2, p.z); }
+  const s = 270 / Math.max(mx - mn, mx2 - mn2), ox = 150 - (mx + mn) / 2 * s, oz = 150 - (mx2 + mn2) / 2 * s;
+  x.lineWidth = 12; x.lineJoin = 'round'; x.strokeStyle = '#ffffffcc'; x.beginPath();
+  P.forEach((p, i) => i ? x.lineTo(p.x * s + ox, p.z * s + oz) : x.moveTo(p.x * s + ox, p.z * s + oz)); x.closePath(); x.stroke();
+  x.lineWidth = 5; x.strokeStyle = '#ffb347'; x.setLineDash([8, 6]);
+  for (const sc of track.shortcuts) { x.beginPath(); x.moveTo(sc.ax * s + ox, sc.az * s + oz); x.lineTo(sc.bx * s + ox, sc.bz * s + oz); x.stroke(); }
+  x.setLineDash([]);
+  x.fillStyle = '#e8382e'; x.fillRect(P[0].x * s + ox - 8, P[0].z * s + oz - 3, 16, 6);
+  mmBase = { c, s, ox, oz };
+}
+function drawMinimap() {
+  const cv = $('mapc'), x = cv.getContext('2d'); x.clearRect(0, 0, 300, 300); if (!mmBase) return;
+  x.drawImage(mmBase.c, 0, 0);
+  for (const k of karts) { if (k.gone) continue; const px = k.x * mmBase.s + mmBase.ox, pz = k.z * mmBase.s + mmBase.oz;
+    x.fillStyle = colorOf(k.color); x.beginPath(); x.arc(px, pz, k === myKart ? 11 : 8, 0, 7); x.fill();
+    x.lineWidth = 3; x.strokeStyle = k === myKart ? '#fff' : '#000'; x.stroke(); }
+}
+/* 결과 */
+function renderResult(final) {
+  if (!race || !myKart) return;
+  const me2 = myKart, tbl = $('resTable');
+  const rows = karts.filter(k => !k.gone).slice().sort((a, b) => (race.finished[a.id] != null ? 0 : 1) - (race.finished[b.id] != null ? 0 : 1) || (race.finished[a.id] != null ? race.finished[a.id] - race.finished[b.id] : b.prog - a.prog));
+  tbl.innerHTML = '<tr><th>#</th><th>이름</th><th>기록</th><th>베스트 랩</th></tr>' + rows.map((k, i) => {
+    const t = race.finished[k.id], bl = race.bestLap[k.id] || k.bestLap;
+    return `<tr class="${k === me2 ? 'me' : ''}"><td>${i + 1}</td><td><span class="dot" style="display:inline-block;background:${colorOf(k.color)};vertical-align:middle"></span> ${esc(k.name)}${k.bot ? ' 🤖' : ''}</td><td>${t != null ? fmtT(t) : '주행 중'}</td><td>${bl ? fmtT(bl) : '-'}</td></tr>`;
+  }).join('');
+  const mine = race.finished[me2.id];
+  $('resTitle').textContent = mine != null ? (rows.indexOf(me2) === 0 ? '🏆 1등!' : (rows.indexOf(me2) + 1) + '등으로 골인!') : '레이스 결과';
+  if (final) { show('scrResult'); $('specbar').style.display = 'none'; spec = null; }
+  $('btnAgain').textContent = net.online && !net.host ? '대기실로 (방장 대기)' : '대기실로';
+  if (mine != null) { $('hud').classList.add('on'); if (!$('scrResult').classList.contains('on')) setTimeout(() => { if (race && state === 'race' && race.finished[me2.id] != null) show('scrResult'); }, 1500); }
+}
+function specList() { return karts.filter(k => k !== myKart && !k.gone); }
+function setSpec(dir) {
+  const L = specList(); if (!L.length) return;
+  const i = spec ? L.indexOf(spec) : -1; spec = L[(i + dir + L.length) % L.length]; camReset = true;
+}
+$('btnSpec').onclick = () => { setSpec(1); if (spec) { show(''); $('specbar').style.display = 'flex'; } };
+$('spPrev').onclick = () => setSpec(-1); $('spNext').onclick = () => setSpec(1);
+$('spRes').onclick = () => { spec = null; camReset = true; $('specbar').style.display = 'none'; show('scrResult'); };
+$('btnAgain').onclick = () => {
+  if (net.host) { sendAll({ t: 'tolobby' }); enterLobby(); }
+  else if (!net.online) enterLobby();
+  else if (race && race.over) enterLobby();
+  else $('btnAgain').textContent = '방장이 대기실로 이동하면 돌아가요…';
+};
+
+/* ============================== 카메라 + 메인 루프 ============================== */
+function updateCamera(dt) {
+  if (spec && spec.gone) setSpec(1);
+  const k = spec || myKart; if (!k) return;
+  if (spec) $('spName').textContent = '👁 ' + spec.name;
+  const spdF = clamp(Math.abs(k.spd) / MAXSPD, 0, 1.5);
+  camH = camReset ? k.h : camH + angDiff(camH, k.h) * Math.min(1, dt * 5.5);
+  const dist = 9.5 + spdF * 1.5, hgt = 4.4 + spdF * .4;
+  const tx = k.x - Math.sin(camH) * dist, tz = k.z - Math.cos(camH) * dist;
+  if (camReset) { camPos.set(tx, hgt, tz); camReset = false; } else camPos.lerp(new THREE.Vector3(tx, hgt, tz), Math.min(1, dt * 9));
+  camShake = Math.max(0, camShake - dt * 2); camKick = Math.max(0, camKick - dt * 1.5);
+  camera.position.copy(camPos); camera.position.x += rnd(-1, 1) * camShake * .5; camera.position.y += rnd(-1, 1) * camShake * .4;
+  camLook.set(k.x + Math.sin(camH) * 8, 1.6, k.z + Math.cos(camH) * 8); camera.lookAt(camLook);
+  const fov = 66 + spdF * 10 + (k.boost > 0 || k.burn ? 12 : 0) + camKick * 6;
+  camera.fov = lerp(camera.fov, fov, Math.min(1, dt * 6)); camera.updateProjectionMatrix();
+  if (engGain && actx) { engOsc.frequency.value = 55 + Math.abs(k.spd) * 4.5 + (k.boost > 0 || k.burn ? 40 : 0); engGain.gain.value = race.phase === 'count' ? .02 : (k.finished ? .02 : .05); }
+}
+let last = performance.now(), garageRot = 0, garageKart = null, garageKey = '';
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (state === 'race' && race) {
+    updateRace(dt); updateCamera(dt); updateHud(); renderer.render(scene, camera);
+  } else {
+    const key = me.color + '_' + me.body + '_' + me.cos.join('_');
+    if (key !== garageKey) { garageKey = key; if (garageKart) garage.remove(garageKart); garageKart = buildKart(me.color, me.body, me.cos); garageKart.userData.blob.visible = false; garage.add(garageKart); }
+    garageRot += dt * .6; garageKart.rotation.y = garageRot;
+    garageKart.userData.wheels.forEach(w => w.rotation.x = garageRot * 3);
+    const mobile = innerWidth < 700;
+    camera.fov = 45; camera.updateProjectionMatrix();
+    camera.position.set(mobile ? 0 : 5.5, mobile ? 6.5 : 3.2, mobile ? 11 : 9); camera.lookAt(mobile ? 0 : -4.2, 1, 0);
+    renderer.render(garage, camera);
+  }
+}
+
+/* ============================== 메뉴 UI ============================== */
+const PRESETS = {
+  body: COLORS, wheel: ['#cfd6e6', '#ffc93d', '#ff3fb4', '#22e5ff', '#222230', '#ffffff'],
+  stripe: ['#ffffff', '#111111', '#ffc93d', '#ff3fb4', '#22e5ff'], flame: ['#5fd0ff', '#b04dff', '#3dff7a', '#ff5fb7', '#ffb02e', '#ffffff'],
+};
+function colorRow(id, presets, get, set, allowNone) {
+  const el = $(id), cur = (get() || '').toLowerCase(); el.innerHTML = '';
+  if (allowNone) { const n = document.createElement('div'); n.className = 'sw none' + (cur === '' ? ' sel' : ''); n.title = '없음'; n.textContent = '✕'; n.onclick = () => { set(''); saveLook(); renderEditor(); }; el.appendChild(n); }
+  presets.forEach(c => { const d = document.createElement('div'); d.className = 'sw' + (cur === c ? ' sel' : ''); d.style.background = c; d.onclick = () => { set(c); saveLook(); renderEditor(); }; el.appendChild(d); });
+  const inp = document.createElement('input'); inp.type = 'color'; inp.className = 'cpick'; inp.value = HEX.test(cur) ? cur : '#ffffff'; inp.title = '직접 고르기';
+  inp.oninput = () => { set(inp.value); saveLook(); };   // 드래그 중에는 다시 그리지 않음
+  el.appendChild(inp);
+}
+function renderEditor() {
+  seg($('edBodyType'), BODIES, me.body, i => { me.body = i; saveLook(); renderEditor(); });
+  colorRow('edBody', PRESETS.body, () => colorOf(me.color), c => { me.color = c; });
+  colorRow('edWheel', PRESETS.wheel, () => me.cos[0], c => { me.cos[0] = c; });
+  colorRow('edStripe', PRESETS.stripe, () => me.cos[1], c => { me.cos[1] = c; }, true);
+  colorRow('edFlame', PRESETS.flame, () => me.cos[2], c => { me.cos[2] = c; });
+}
+$('btnShop').onclick = () => { renderEditor(); show('scrShop'); };
+$('btnReset').onclick = () => { me.color = COLORS[0]; me.body = 0; me.cos = COS_DEF.slice(); saveLook(); renderEditor(); };
+$('btnShopBack').onclick = () => { show('scrMenu'); };
+function initMenu() { $('nick').value = me.name; }
+function commitNick() {
+  let n = $('nick').value.trim().slice(0, 10); if (!n) n = '레이서' + Math.floor(Math.random() * 900 + 100);
+  me.name = n; $('nick').value = n; localStorage.setItem('kart_nick', n); audioInit(); return true;
+}
+$('btnSolo').onclick = () => { commitNick(); netReset(); net.host = false; net.myId = 'p0'; lobby.players = []; setPlayer({ id: 'p0', name: me.name, color: me.color, body: me.body, cos: me.cos }); lobby.bots = Math.max(lobby.bots, 3); enterLobby(); };
+$('btnCreate').onclick = () => { commitNick(); lobby.players = []; createRoom(); };
+$('btnJoin').onclick = () => { commitNick(); joinRoom($('codeIn').value); };
+$('codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnJoin').click(); });
+$('btnAgain').addEventListener('click', () => {});
+initMenu(); initLobbyDb(); requestAnimationFrame(loop);
+
+// 테스트/디버깅용 훅
+window.__kart = { bananaCount: () => bananas.length, useItem, onShortcut, wallGapAt, nearest, spawn: (t, x, z, h, to) => { if (t === 'mis') missiles.push(makeMissile('t' + Math.random(), 'x', to, x, z, h)); else bananas.push(makeBanana('t' + Math.random(), x, z, 'x', t)); }, sim: n => { race.t0 = performance.now() - 1; for (let i = 0; i < n; i++) updateRace(1 / 60); }, track: () => track, get spec() { return spec; }, setSpec, applyThunder, hitKart, dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
+</script>
+</body>
+</html>

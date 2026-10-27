@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>사과 뒤집기 대결</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; min-height: 100vh; background: #14201a; color: #fff;
+    font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; }
+  h1 { margin: 0 0 10px; font-size: 26px; }
+  .panel { width: min(420px, 100%); background: #1f3027; border: 1px solid #3d5c4b; border-radius: 14px; padding: 18px; text-align: center; }
+  .panel button, .panel input { font: inherit; font-size: 18px; border-radius: 10px; border: 0; padding: 12px; width: 100%; margin-top: 10px; }
+  .panel button { background: #e8b04a; color: #2b1a05; font-weight: 700; }
+  .panel button.sub { background: #35503f; color: #fff; }
+  .panel input { background: #fff; color: #000; text-align: center; letter-spacing: 6px; text-transform: uppercase; }
+  .code { font-size: 48px; font-weight: 800; letter-spacing: 8px; color: #e8b04a; margin: 10px 0; }
+  .msg { color: #b6cfc0; font-size: 14px; min-height: 20px; margin-top: 8px; }
+  .panel input.nick { letter-spacing: 0; text-transform: none; margin-top: 0; }
+  .rooms { margin-top: 14px; text-align: left; }
+  .rooms h3 { margin: 0 0 6px; font-size: 15px; color: #b6cfc0; display: flex; justify-content: space-between; }
+  .room { display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin-top: 6px; background: #2a4235; border-radius: 10px; }
+  .room b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .room small { color: #8aa897; }
+  .panel .room button { width: auto; margin: 0; padding: 8px 16px; font-size: 15px; }
+  .me { text-align: left; font-size: 17px; }
+  .panel button.link { display: inline; width: auto; margin: 0 0 0 6px; padding: 2px 8px; font-size: 13px; background: #35503f; color: #fff; font-weight: 400; }
+  .members { text-align: left; margin-top: 6px; }
+  .members .row { padding: 9px 12px; margin-top: 6px; background: #2a4235; border-radius: 10px; font-size: 16px; }
+  .members .prow { display: flex; align-items: center; gap: 8px; }
+  .members .prow > span:first-child { flex: 1; }
+  .members .prow.r { border-left: 5px solid #e53935; }
+  .members .prow.g { border-left: 5px solid #7cb342; }
+  .members button { width: auto; margin: 0; padding: 5px 10px; font-size: 13px; background: #e8b04a; color: #2b1a05; border: 0; border-radius: 8px; font-weight: 700; }
+  .members button.sm { background: #35503f; color: #fff; }
+  .members .sline { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+  .members .sline .bs { display: flex; gap: 4px; }
+  .members .slot-empty { color: #8aa897; }
+  #startBtn:disabled { opacity: .4; }
+  .btns { display: flex; gap: 8px; justify-content: center; }
+  .btns button { margin-top: 12px; padding: 12px 22px; font: inherit; font-size: 17px; font-weight: 700; border: 0; border-radius: 10px; background: #e8b04a; color: #2b1a05; }
+  .btns button.sub { background: #35503f; color: #fff; }
+  .empty { color: #8aa897; font-size: 14px; padding: 14px 0; text-align: center; }
+
+  #game { display: none; flex-direction: column; align-items: center; width: 100%; }
+  #hud { width: min(94vw, 62vh, 520px); display: flex; align-items: center; justify-content: space-between; gap: 6px; font-weight: 800; }
+  #hud .sc { flex: 1; font-size: 15px; line-height: 1.25; padding: 6px 8px; border-radius: 10px; background: #2a4235; min-width: 0; }
+  #hud .sc b { display: block; font-size: 30px; }
+  #hud .sc.g { text-align: right; }
+  #hud .sc.r.mine { outline: 3px solid #e53935; }
+  #hud .sc.g.mine { outline: 3px solid #7cb342; }
+  #hud .sc span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #hud .tm { min-width: 64px; text-align: center; font-size: 34px; color: #e8b04a; }
+  #hud .tm.low { color: #ff6a5c; }
+  #msg { margin: 8px 0; min-height: 26px; font-size: 17px; font-weight: 700; text-align: center; line-height: 1.4; }
+  #boardWrap { position: relative; width: min(94vw, 62vh, 520px); }
+  #board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+  .card { aspect-ratio: 1; border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .card img { width: 100%; height: 100%; pointer-events: none; display: block; }
+  #board.off .card { cursor: default; }
+  #cd { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; font-size: 120px; font-weight: 800;
+    color: #fff; background: #000a; border-radius: 12px; text-shadow: 0 4px 16px #000; }
+  .ic { display: inline-block; width: 1.25em; height: 1.25em; vertical-align: -.25em; }
+  .ic img { width: 100%; height: 100%; display: block; border-radius: 22%; }
+  .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
+    background: #000a; color: #fff; font: 700 14px/1 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    text-decoration: none; border: 1px solid #fff6; }
+  .home-btn:active { transform: translateY(2px); }
+</style>
+</head>
+<body>
+<a class="home-btn" href="../">🏠 메인 메뉴</a>
+
+<h1 id="title">사과 뒤집기 대결</h1>
+
+<div id="nameScr" class="panel">
+  <div style="font-size:18px;margin-bottom:6px">닉네임을 정하세요</div>
+  <input id="nick" class="nick" maxlength="10" placeholder="닉네임 (최대 10자)" autocomplete="off">
+  <button id="nickBtn">로비 입장</button>
+  <div class="msg">20초 동안 카드를 눌러 내 사과 색으로! 많은 쪽이 승리</div>
+</div>
+
+<div id="lobby" class="panel" style="display:none">
+  <div class="me">👤 <b id="meName"></b> <button id="renameBtn" class="link">변경</button></div>
+  <button id="createBtn">방 만들기</button>
+  <div class="rooms">
+    <h3><span>열린 방</span><span id="roomCount"></span></h3>
+    <div id="roomList"><div class="empty">방 목록 불러오는 중…</div></div>
+  </div>
+  <input id="codeIn" maxlength="4" placeholder="코드로 입장 (선택)" autocapitalize="characters" autocomplete="off">
+  <button id="joinBtn" class="sub">코드로 입장</button>
+  <div class="msg" id="lobbyMsg"></div>
+</div>
+
+<div id="room" class="panel" style="display:none">
+  <div class="msg" style="margin:0">방 코드</div>
+  <div class="code" id="roomCode">----</div>
+  <div class="members" id="members"></div>
+  <button id="startBtn">시작</button>
+  <div class="msg" id="roomMsg"></div>
+  <button id="leaveBtn" class="sub">나가기</button>
+</div>
+
+<div id="game">
+  <div id="hud"></div>
+  <div id="msg"></div>
+  <div id="boardWrap">
+    <div id="board"></div>
+    <div id="cd"></div>
+  </div>
+  <div class="btns">
+    <button id="again" style="display:none">다시 하기</button>
+    <button id="toRoom" class="sub" style="display:none">대기실로</button>
+    <button id="leaveGame" class="sub">나가기</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const PREFIX = 'cpisgod-apple-';
+  const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const CELLS = 25, COUNT_MS = 3000, PLAY_MS = 20000, END_MS = COUNT_MS + PLAY_MS;
+  const PEND_MS = 600;   // 내가 누른 카드는 호스트 확인 전까지 내 색으로 유지
+
+  let peer, isHost = false, myId = '', myName = '', myCode = null;
+  let guests = [], idSeq = 0;           // 호스트: [{id, c, name}]
+  let seats = {red: null, green: null}; // 호스트가 관리하는 자리 (멤버 id)
+  let phase = 'lobby';                  // 'lobby' | 'playing' | 'over'
+  let roomState = null;                 // 모두가 받는 방 상태 {members:[{id,name}], red, green, phase}
+  let gs = 'idle', t0 = 0, left = false;    // gs: idle | count | play | wait | over
+  let auth = Array(CELLS).fill(1);      // 호스트 기준 보드 (1 빨강, 2 초록)
+  let pend = {};                        // 낙관적 반영: {칸: 만료시각}
+  let ticker = null, endTimer = null;
+  let hostConn = null;
+
+  // ---------- 사과 ----------
+  // 사과 이미지 (1 빨강, 2 초록)
+  const APPLE = {1: '<img src="red.png" alt="" draggable="false">', 2: '<img src="green.png" alt="" draggable="false">'};
+  const ic = c => `<span class="ic">${APPLE[c]}</span>`;
+  $('title').innerHTML = ic(1) + ic(2) + ' 사과 뒤집기 대결';
+
+  const SCREENS = ['nameScr', 'lobby', 'room'];
+  function show(id) {
+    SCREENS.forEach(x => $(x).style.display = x === id ? 'block' : 'none');
+    $('game').style.display = id === 'game' ? 'flex' : 'none';
+  }
+  const lobbyMsg = t => $('lobbyMsg').textContent = t;
+  const newCode = () => Array.from({length: 4}, () => CHARS[Math.random() * CHARS.length | 0]).join('');
+  const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const parse = s => Array.from(s, Number);
+
+  // ---------- 닉네임 ----------
+  try { $('nick').value = localStorage.getItem('appleNick') || ''; } catch (e) {}
+  function enterLobby() {
+    const n = $('nick').value.trim().slice(0, 10);
+    if (!n) { $('nick').focus(); return; }
+    myName = n;
+    try { localStorage.setItem('appleNick', n); } catch (e) {}
+    $('meName').textContent = n; lobbyMsg(''); show('lobby'); renderRooms();
+  }
+  $('nickBtn').onclick = enterLobby;
+  $('nick').addEventListener('keydown', e => { if (e.key === 'Enter') enterLobby(); });
+  $('renameBtn').onclick = () => show('nameScr');
+
+  // ---------- 로비 (Firestore 방 목록) ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyBPgoO4EXWFagGEutquysQPmcvFk37eXbU",
+    authDomain: "game-81004.firebaseapp.com",
+    projectId: "game-81004",
+    storageBucket: "game-81004.firebasestorage.app",
+    messagingSenderId: "217133907611",
+    appId: "1:217133907611:web:a62de72fc5c909390bd03e"
+  };
+  const ROOM_TTL = 25000, HB_MS = 8000;
+  let db = null, fs = null, rooms = [], hbTimer = null;
+  const NOLIST = '<div class="empty">방 목록을 불러올 수 없어요. 코드로 입장하세요.</div>';
+
+  async function initLobby() {
+    try {
+      const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+      const [app, f] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-firestore.js')]);
+      db = f.getFirestore(app.initializeApp(firebaseConfig, 'apple')); fs = f;
+      fs.onSnapshot(fs.collection(db, 'apple_rooms'), snap => {
+        rooms = snap.docs.map(d => ({code: d.id, ...d.data()}));
+        rooms.filter(r => Date.now() - r.hb > 120000)   // 오래된 방 정리
+             .forEach(r => fs.deleteDoc(fs.doc(db, 'apple_rooms', r.code)).catch(() => {}));
+        renderRooms();
+      }, () => { db = null; $('roomList').innerHTML = NOLIST; });
+    } catch (e) { $('roomList').innerHTML = NOLIST; }
+  }
+  function renderRooms() {
+    if (!db) return;
+    const live = rooms.filter(r => Date.now() - r.hb < ROOM_TTL && r.code !== myCode)
+                      .sort((a, b) => b.hb - a.hb);
+    $('roomCount').textContent = live.length ? live.length + '개' : '';
+    $('roomList').innerHTML = live.length ? live.map(r => {
+      const c = esc(r.code);
+      return `<div class="room"><b>${esc(r.name)}</b><small>${r.playing ? '대결 중' : '대기 중'}</small>` +
+        `<button data-c="${c}">${r.playing ? '관전' : '입장'}</button></div>`;
+    }).join('') : '<div class="empty">열린 방이 없어요. 방을 만들어 보세요!</div>';
+  }
+  $('roomList').addEventListener('click', e => {
+    const c = e.target.dataset && e.target.dataset.c;
+    if (c) joinRoom(c);
+  });
+  setInterval(renderRooms, 5000);
+
+  const roomRef = () => fs.doc(db, 'apple_rooms', myCode);
+  const putRoom = () => { if (db && myCode) fs.setDoc(roomRef(), {name: myName, hb: Date.now(), playing: phase === 'playing'}).catch(() => {}); };
+  function publishRoom() { if (db) { putRoom(); hbTimer = setInterval(putRoom, HB_MS); } }
+  function unpublishRoom() {
+    clearInterval(hbTimer); hbTimer = null;
+    if (db && myCode) fs.deleteDoc(roomRef()).catch(() => {});
+  }
+  addEventListener('pagehide', unpublishRoom);
+  initLobby();
+
+  // ---------- 통신 ----------
+  const bcast = m => guests.forEach(g => g.c.open && g.c.send(m));
+  const sendHost = m => hostConn && hostConn.open && hostConn.send(m);
+  const allMembers = () => [{id: 'h', name: myName}, ...guests.map(g => ({id: g.id, name: g.name}))];
+  const memName = id => {
+    const m = roomState && roomState.members.find(x => x.id === id);
+    return m ? m.name : '';
+  };
+  const myColor = () => !roomState ? 0 : roomState.red === myId ? 1 : roomState.green === myId ? 2 : 0;
+
+  function cleanup() {
+    unpublishRoom();
+    const p = peer;   // 상태를 먼저 비워서 destroy 중 발생하는 close 이벤트가 화면을 건드리지 않게 함
+    peer = hostConn = null; isHost = false; guests = []; seats = {red: null, green: null};
+    phase = 'lobby'; roomState = null; myCode = null; myId = ''; gs = 'idle'; left = false;
+    stopTimers();
+    try { if (p) p.destroy(); } catch (e) {}
+  }
+  function stopTimers() { clearInterval(ticker); ticker = null; clearTimeout(endTimer); endTimer = null; }
+  function toLobby(msg) {
+    cleanup(); show('lobby'); lobbyMsg(msg || ''); renderRooms();
+  }
+
+  // ---------- 방 만들기 (호스트) ----------
+  $('createBtn').onclick = () => {
+    isHost = true; myId = 'h'; lobbyMsg('방 만드는 중…');
+    const tryCreate = () => {
+      const code = newCode();
+      peer = new Peer(PREFIX + code);
+      peer.on('open', () => {
+        myCode = code; phase = 'lobby'; seats = {red: 'h', green: null};   // 방장은 기본으로 빨간 사과
+        publishRoom(); broadcastRoom();
+      });
+      peer.on('error', e => {
+        if (e.type === 'unavailable-id') { peer.destroy(); tryCreate(); }
+        else toLobby('오류: ' + e.type);
+      });
+      peer.on('connection', onGuestConn);
+    };
+    tryCreate();
+  };
+
+  function roomInfo() {
+    return {t: 'room', members: allMembers(), red: seats.red, green: seats.green, phase};
+  }
+  function broadcastRoom() {   // 호스트만
+    if (!isHost || !myCode) return;
+    const info = roomInfo();
+    bcast(info);
+    applyRoom(info);
+  }
+
+  function onGuestConn(c) {
+    const m = {id: 'g' + (++idSeq), c, name: String((c.metadata || {}).name || '손님').slice(0, 10)};
+    c.on('data', msg => hostData(msg, m));
+    c.on('open', () => {
+      guests.push(m);
+      c.send({t: 'hello', id: m.id});
+      if (gs !== 'idle') c.send({t: 'sync', b: auth.join(''), el: Date.now() - t0, gs: gs === 'wait' ? 'play' : gs, left});
+      broadcastRoom();
+    });
+    c.on('close', () => {
+      if (!guests.includes(m)) return;
+      guests = guests.filter(x => x !== m);
+      const wasSeated = seats.red === m.id || seats.green === m.id;
+      if (seats.red === m.id) seats.red = null;
+      if (seats.green === m.id) seats.green = null;
+      if (wasSeated && phase === 'playing') abortGame();
+      else broadcastRoom();
+    });
+  }
+
+  function hostData(msg, m) {
+    if (msg.t === 'seat') setSeat(m.id, msg.s, false);
+    else if (msg.t === 'flip') {
+      const c = seats.red === m.id ? 1 : seats.green === m.id ? 2 : 0;
+      hostFlip(msg.i, c);
+    }
+  }
+
+  // ---------- 자리 정하기 ----------
+  // s: 'red' | 'green' | null(관전자로). force: 방장이 남의 자리를 바꿀 때
+  function setSeat(id, s, force) {
+    if (!isHost || phase === 'playing') return;
+    if (s && seats[s] && seats[s] !== id) { if (!force) return; }
+    if (seats.red === id) seats.red = null;
+    if (seats.green === id) seats.green = null;
+    if (s) seats[s] = id;
+    broadcastRoom();
+  }
+
+  // ---------- 방 (대기실) ----------
+  function renderRoom() {
+    const r = roomState; if (!r) return;
+    $('roomCode').textContent = myCode;
+    const seatRow = (key, label, cls) => {
+      const id = r[key], mine = id === myId;
+      let btn = '';
+      if (!id) btn = `<button data-act="sit" data-s="${key}">앉기</button>`;
+      else if (mine) btn = `<button class="sm" data-act="stand">일어나기</button>`;
+      else if (isHost) btn = `<button class="sm" data-act="kick" data-id="${esc(id)}">내리기</button>`;
+      return `<div class="row prow ${cls}"><span>${label} ` +
+        (id ? `<b>${esc(memName(id))}</b>${id === 'h' ? ' 👑' : ''}` : '<span class="slot-empty">비어 있어요</span>') + `</span>${btn}</div>`;
+    };
+    const specs = r.members.filter(m => m.id !== r.red && m.id !== r.green);
+    const sp = specs.length
+      ? specs.map(m => `<div class="sline"><span>👀 ${esc(m.name)}${m.id === 'h' ? ' 👑' : ''}</span>` +
+          (isHost ? `<span class="bs"><button data-act="put" data-s="red" data-id="${esc(m.id)}">${ic(1)}</button>` +
+                    `<button data-act="put" data-s="green" data-id="${esc(m.id)}">${ic(2)}</button></span>` : '') + `</div>`).join('')
+      : '<div class="slot-empty">아직 없어요</div>';
+    $('members').innerHTML =
+      seatRow('red', ic(1) + ' 빨간 사과', 'r') + seatRow('green', ic(2) + ' 초록 사과', 'g') +
+      `<div class="row">관전자 (${specs.length})<div style="margin-top:4px">${sp}</div></div>`;
+    const ready = !!(r.red && r.green);
+    $('startBtn').style.display = isHost ? 'block' : 'none';
+    $('startBtn').disabled = !ready;
+    $('roomMsg').textContent = isHost
+      ? (ready ? '준비됐으면 시작을 누르세요' : '빨간·초록 자리에 두 명이 앉아야 시작할 수 있어요')
+      : (ready ? '방장이 시작하길 기다리는 중…' : '비어 있는 자리에 앉으면 플레이어가 돼요');
+  }
+  $('members').addEventListener('click', e => {
+    const d = e.target.dataset; if (!d || !d.act) return;
+    if (d.act === 'sit') isHost ? setSeat('h', d.s, false) : sendHost({t: 'seat', s: d.s});
+    else if (d.act === 'stand') isHost ? setSeat('h', null, false) : sendHost({t: 'seat', s: null});
+    else if (d.act === 'kick') setSeat(d.id, null, true);
+    else if (d.act === 'put') setSeat(d.id, d.s, true);
+  });
+
+  function applyRoom(info) {
+    roomState = info; phase = info.phase;
+    if (info.phase === 'lobby') {
+      stopTimers(); gs = 'idle'; left = false;
+      renderRoom(); show('room');
+    } else if (gs !== 'idle') { renderHud(); renderBtns(); }
+  }
+
+  // ---------- 입장 (게스트 / 관전자) ----------
+  function joinRoom(code) {
+    if (peer) { const o = peer; peer = null; try { o.destroy(); } catch (e) {} }
+    isHost = false; myCode = code; lobbyMsg('접속 중…');
+    peer = new Peer();
+    peer.on('error', e => toLobby(e.type === 'peer-unavailable' ? '방이 사라졌어요' : '오류: ' + e.type));
+    peer.on('open', () => {
+      hostConn = peer.connect(PREFIX + code, {reliable: true, metadata: {name: myName}});
+      hostConn.on('data', onData);
+      hostConn.on('close', () => { if (!isHost && peer) toLobby('방장이 나갔어요'); });
+      setTimeout(() => { if (!roomState && !isHost && peer) toLobby('연결 시간 초과. 다른 방을 시도하세요'); }, 10000);
+    });
+  }
+  $('joinBtn').onclick = () => {
+    const c = $('codeIn').value.trim().toUpperCase();
+    if (c.length !== 4) { lobbyMsg('4자리 코드를 입력하세요'); return; }
+    joinRoom(c);
+  };
+  $('leaveBtn').onclick = $('leaveGame').onclick = () => toLobby('');
+
+  // ---------- 메시지 (게스트가 받음) ----------
+  function onData(m) {
+    if (m.t === 'hello') myId = m.id;
+    else if (m.t === 'room') applyRoom(m);
+    else if (m.t === 'start') beginLocal(m.b, 0, 'count');
+    else if (m.t === 'sync') { left = !!m.left; beginLocal(m.b, m.el, m.gs); if (m.gs === 'over') finishLocal(m.b); }
+    else if (m.t === 'b') { if (gs === 'play' || gs === 'wait' || gs === 'count') { auth = parse(m.b); renderBoard(); renderHud(); } }
+    else if (m.t === 'end') { left = !!m.left; finishLocal(m.b); }
+  }
+
+  // ---------- 게임 진행 ----------
+  function newBoard() {
+    const first = Math.random() < .5 ? 1 : 2, b = [];
+    for (let i = 0; i < CELLS; i++) b.push(i < 13 ? first : 3 - first);
+    for (let i = b.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [b[i], b[j]] = [b[j], b[i]]; }
+    return b;
+  }
+
+  $('startBtn').onclick = startGame;
+  $('again').onclick = startGame;
+  function startGame() {
+    if (!isHost || !seats.red || !seats.green || phase === 'playing') return;
+    const b = newBoard();
+    left = false; phase = 'playing';
+    bcast({t: 'start', b: b.join('')});
+    beginLocal(b.join(''), 0, 'count');
+    broadcastRoom(); putRoom();
+    stopTimers();   // beginLocal이 만든 ticker는 유지해야 하므로 endTimer만 새로
+    ticker = setInterval(tick, 100);
+    endTimer = setTimeout(endGame, END_MS);
+  }
+  $('toRoom').onclick = () => {
+    if (!isHost) return;
+    phase = 'lobby'; gs = 'idle'; putRoom();
+    broadcastRoom();   // 모두 대기실로
+  };
+
+  function beginLocal(b, elapsed, state) {
+    auth = parse(b); pend = {}; gs = state; t0 = Date.now() - elapsed;
+    if (state !== 'over') {
+      clearInterval(ticker); ticker = setInterval(tick, 100);
+    }
+    buildBoard(); show('game'); tick();
+  }
+  function finishLocal(b) {
+    auth = parse(b); gs = 'over'; pend = {};
+    clearInterval(ticker); ticker = null;
+    show('game'); renderBoard(); renderHud(); renderBtns();
+  }
+  function tick() {
+    const el = Date.now() - t0;
+    if (gs === 'count' && el >= COUNT_MS) gs = 'play';
+    if (gs === 'play' && el >= END_MS) gs = 'wait';   // 최종 결과는 방장이 알려줌
+    renderBoard(); renderHud();
+  }
+  function endGame() {
+    if (!isHost || phase !== 'playing') return;
+    phase = 'over';
+    bcast({t: 'end', b: auth.join('')});
+    finishLocal(auth.join(''));
+    broadcastRoom(); putRoom();
+  }
+  function abortGame() {   // 플레이어가 나감
+    stopTimers(); left = true; phase = 'over';
+    bcast({t: 'end', b: auth.join(''), left: true});
+    finishLocal(auth.join(''));
+    broadcastRoom(); putRoom();
+  }
+
+  // ---------- 뒤집기 ----------
+  function hostFlip(i, c) {
+    const el = Date.now() - t0;
+    if (!c || phase !== 'playing' || el < COUNT_MS || el >= END_MS || !(i >= 0 && i < CELLS) || auth[i] === c) return;
+    auth[i] = c;
+    bcast({t: 'b', b: auth.join('')});
+    renderBoard(); renderHud();
+  }
+  $('board').addEventListener('pointerdown', e => {
+    const el = e.target.closest('.card'); if (!el) return;
+    const i = +el.dataset.i, c = myColor();
+    if (gs !== 'play' || !c || shown(i) === c) return;
+    if (isHost) hostFlip(i, c);
+    else { pend[i] = Date.now() + PEND_MS; sendHost({t: 'flip', i}); renderBoard(); renderHud(); }
+  });
+  const shown = i => (pend[i] && pend[i] > Date.now() && gs === 'play') ? myColor() : auth[i];
+
+  // ---------- 화면 ----------
+  let cells = [];
+  function buildBoard() {
+    $('board').innerHTML = Array.from({length: CELLS}, (_, i) => `<div class="card" data-i="${i}"></div>`).join('');
+    cells = Array.from($('board').children).map(el => ({el, c: 0}));
+    renderBoard();
+  }
+  function renderBoard() {
+    if (cells.length !== CELLS) return;
+    for (let i = 0; i < CELLS; i++) {
+      const c = shown(i), o = cells[i];
+      if (o.c !== c) { o.c = c; o.el.className = 'card c' + c; o.el.innerHTML = APPLE[c]; }
+    }
+    $('board').classList.toggle('off', gs !== 'play' || !myColor());
+  }
+  function counts() {
+    let r = 0, g = 0;
+    for (let i = 0; i < CELLS; i++) shown(i) === 1 ? r++ : g++;
+    return [r, g];
+  }
+  function renderHud() {
+    if (!roomState || gs === 'idle') return;
+    const el = Date.now() - t0, me = myColor(), [r, g] = counts();
+    const rn = memName(roomState.red) || '-', gn = memName(roomState.green) || '-';
+    let tm = String(PLAY_MS / 1000), cd = '';
+    if (gs === 'count') { tm = String(PLAY_MS / 1000); cd = String(Math.max(1, Math.ceil((COUNT_MS - el) / 1000))); }
+    else if (gs === 'play') tm = String(Math.max(0, Math.ceil((END_MS - el) / 1000)));
+    else tm = '0';
+    $('hud').innerHTML =
+      `<div class="sc r${me === 1 ? ' mine' : ''}"><span>${ic(1)} ${esc(rn)}</span><b>${r}</b></div>` +
+      `<div class="tm${gs === 'play' && tm <= 10 ? ' low' : ''}">${tm}</div>` +
+      `<div class="sc g${me === 2 ? ' mine' : ''}"><span>${esc(gn)} ${ic(2)}</span><b>${g}</b></div>`;
+    $('cd').style.display = cd ? 'flex' : 'none'; $('cd').textContent = cd;
+    const mine = me === 1 ? ic(1) + ' 빨간 사과' : ic(2) + ' 초록 사과';
+    let t;
+    if (gs === 'count') t = me ? `나는 ${mine}! 곧 시작해요` : '👀 관전 중 · 곧 시작해요';
+    else if (gs === 'play') t = me ? `눌러서 ${ic(me)} 내 색으로 뒤집기!` : '👀 관전 중';
+    else if (gs === 'wait') t = '결과 집계 중…';
+    else if (left) t = '플레이어가 나가서 게임이 끝났어요';
+    else {
+      const w = r > g ? 1 : 2, name = w === 1 ? rn : gn, icon = ic(w);
+      t = me ? (me === w ? '🎉 승리!' : '😢 패배') + ` (${r} : ${g})` : `${icon} ${esc(name)} 승리! (${r} : ${g})`;
+    }
+    $('msg').innerHTML = t;
+  }
+  function renderBtns() {
+    const over = gs === 'over';
+    $('toRoom').style.display = over && isHost ? 'inline-block' : 'none';
+    $('again').style.display = over && isHost && roomState && roomState.red && roomState.green ? 'inline-block' : 'none';
+  }
+  // 호스트는 phase 변화마다 버튼 갱신
+  setInterval(() => { if (gs === 'over') renderBtns(); }, 500);
+})();
+</script>
+</body>
+</html>
