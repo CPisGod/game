@@ -69,7 +69,7 @@ service cloud.firestore {
         && request.resource.data.playing is bool;
       allow delete: if true;
     }
-    // 카트 레이서 로비 (오목과 동일한 구조)
+    // 카트 레이서 로비 + 실시간 전송 (Firestore 방식: 방 문서 아래 msgs = 이벤트, peers = 각자의 상태)
     match /kart_rooms/{code} {
       allow read: if true;
       allow create, update: if request.resource.data.keys().hasOnly(['name', 'hb', 'playing'])
@@ -79,6 +79,23 @@ service cloud.firestore {
         && request.resource.data.hb is number
         && request.resource.data.playing is bool;
       allow delete: if true;
+      match /msgs/{mid} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasOnly(['from', 'to', 'd', 'ts'])
+          && request.resource.data.from is string && request.resource.data.from.size() <= 12
+          && request.resource.data.to is string && request.resource.data.to.size() <= 12
+          && request.resource.data.d is string && request.resource.data.d.size() <= 12000
+          && request.resource.data.ts is number;
+        allow update: if false;
+        allow delete: if true;
+      }
+      match /peers/{pid} {
+        allow read: if true;
+        allow create, update: if request.resource.data.keys().hasOnly(['s', 'ts'])
+          && request.resource.data.s is string && request.resource.data.s.size() <= 8000
+          && request.resource.data.ts is number;
+        allow delete: if true;
+      }
     }
     // 카트 레이서 맵별 최고 랩 기록 (문서 ID: 맵__닉네임, 기록은 갱신만 가능)
     match /kart_records/{id} {

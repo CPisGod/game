@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>카트 레이서</title>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
 </script>
@@ -483,12 +482,14 @@ function genTrack(map) {
   {
     const ptSeg = (x, z, s) => { const t = clamp(((x - s.ax) * s.dx + (z - s.az) * s.dz) / s.l2, 0, 1); return Math.hypot(s.ax + s.dx * t - x, s.az + s.dz * t - z); };
     const off = half * .7;
-    for (let i0 = 0; i0 < NSAMP; i0 += 8) for (let g = Math.ceil(120 / seg); g <= Math.floor(320 / seg); g += 3) {
+    for (let i0 = 0; i0 < NSAMP; i0 += 8) for (let g = Math.ceil(90 / seg); g <= Math.floor(360 / seg); g += 2) {
       const i1 = (i0 + g) % NSAMP, a = pts[i0], b = pts[i1], im = (i0 + (g >> 1)) % NSAMP, m = pts[im];
       const mxx = (a.x + b.x) / 2 - m.x, mzz = (a.z + b.z) / 2 - m.z, side = (mxx * m.nx + mzz * m.nz) > 0 ? 1 : -1;
       const ax = a.x + a.nx * off * side, az = a.z + a.nz * off * side, bx = b.x + b.nx * off * side, bz = b.z + b.nz * off * side;
       const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz, len = Math.sqrt(l2), arc = g * seg;
-      if (len > arc * .8 || arc - len < 40 || arc - len > 110) continue;
+      if (len > arc * .9 || arc - len < 30 || arc - len > 130) continue;
+      const dA = (dx * a.tx + dz * a.tz) / len, dB = (dx * b.tx + dz * b.tz) / len;   // 입구/출구에서 도로 진행 방향과 비슷하게 이어져야 실제로 진입 가능 (U턴 가로지르기 제외)
+      if (dA < .7 || dB < .7) continue;
       let ok = true;
       for (let d = 12; d < len - 12 && ok; d += 7) {
         const px = ax + dx * d / len, pz = az + dz * d / len, req = Math.min(half + 17, off + .32 * Math.min(d, len - d));
@@ -690,13 +691,12 @@ function nearest(x, z, hint) {
 }
 
 /* ============================== 네트워크 ============================== */
-const PREFIX = 'kartrace-cpisgod-';
 const firebaseConfig = {
   apiKey: "AIzaSyBPgoO4EXWFagGEutquysQPmcvFk37eXbU", authDomain: "game-81004.firebaseapp.com", projectId: "game-81004",
   storageBucket: "game-81004.firebasestorage.app", messagingSenderId: "217133907611", appId: "1:217133907611:web:a62de72fc5c909390bd03e"
 };
 let db = null, fs = null, rooms = [], hbTimer = null;
-const net = { peer: null, host: false, conns: new Map(), hostConn: null, code: '', myId: 'p0', online: false };
+const net = { host: false, conns: new Map(), code: '', myId: 'p0', online: false, joined: false, primed: false, unsubs: [], timers: [], seen: {}, lastPush: 0 };
 
 async function initLobbyDb() {
   try {
@@ -744,55 +744,100 @@ async function submitRecord(mapId, ms) {
   try { await fs.setDoc(fs.doc(db, 'kart_records', mapId + '__' + me.name), { map: mapId, nick: me.name, time: Math.round(ms) }); } catch (e) {}
 }
 
-function sendAll(msg) { if (net.host) net.conns.forEach(c => c.open && c.send(msg)); else if (net.hostConn && net.hostConn.open) net.hostConn.send(msg); }
-function sendTo(c, msg) { if (c && c.open) c.send(msg); }
-function onNetMsg(msg, from) {
-  if (!msg || typeof msg !== 'object') return;
-  if (net.host && msg.r) net.conns.forEach(c => { if (c !== from && c.open) c.send(msg); });   // 호스트가 중계
-  handleMsg(msg, from);
+/* ----- Firestore 전송 계층: 방 문서 아래 msgs(이벤트 로그) / peers(각자의 상태 문서)를 모두가 구독 ----- */
+const subCol = name => fs.collection(db, 'kart_rooms', net.code, name);
+function sendRaw(to, msg) {
+  if (!db || !net.online || !net.code) return;
+  fs.addDoc(subCol('msgs'), { from: net.myId, to, d: JSON.stringify(msg), ts: Date.now() }).catch(() => {});
 }
-function hookConn(c) {
-  c.on('data', d => onNetMsg(d, c));
-  c.on('close', () => { if (net.host) { const id = c.metadata && c.metadata.pid; net.conns.delete(c.peer); dropPlayer(id); } else if (!leaving) toMenu('방장이 나갔어요'); });
+const sendAll = msg => sendRaw('', msg);
+const sendTo = (c, msg) => sendRaw(typeof c === 'string' ? c : (c && c.pid) || '', msg);
+function netPushStates(list) {   // 내 카트(호스트는 AI 카트 포함) 상태를 내 문서 하나에 덮어씀
+  if (!db || !net.online) return;
+  net.lastPush = Date.now();
+  fs.setDoc(fs.doc(db, 'kart_rooms', net.code, 'peers', net.myId), { s: JSON.stringify(list), ts: Date.now() }).catch(() => {});
+}
+function startTransport() {
+  net.primed = false;
+  net.unsubs.push(fs.onSnapshot(subCol('msgs'), snap => {
+    if (!net.primed) { if (!snap.metadata.fromCache) net.primed = true; return; }   // 처음 받은 서버 스냅샷(이전 기록)은 무시
+    snap.docChanges().forEach(ch => {
+      if (ch.type !== 'added') return;
+      const m = ch.doc.data(); if (m.from === net.myId || (m.to && m.to !== net.myId)) return;
+      let msg; try { msg = JSON.parse(m.d); } catch (e) { return; }
+      if (msg && typeof msg === 'object') handleMsg(msg, { pid: m.from });
+    });
+  }, () => { if (!leaving) toMenu('서버 연결이 끊겼어요'); }));
+  net.unsubs.push(fs.onSnapshot(subCol('peers'), snap => {
+    snap.docChanges().forEach(ch => {
+      if (ch.type === 'removed') return;
+      const id = ch.doc.id; if (id === net.myId) return;
+      net.seen[id] = Date.now();
+      let list; try { list = JSON.parse(ch.doc.data().s); } catch (e) { return; }
+      if (Array.isArray(list)) for (const st of list) handleMsg(Object.assign({}, st, { t: 's' }), { pid: id });
+    });
+  }, () => {}));
+  net.timers.push(setInterval(netTick, 1000));
+}
+function netTick() {
+  const now = Date.now();
+  if (now - net.lastPush > 4000) netPushStates([]);   // 하트비트 (레이스 중에는 상태 전송이 대신함)
+  if (net.host) {
+    for (const p of humans()) if (p.id !== 'p0' && net.seen[p.id] && now - net.seen[p.id] > 16000) { net.conns.delete(p.id); dropPlayer(p.id); }
+  } else if (net.joined && net.seen.p0 && now - net.seen.p0 > 16000 && !leaving) toMenu('방장과 연결이 끊겼어요');
 }
 let leaving = false;
 function netReset() {
   leaving = true;
   unpublishRoom();
-  const p = net.peer; net.peer = null; net.conns.clear(); net.hostConn = null; net.host = false; net.online = false; net.code = '';
-  if (p) try { p.destroy(); } catch (e) {}
+  if (net.online && db) {
+    const code = net.code, id = net.myId, host = net.host;
+    sendRaw('', { t: 'bye', id });
+    fs.deleteDoc(fs.doc(db, 'kart_rooms', code, 'peers', id)).catch(() => {});
+    if (host) setTimeout(async () => {   // 방장이 나가면 방 기록 정리 (메시지가 전달될 시간을 둠)
+      for (const name of ['msgs', 'peers']) { try { const snap = await fs.getDocs(fs.collection(db, 'kart_rooms', code, name)); snap.docs.forEach(d => fs.deleteDoc(d.ref).catch(() => {})); } catch (e) {} }
+    }, 4000);
+  }
+  net.unsubs.forEach(u => { try { u(); } catch (e) {} }); net.unsubs = [];
+  net.timers.forEach(clearInterval); net.timers = [];
+  net.conns.clear(); net.seen = {}; net.host = false; net.online = false; net.code = ''; net.joined = false; net.primed = false;
   leaving = false;
 }
-function createRoom() {
-  netReset(); net.host = true; net.myId = 'p0';
-  const tryCreate = () => {
-    const code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
-    const peer = new Peer(PREFIX + code); net.peer = peer;
-    peer.on('open', () => { net.code = code; net.online = true; publishRoom(); enterLobby(); });
-    peer.on('error', e => { if (e.type === 'unavailable-id') { peer.destroy(); tryCreate(); } else toMenu('연결 오류: ' + e.type); });
-    peer.on('connection', c => {
-      c.on('open', () => {
-        const pid = 'p' + (++pidSeq); c.metadata = { pid }; net.conns.set(c.peer, c); hookConn(c);
-        if (state !== 'lobby') { sendTo(c, { t: 'full', why: '레이스 진행 중이에요' }); return; }
-        if (humans().length >= 8) { sendTo(c, { t: 'full', why: '방이 가득 찼어요' }); return; }
-        sendTo(c, { t: 'welcome', id: pid });
-      });
-    });
-  };
-  tryCreate();
+addEventListener('pagehide', () => { if (net.online) netReset(); });
+const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+async function createRoom() {
+  netReset();
+  if (!db) return toMenu('서버에 연결할 수 없어요. 잠시 후 다시 시도하세요');
+  for (let t = 0; t < 8; t++) {
+    const code = Array.from({ length: 4 }, () => CODE_CH[Math.floor(Math.random() * 32)]).join('');
+    try {
+      const ex = await fs.getDoc(fs.doc(db, 'kart_rooms', code));
+      if (ex.exists() && Date.now() - ex.data().hb < 30000) continue;
+      await fs.setDoc(fs.doc(db, 'kart_rooms', code), { name: me.name, hb: Date.now(), playing: false });
+    } catch (e) { return toMenu('방을 만들 수 없어요. 서버 연결과 Firestore 규칙을 확인하세요'); }
+    net.host = true; net.myId = 'p0'; net.code = code; net.online = true;
+    startTransport(); publishRoom(); enterLobby(); return;
+  }
+  toMenu('방 코드를 만들 수 없어요. 다시 시도하세요');
 }
-let pidSeq = 0;
-function joinRoom(code) {
+async function joinRoom(code) {
   code = (code || '').toUpperCase().trim(); if (code.length !== 4) return toast0('방 코드 4자리를 입력하세요');
-  netReset(); net.host = false;
-  const peer = new Peer(); net.peer = peer;
-  peer.on('error', e => toMenu(e.type === 'peer-unavailable' ? '방을 찾을 수 없어요' : '연결 오류: ' + e.type));
-  peer.on('open', () => {
-    const c = peer.connect(PREFIX + code, { reliable: true });
-    net.hostConn = c; net.code = code;
-    c.on('open', () => { net.online = true; hookConn(c); });
-    setTimeout(() => { if (!net.online && net.peer === peer) toMenu('연결 시간 초과. 다른 방을 시도하세요'); }, 10000);
-  });
+  netReset();
+  if (!db) return toMenu('서버에 연결할 수 없어요. 잠시 후 다시 시도하세요');
+  try {
+    const r = await fs.getDoc(fs.doc(db, 'kart_rooms', code));
+    if (!r.exists() || Date.now() - r.data().hb > 30000) return toMenu('방을 찾을 수 없어요');
+  } catch (e) { return toMenu('서버에 연결할 수 없어요'); }
+  net.host = false; net.myId = 'p' + Math.random().toString(36).slice(2, 7); net.code = code; net.online = true; net.joined = false;
+  startTransport();
+  const t0 = Date.now();
+  const tryJoin = () => {   // 입장 요청은 방장이 응답할 때까지 반복
+    if (net.joined || net.code !== code || !net.online) return;
+    if (Date.now() - t0 > 15000) return toMenu('연결 시간 초과. 다른 방을 시도하세요');
+    if (net.primed) sendRaw('p0', { t: 'join' });
+    setTimeout(tryJoin, net.primed ? 2500 : 200);
+  };
+  tryJoin();
 }
 function toast0(t) { alert(t); }
 
@@ -809,7 +854,7 @@ const humans = () => lobby.players.filter(p => !p.bot);
 
 function show(id) { for (const s of document.querySelectorAll('.scr')) s.classList.toggle('on', s.id === id); }
 function toMenu(msg) {
-  const wasNet = net.online || net.peer; netReset(); state = 'menu';
+  const wasNet = net.online; netReset(); state = 'menu';
   clearRace(); $('hud').classList.remove('on'); $('touch').classList.remove('on'); show('scrMenu');
   if (msg) setTimeout(() => alert(msg), 50); void wasNet;
 }
@@ -908,9 +953,16 @@ $('btnStart').onclick = () => { if (net.host || !net.online) startRaceHost(); };
 /* ----- 메시지 처리 ----- */
 function handleMsg(m, from) {
   switch (m.t) {
-    case 'welcome': net.myId = m.id; sendAll({ t: 'hello', name: me.name, color: me.color, body: me.body, cos: me.cos }); enterLobby(); break;
+    case 'join': if (net.host && from && from.pid) {
+      const pid = from.pid;
+      if (state !== 'lobby') sendTo(pid, { t: 'full', why: '레이스 진행 중이에요' });
+      else if (humans().length >= 8 && !lobby.players.some(p => p.id === pid)) sendTo(pid, { t: 'full', why: '방이 가득 찼어요' });
+      else { net.conns.set(pid, true); net.seen[pid] = Date.now(); sendTo(pid, { t: 'welcome', id: pid }); }
+    } break;
+    case 'welcome': if (net.host || net.joined) break; net.joined = true; net.myId = m.id; sendAll({ t: 'hello', name: me.name, color: me.color, body: me.body, cos: me.cos }); enterLobby(); break;
+    case 'bye': if (m.id === 'p0') { if (!net.host && !leaving) toMenu('방장이 나갔어요'); } else if (net.host && m.id) { net.conns.delete(m.id); dropPlayer(m.id); } break;
     case 'full': toMenu(m.why); break;
-    case 'hello': if (net.host && from) { const pid = from.metadata.pid; setPlayer({ id: pid, name: String(m.name).slice(0, 10), color: colorOf(m.color), body: m.body | 0, cos: cleanCos(m.cos) }); broadcastLobby(); renderLobby(); } break;
+    case 'hello': if (net.host && from && net.conns.has(from.pid)) { const pid = from.pid; setPlayer({ id: pid, name: String(m.name).slice(0, 10), color: colorOf(m.color), body: m.body | 0, cos: cleanCos(m.cos) }); broadcastLobby(); renderLobby(); } break;
     case 'lobby': if (!net.host) {
       lobby.players = m.players; lobby.map = m.map; lobby.laps = m.laps; lobby.bots = m.bots; lobby.diff = m.diff | 0; lobby.items = m.items !== false; lobby.uniq = !!m.uniq;
       if (state === 'lobby') renderLobby(); else if (state === 'menu') { /* ignore */ }
@@ -1393,10 +1445,16 @@ function visualKart(k, dt) {
 /* ============================== 원격 카트 보간 ============================== */
 function sendState() {
   const k = myKart; if (!k || !net.online) return;
-  const pack = k => ({ t: 's', r: 1, id: k.id, x: +k.x.toFixed(2), z: +k.z.toFixed(2), h: +k.h.toFixed(3), vx: +k.vx.toFixed(2), vz: +k.vz.toFixed(2),
-    d: k.drift, c: Math.round(k.n2o), b: (k.boost > 0 || k.burn) ? 1 : 0, sh: k.shield > 0 ? 1 : 0, sp: k.spin > 0 ? +k.spin.toFixed(2) : 0, p: k.prog, l: k.lap, f: k.finished ? 1 : 0, w: k.fwd, y: +(k.y || 0).toFixed(2) });
-  sendAll(pack(k));
-  if (net.host) for (const b of karts) if (b.bot && b.local) sendAll(pack(b));
+  // Firestore 읽기/쓰기 횟수를 줄이기 위해 전송 간격을 인원수에 따라 늘림 (2명 0.26초 ~ 8명 0.62초)
+  const now = performance.now(), iv = 200 + 60 * Math.max(1, humans().length - 1);
+  if (now - (sendState.t || 0) < iv) return; sendState.t = now;
+  const pack = k => ({ t: 's', id: k.id, x: +k.x.toFixed(2), z: +k.z.toFixed(2), h: +k.h.toFixed(3), vx: +k.vx.toFixed(2), vz: +k.vz.toFixed(2),
+    d: k.drift, c: Math.round(k.n2o), b: (k.boost > 0 || k.burn) ? 1 : 0, sh: k.shield > 0 ? 1 : 0, sp: k.spin > 0 ? +k.spin.toFixed(2) : 0, p: k.prog, l: k.lap, f: k.finished ? 1 : 0, w: +k.fwd.toFixed(2), y: +(k.y || 0).toFixed(2) });
+  const list = [pack(k)];
+  if (net.host) for (const b of karts) if (b.bot && b.local) list.push(pack(b));
+  const sig = JSON.stringify(list.map(o => [o.x, o.z, o.h, o.b, o.sp, o.d, o.l, o.f]));
+  if (sig === sendState.sig) return;   // 정지 상태(카운트다운 등)면 쓰지 않음
+  sendState.sig = sig; netPushStates(list);
 }
 function applyRemote(k, m) {
   k.tx = m.x; k.tz = m.z; k.th = m.h; k.tvx = m.vx; k.tvz = m.vz; k.lastRecv = performance.now();
@@ -1404,7 +1462,7 @@ function applyRemote(k, m) {
   if (m.f && !k.finished) k.finished = true;
 }
 function stepRemote(k, dt) {
-  const age = Math.min(.25, (performance.now() - k.lastRecv) / 1000);
+  const age = Math.min(.7, (performance.now() - k.lastRecv) / 1000);   // 전송 지연이 있어서 최대 0.7초까지 위치를 예측
   const ex = k.tx + k.tvx * age, ez = k.tz + k.tvz * age, a = Math.min(1, dt * 10);
   k.x = lerp(k.x, ex, a); k.z = lerp(k.z, ez, a); k.h += angDiff(k.h, k.th) * a;
   k.vx = k.tvx; k.vz = k.tvz; k.spd = k.fwd || 0;
@@ -1643,7 +1701,7 @@ $('btnAgain').addEventListener('click', () => {});
 initMenu(); initLobbyDb(); requestAnimationFrame(loop);
 
 // 테스트/디버깅용 훅
-window.__kart = { useItem, onShortcut, wallGapAt, nearest, spawn: (t, x, z, h, to) => { if (t === 'mis') missiles.push(makeMissile('t' + Math.random(), 'x', to, x, z, h)); else bananas.push(makeBanana('t' + Math.random(), x, z, 'x', t)); }, sim: n => { race.t0 = performance.now() - 1; for (let i = 0; i < n; i++) updateRace(1 / 60); }, track: () => track, get spec() { return spec; }, setSpec, applyThunder, hitKart, dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
+window.__kart = { bananaCount: () => bananas.length, useItem, onShortcut, wallGapAt, nearest, spawn: (t, x, z, h, to) => { if (t === 'mis') missiles.push(makeMissile('t' + Math.random(), 'x', to, x, z, h)); else bananas.push(makeBanana('t' + Math.random(), x, z, 'x', t)); }, sim: n => { race.t0 = performance.now() - 1; for (let i = 0; i < n; i++) updateRace(1 / 60); }, track: () => track, get spec() { return spec; }, setSpec, applyThunder, hitKart, dropPlayer, buildTrack: m => buildTrack(MAPS[m]), MAPS, get state() { return state; }, get karts() { return karts; }, get myKart() { return myKart; }, get race() { return race; }, get net() { return net; }, lobby, startRaceHost, keys };
 </script>
 </body>
 </html>
