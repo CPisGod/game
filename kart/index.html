@@ -483,12 +483,14 @@ function genTrack(map) {
   {
     const ptSeg = (x, z, s) => { const t = clamp(((x - s.ax) * s.dx + (z - s.az) * s.dz) / s.l2, 0, 1); return Math.hypot(s.ax + s.dx * t - x, s.az + s.dz * t - z); };
     const off = half * .7;
-    for (let i0 = 0; i0 < NSAMP; i0 += 8) for (let g = Math.ceil(120 / seg); g <= Math.floor(320 / seg); g += 3) {
+    for (let i0 = 0; i0 < NSAMP; i0 += 8) for (let g = Math.ceil(90 / seg); g <= Math.floor(360 / seg); g += 2) {
       const i1 = (i0 + g) % NSAMP, a = pts[i0], b = pts[i1], im = (i0 + (g >> 1)) % NSAMP, m = pts[im];
       const mxx = (a.x + b.x) / 2 - m.x, mzz = (a.z + b.z) / 2 - m.z, side = (mxx * m.nx + mzz * m.nz) > 0 ? 1 : -1;
       const ax = a.x + a.nx * off * side, az = a.z + a.nz * off * side, bx = b.x + b.nx * off * side, bz = b.z + b.nz * off * side;
       const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz, len = Math.sqrt(l2), arc = g * seg;
-      if (len > arc * .8 || arc - len < 40 || arc - len > 110) continue;
+      if (len > arc * .9 || arc - len < 30 || arc - len > 130) continue;
+      const dA = (dx * a.tx + dz * a.tz) / len, dB = (dx * b.tx + dz * b.tz) / len;   // 입구/출구에서 도로 진행 방향과 비슷하게 이어져야 실제로 진입 가능 (U턴 가로지르기 제외)
+      if (dA < .7 || dB < .7) continue;
       let ok = true;
       for (let d = 12; d < len - 12 && ok; d += 7) {
         const px = ax + dx * d / len, pz = az + dz * d / len, req = Math.min(half + 17, off + .32 * Math.min(d, len - d));
