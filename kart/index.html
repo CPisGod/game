@@ -295,10 +295,10 @@ const MAPS = [
 const NSAMP = 700;
 const MAXSPD = 40, ACC = 22;
 // 드리프트 / 부스트 파라미터 (서로 독립적으로 조정 가능)
-const DRIFT_CHARGE = 20;      // 드리프트 중 초당 게이지 충전량 (× 보정값)
+const DRIFT_CHARGE = 40;      // 드리프트 중 초당 게이지 충전량 (× 보정값)
 const BOOST_DUR = 2.4;        // 부스트 지속시간(초)
-const BOOST_ACC = 2.4;        // 부스트 중 가속력 배율
-const BOOST_VMAX = 1.4;       // 부스트 중 최고속도 배율
+const BOOST_ACC = 4.8;        // 부스트 중 가속력 배율
+const BOOST_VMAX = 1.8;       // 부스트 중 최고속도 배율
 const BOOST_PASSIVE = 3;      // 게이지 기본 충전 (초당 %)
 const MAX_BOOSTS = 2;         // 부스트 보관 칸 수
 const ITEMS = { banana: '🍌', missile: '🚀', boost: '⚡', shield: '🛡️', oil: '🛢️', thunder: '🌩️', magnet: '🧲' };
@@ -1253,8 +1253,8 @@ function aiInput(k, dt) {
   if (scAim) target = Math.min(vmax, 34);
   else if (wantDrift || k.drift) { while (target > 14 && target * c > 1.95) target -= 1.5; }
   else while (target > 14 && target * c > turnMax(target) * ([.75, .88, .95][ds])) target -= 1.5;
-  if ((k.boost > 0 || k.burn) && c < .012) target = MAXSPD * 1.4;
-  target = clamp(target, 14, MAXSPD * (k.boost > 0 || k.burn ? 1.45 : [1.02, 1.12, 1.25][ds]));
+  if ((k.boost > 0 || k.burn) && c < .012) target = MAXSPD * BOOST_VMAX;
+  target = clamp(target, 14, MAXSPD * (k.boost > 0 || k.burn ? BOOST_VMAX + .05 : [1.02, 1.12, 1.25][ds]));
   const vh = Math.hypot(k.vx, k.vz) > 5 ? Math.atan2(k.vx, k.vz) : k.h, dv = angDiff(vh, want);   // 드리프트 중엔 진행 방향 기준으로 조향 (바깥으로 밀리지 않게)
   let steer = clamp((k.drift && !scAim ? dv : d) * 2.6, -1, 1);
   if (wantDrift && !k.drift) steer = sgn1 * .9;   // 드리프트 진입 방향
