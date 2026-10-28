@@ -80,7 +80,7 @@
   body.touch .home-btn { bottom: auto; top: 10px; }
 </style>
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
 </script>
 </head>
 <body>
@@ -128,6 +128,7 @@
 
 <script type="module">
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* ================= 상수 / 블록 정의 ================= */
 const CS = 16, MINY = -4, H = 48, R = 6, SEA = 1, SEED = 0x5bd1e995 | 0;
@@ -241,6 +242,9 @@ camera.rotation.order = 'YXZ';
 scene.add(camera);
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
+
+const ambLight = new THREE.AmbientLight(0xffffff, 1.2), sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+scene.add(ambLight, sunLight);
 
 const tex = new THREE.CanvasTexture(atlas);
 tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
@@ -428,7 +432,7 @@ function updateChunks(px, pz, budget) {
 }
 
 /* ================= 상태: 플레이어 / 인벤토리 ================= */
-const player = { x: 0.5, y: 1.001, z: 0.5, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, onGround: false, fly: false, inWater: false, headWater: false };
+const player = { slowT: 0, x: 0.5, y: 1.001, z: 0.5, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, onGround: false, fly: false, inWater: false, headWater: false };
 let sel = 0, gm = 'creative', hp = 20, tod = 0.12, spawn = { x: 0.5, y: 1.001, z: 0.5 };
 let hotbar = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 let inv = {};
@@ -504,6 +508,13 @@ const sfx = {
   hit() { tone(220, 90, 0.1, 0.35); noise(1400, 1, 0.08, 0.35); },
   oink() { tone(380 + Math.random() * 60, 240, 0.14, 0.22, 'sawtooth'); },
   moan() { tone(120 + Math.random() * 20, 70, 0.45, 0.2, 'sawtooth'); },
+  voice(t) {
+    if (t === 'buta') sfx.oink();
+    else if (t === 'monkey') { tone(900, 500, 0.1, 0.18, 'square'); setTimeout(() => tone(1000, 600, 0.1, 0.18, 'square'), 140); }
+    else if (t === 'chuk') { noise(3500, 3, 0.25, 0.35); }
+    else if (t === 'apple') { noise(700, 0.5, 0.4, 0.3, 'lowpass'); }
+    else tone(200, 150, 0.2, 0.25, 'sawtooth');
+  },
   pop() { noise(900, 0.8, 0.2, 0.45); tone(400, 120, 0.15, 0.25, 'sine'); },
 };
 
@@ -573,6 +584,8 @@ const stars = new THREE.Points(starGeo, starMat); stars.renderOrder = -9; stars.
 
 const DAY_SKY = new THREE.Color(0x87ceeb), NIGHT_SKY = new THREE.Color(0x070b1f), DUSK = new THREE.Color(0xf09060);
 const lightCol = new THREE.Color(1, 1, 1), tmpC = new THREE.Color(), waterFog = new THREE.Color();
+const mix = (a, b, t) => a + (b - a) * t;
+const damp = (a, b, k, dt) => a + (b - a) * (1 - Math.exp(-k * dt));
 const sm = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 let daylight = 1;
 const waterEl = document.getElementById('water');
@@ -584,7 +597,8 @@ function updateSky() {
   lightCol.setRGB(0.2 + 0.8 * daylight, 0.22 + 0.78 * daylight, 0.38 + 0.62 * daylight);
   matO.color.copy(lightCol); matT.color.copy(lightCol); matW.color.copy(lightCol);
   for (const m of pMats.values()) m.color.copy(m.userData.base).multiply(lightCol);
-  for (const m of mobMats) m.color.copy(m.userData.base).multiply(lightCol);
+  ambLight.color.copy(lightCol); ambLight.intensity = 0.9 + daylight * 0.5;
+  sunLight.intensity = daylight * 1.6; sunLight.position.set(Math.cos(a) * 0.9, Math.max(0.2, sn), 0.3);
   const under = player.headWater;
   waterEl.style.display = under ? 'block' : 'none';
   if (under) { waterFog.setRGB(0.1, 0.28, 0.6).multiply(lightCol); scene.fog.color.copy(waterFog); scene.background.copy(waterFog); scene.fog.near = 0.5; scene.fog.far = 20; }
@@ -649,6 +663,7 @@ function stepPhysics(dt, input) {
   const fly = player.fly;
   let sp = fly ? 10 : input.sprint ? 6.4 : 4.4;
   if (feetW && !fly) sp *= 0.55;
+  if (player.slowT > 0) { sp *= 0.5; player.slowT -= dt; }
   let f = input.f, s = input.s;
   const len = Math.hypot(f, s); if (len > 1) { f /= len; s /= len; }
   const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
@@ -750,71 +765,544 @@ function buildInv() {
 function giveItem(id, n = 1) { inv[id] = (inv[id] || 0) + n; refreshHotbar(); }
 const canPlace = id => id !== BEDROCK && (gm === 'creative' || (inv[id] || 0) > 0);
 
-/* ================= 몹 ================= */
-const mobs = [], mobMats = [];
+/* ================= 몹 (서브웨이 3D 캐릭터 이식) ================= */
+const mobs = [], projs = [];
 const geoCache = new Map();
 const bgeo = (w, h, d) => { const k = w + ',' + h + ',' + d; let g = geoCache.get(k); if (!g) { g = new THREE.BoxGeometry(w, h, d); geoCache.set(k, g); } return g; };
-const mmat = color => { const m = new THREE.MeshBasicMaterial({ color }); m.userData.base = new THREE.Color(color); mobMats.push(m); return m; };
-const faceMat = (() => {
-  const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d');
-  g.fillStyle = '#d9a97a'; g.fillRect(0, 0, 16, 16);
-  g.fillStyle = '#3a2a1c'; g.fillRect(0, 0, 16, 4); g.fillRect(0, 4, 2, 3); g.fillRect(14, 4, 2, 3);
-  g.fillStyle = '#fff'; g.fillRect(3, 7, 4, 3); g.fillRect(9, 7, 4, 3);
-  g.fillStyle = '#c00'; g.fillRect(4, 8, 2, 2); g.fillRect(10, 8, 2, 2);
-  g.fillStyle = '#5a2a14'; g.fillRect(2, 5, 5, 1); g.fillRect(9, 5, 5, 1); g.fillRect(7, 6, 1, 1); g.fillRect(8, 6, 1, 1);
-  g.fillStyle = '#6b1d12'; g.fillRect(4, 12, 8, 2); g.fillStyle = '#fff'; g.fillRect(5, 12, 1, 1); g.fillRect(7, 12, 1, 1); g.fillRect(9, 12, 1, 1);
-  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; t.colorSpace = THREE.SRGBColorSpace;
-  const m = new THREE.MeshBasicMaterial({ map: t }); m.userData.base = new THREE.Color(0xffffff); mobMats.push(m); return m;
-})();
-const MOB = {
-  pig: { n: '부타', hw: 0.35, h: 0.85, hp: 6, speed: 1.1, hostile: false },
-  yunjae: { n: '윤재', hw: 0.3, h: 1.9, hp: 10, speed: 2.5, hostile: true },
-};
-const PM = { skin: mmat(0xf3a3b6), dark: mmat(0xe07b94), eye: mmat(0x111111), hair: mmat(0x3a2a1c), tan: mmat(0xd9a97a), shirt: mmat(0x2a8f8f), pants: mmat(0x2a3f8f) };
-function bx(g, w, h, d, mat, x, y, z) { const m = new THREE.Mesh(bgeo(w, h, d), mat); m.position.set(x, y, z); g.add(m); return m; }
-function limb(parent, w, h, d, mat, x, y, z) { const piv = new THREE.Group(); piv.position.set(x, y, z); bx(piv, w, h, d, mat, 0, -h / 2, 0); parent.add(piv); return piv; }
-function makeMobModel(type) {
-  const g = new THREE.Group(), limbs = [];
-  if (type === 'pig') {
-    bx(g, 0.6, 0.5, 0.9, PM.skin, 0, 0.55, 0);
-    bx(g, 0.46, 0.46, 0.4, PM.skin, 0, 0.66, 0.56);
-    bx(g, 0.24, 0.17, 0.1, PM.dark, 0, 0.6, 0.79);
-    bx(g, 0.07, 0.07, 0.02, PM.eye, -0.12, 0.74, 0.77); bx(g, 0.07, 0.07, 0.02, PM.eye, 0.12, 0.74, 0.77);
-    bx(g, 0.12, 0.1, 0.08, PM.dark, -0.18, 0.93, 0.5); bx(g, 0.12, 0.1, 0.08, PM.dark, 0.18, 0.93, 0.5);
-    for (const [x, z] of [[-0.2, 0.3], [0.2, 0.3], [-0.2, -0.3], [0.2, -0.3]]) limbs.push(limb(g, 0.18, 0.3, 0.18, PM.dark, x, 0.3, z));
-  } else {
-    limbs.push(limb(g, 0.25, 0.7, 0.25, PM.pants, -0.13, 0.7, 0), limb(g, 0.25, 0.7, 0.25, PM.pants, 0.13, 0.7, 0));
-    bx(g, 0.5, 0.7, 0.25, PM.shirt, 0, 1.05, 0);
-    limbs.push(limb(g, 0.2, 0.7, 0.2, PM.tan, -0.36, 1.4, 0), limb(g, 0.2, 0.7, 0.2, PM.tan, 0.36, 1.4, 0));
-    const head = new THREE.Mesh(bgeo(0.5, 0.5, 0.5), [PM.tan, PM.tan, PM.hair, PM.tan, faceMat, PM.hair]);
-    head.position.set(0, 1.65, 0); g.add(head);
+
+// ---- 서브웨이(subway/index.html)에서 가져온 스프라이트 입체 캐릭터 빌더 ----
+// ───────────────────────── 스프라이트 기반 입체 캐릭터 ─────────────────────────
+// 좌표: 얼굴은 -Z, 등은 +Z. 원본 도트의 계단 실루엣과 색면을 입체 블록으로 재해석.
+// 각 캐릭터는 기존 root/rig/torso/head/tail/ears/eyes/arms/legs 계약을 그대로 유지한다.
+// 모든 소품은 손 관절 아래, 움직이는 장식은 별도 Group 아래 배치한다.
+const SPRITE_BOX = new THREE.BoxGeometry(1, 1, 1);
+const SPRITE_MATERIALS = new Map();
+function spriteMaterial(color, glow = 0) {
+  const key = `${color}:${glow}`;
+  if (!SPRITE_MATERIALS.has(key)) {
+    SPRITE_MATERIALS.set(key, new THREE.MeshStandardMaterial({
+      color, roughness: .92, metalness: 0, flatShading: true,
+      emissive: glow ? color : 0x000000, emissiveIntensity: glow,
+    }));
   }
-  return { g, limbs };
+  return SPRITE_MATERIALS.get(key);
 }
+function spriteGroup(parent, name, x = 0, y = 0, z = 0) {
+  const g = new THREE.Group(); g.name = name; g.position.set(x, y, z); parent.add(g); return g;
+}
+function spriteBox(parent, color, x, y, z, w, h, d, name = '', glow = 0) {
+  const mesh = new THREE.Mesh(SPRITE_BOX, spriteMaterial(color, glow));
+  mesh.name = name; mesh.position.set(x, y, z); mesh.scale.set(w, h, d);
+  mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+}
+// 두 점을 잇는 가는 블록. 뼈·뿌리·꼬리·목도리의 꺾임에 같은 연결 처리를 쓴다.
+function spriteBeam(parent, color, from, to, width, depth = width, name = '') {
+  const a = new THREE.Vector3(...from), b = new THREE.Vector3(...to);
+  const dir = b.clone().sub(a), len = dir.length();
+  const mid = a.clone().add(b).multiplyScalar(.5);
+  const m = spriteBox(parent, color, mid.x, mid.y, mid.z, width, len + .012, depth, name);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); return m;
+}
+// [밑면 Y, 폭, 깊이, 높이]로 쌓는 계단형 실루엣. 한 덩어리 구체를 사용하지 않는다.
+function spriteSteps(parent, rows, palette, z = 0, name = '계단형 볼륨') {
+  rows.forEach(([bottom, width, depth, height], i) => {
+    const y = bottom + height / 2;
+    spriteBox(parent, palette.base, 0, y, z, width, height + .002, depth, name + i);
+    // 옆면과 뒷면은 한 톤 짙게, 정면에는 원본의 주조색을 유지한다.
+    spriteBox(parent, palette.shade, -width / 2 + .009, y, z, .02, height, depth + .004);
+    spriteBox(parent, palette.shade, width / 2 - .009, y, z, .02, height, depth + .004);
+    spriteBox(parent, palette.shade, 0, y, z + depth / 2, width - .02, height, .014);
+    if (palette.light && i === rows.length - 1)
+      spriteBox(parent, palette.light, 0, bottom + height + .003, z, width - .025, .012, depth - .025);
+  });
+}
+// 도트 무늬를 입체 표면에 배치. 공백/점은 투명, 행의 첫 줄이 위쪽이다.
+function spritePixels(parent, rows, palette, cell, x, y, z, depth = .024, name = '도트 무늬') {
+  const width = Math.max(...rows.map(r => r.length));
+  rows.forEach((row, iy) => {
+    for (let ix = 0; ix < row.length; ix++) {
+      const c = palette[row[ix]];
+      if (c === undefined) continue;
+      spriteBox(parent, c, x + (ix - (width - 1) / 2) * cell, y - iy * cell, z, cell + .001, cell + .001, depth, name);
+    }
+  });
+}
+function spriteEyes(h, parent, { x, y, z, w = .125, height = .17, pupil = 0x25201b, white = 0xfff8e6, look = .012 }) {
+  for (const s of [-1, 1]) {
+    const eye = spriteGroup(parent, '깜빡이는 네모 눈', s * x, y, z);
+    spriteBox(eye, white, 0, 0, 0, w, height, .033);
+    spriteBox(eye, pupil, look, -.014, -.024, w * .36, height * .69, .025);
+    h.eyes.push(eye);
+  }
+}
+function makeSpriteRig(name, options = {}) {
+  const root = new THREE.Group(); root.name = name;
+  const rig = spriteGroup(root, '전신 리그');
+  const torso = spriteGroup(rig, '몸통');
+  const head = spriteGroup(rig, '머리', 0, options.headY || 2.02, 0);
+  const tail = spriteGroup(torso, '꼬리 / 보조 장식', 0, 1.02, .30);
+  const h = { root, rig, torso, head, tail, ears: [], eyes: [], arms: [], legs: [], secondary: [] };
+  for (const s of [-1, 1]) {
+    const sh = spriteGroup(torso, s < 0 ? '왼쪽 어깨' : '오른쪽 어깨', s * (options.shoulder || .42), options.shoulderY || 1.51, 0);
+    const el = spriteGroup(sh, '팔꿈치', 0, -.30, 0);
+    const hand = spriteGroup(el, '손 / 소품 장착점', 0, -.27, -.015);
+    h.arms.push({ sh, el, hand, s, carry: 0 });
+    const hip = spriteGroup(rig, '고관절', s * (options.hipX || .19), .74, 0);
+    const knee = spriteGroup(hip, '무릎', 0, -.30, 0);
+    const foot = spriteGroup(knee, '발목', 0, -.30, 0);
+    h.legs.push({ hip, knee, foot, s });
+  }
+  return h;
+}
+function spriteLimbs(h, p, { arm = .14, leg = .18, shoe = .25, cuff = null } = {}) {
+  h.arms.forEach(({ sh, el, hand, s }) => {
+    spriteBox(sh, p.arm, 0, -.115, 0, arm, .29, arm, '위팔');
+    spriteBox(sh, p.armShade || p.arm, s * arm * .36, -.12, .012, arm * .30, .22, arm);
+    spriteBox(el, p.arm, 0, -.105, -.002, arm * .94, .26, arm * .96, '아래팔');
+    if (cuff) spriteBox(el, cuff, 0, -.205, -.002, arm * 1.10, .075, arm * 1.09, '소매단');
+    spriteBox(hand, p.hand || p.arm, 0, -.015, -.007, arm * 1.22, .13, arm * 1.16, '네모 손');
+    spriteBox(hand, p.handShade || p.armShade || p.arm, s * -.065, -.02, -.045, .045, .075, .09, '엄지');
+  });
+  h.legs.forEach(({ hip, knee, foot, s }) => {
+    spriteBox(hip, p.leg, 0, -.14, 0, leg, .30, leg, '허벅지');
+    spriteBox(hip, p.legShade || p.leg, s * leg * .38, -.14, .025, leg * .24, .27, leg);
+    spriteBox(knee, p.leg, 0, -.125, 0, leg * .88, .27, leg * .92, '정강이');
+    spriteBox(foot, p.sole || 0x282127, 0, -.105, -.065, shoe + .025, .065, .38, '검은 밑창');
+    spriteBox(foot, p.shoe || p.leg, 0, -.052, -.075, shoe, .105, .35, '발 / 신발');
+    if (p.shoeLight) spriteBox(foot, p.shoeLight, 0, -.015, -.19, shoe - .03, .028, .12, '발등 하이라이트');
+  });
+}
+// 같은 관절 아래의 정적 블록만 재질별로 병합한다. 관절/눈/소품의 Group은 유지.
+// 외형 디테일은 많지만 수백 개 블록을 개별 draw call로 보내지 않는다.
+function finishSprite(h) {
+  function batch(group) {
+    group.children.filter(c => c.isGroup).forEach(batch);
+    const bins = new Map();
+    for (const child of group.children) {
+      if (!child.isMesh || child.geometry !== SPRITE_BOX) continue;
+      const list = bins.get(child.material) || []; list.push(child); bins.set(child.material, list);
+    }
+    bins.forEach((meshes, mat) => {
+      if (meshes.length < 2) return;
+      const parts = meshes.map(m => { m.updateMatrix(); return m.geometry.clone().applyMatrix4(m.matrix); });
+      const geometry = mergeGeometries(parts, false);
+      parts.forEach(g => g.dispose());
+      if (!geometry) return;
+      geometry.computeBoundingSphere();
+      const combined = new THREE.Mesh(geometry, mat); combined.name = '관절별 병합 도트';
+      combined.castShadow = true; combined.receiveShadow = true;
+      meshes.forEach(m => group.remove(m)); group.add(combined);
+    });
+  }
+  batch(h.rig); return h;
+}
+
+// ───────────────────────── 부타: 분홍 피부 / 각진 주둥이 / 파란 바지 ─────────────────────────
+function buildButa() {
+  const P = { base: 0xee9ab3, shade: 0xc96f8a, light: 0xffb4c9, belly: 0xffcbd6,
+    snout: 0xdf849f, nostril: 0x713347, blue: 0x466dcc, blueD: 0x304b99, hoof: 0x734630, ink: 0x2a2027 };
+  const h = makeSpriteRig('부타 · 도트 리빌드', { shoulder: .43, shoulderY: 1.48, headY: 2.05 });
+  h.tailMotion = { idle: .25, run: .36, pitch: -.20 };
+  const { torso, head } = h;
+  spriteSteps(torso, [[.79,.69,.53,.15],[.94,.82,.64,.22],[1.16,.78,.63,.23],[1.39,.61,.52,.22],[1.61,.43,.40,.12]], P);
+  // 커다란 연분홍 배: 윗부분이 좁고 아래로 넓어지는 픽셀 패치.
+  spritePixels(torso, ['...LLL...','..LLLLL..','.LLLLLLL.','LLLLLLLLL','LLLLLLLLL','.LLLLLLL.','..LLLLL..'],
+    { L: P.belly }, .066, 0, 1.43, -.332, .033, '연분홍 배');
+  spriteBox(torso, P.blueD, 0, .805, 0, .80, .14, .60, '반바지');
+  spriteBox(torso, P.blue, 0, .864, -.012, .87, .105, .65, '파란 수평 허리선');
+  spriteBox(torso, 0x7b98e8, 0, .91, -.347, .82, .026, .023, '허리선 밝은 테두리');
+  spriteBox(torso, P.blueD, 0, .772, -.31, .034, .08, .025, '바지 가운데 솔기');
+  for (const s of [-1, 1]) {
+    spriteBox(torso, P.blueD, s * .28, .825, .31, .15, .062, .02, '뒤 주머니');
+    spriteBox(torso, P.light, s * .32, 1.25, .315, .075, .16, .02, '등 피부 명암');
+  }
+  spriteSteps(head, [[-.40,.56,.48,.12],[-.28,.84,.65,.18],[-.10,1.00,.73,.22],[.12,.94,.71,.22],[.34,.73,.59,.12]], P);
+  // 길게 돌출된 사각 주둥이 + 두 개의 네모 콧구멍.
+  spriteBox(head, P.base, 0, -.115, -.45, .53, .35, .27, '주둥이 연결');
+  spriteBox(head, P.shade, 0, -.12, -.59, .57, .26, .23, '주둥이 측면');
+  spriteBox(head, P.snout, 0, -.105, -.719, .48, .25, .038, '네모 코');
+  spriteBox(head, P.light, 0, .025, -.688, .40, .031, .085, '코 윗면');
+  for (const s of [-1,1]) spriteBox(head, P.nostril, s*.112, -.102, -.744, .062, .060, .018, '콧구멍');
+  spriteBox(head, P.nostril, 0, -.267, -.52, .22, .026, .035, '짧은 입');
+  spriteEyes(h, head, { x: .28, y: .15, z: -.378, w: .145, height: .18, look: -.013 });
+  // 삼각 원뿔이 아닌 도트식 두 단 귀. 내측 분홍 패치도 독립 배치.
+  for (const s of [-1,1]) {
+    const ear = spriteGroup(head, '계단 귀', s*.34, .39, -.015);
+    spriteBox(ear, P.shade, 0, .095, 0, .235, .25, .17);
+    spriteBox(ear, P.base, s*.035, .225, 0, .14, .10, .15);
+    spriteBox(ear, 0xf6b5c8, 0, .09, -.092, .12, .16, .021);
+    spriteBox(ear, P.ink, s*.055, .28, 0, .11, .023, .16, '귀 끝 외곽선');
+    ear.userData.base = s * -.11; ear.userData.baseX = -.08; h.ears.push(ear);
+  }
+  spriteLimbs(h, { arm:P.base, armShade:P.shade, hand:P.belly, handShade:P.shade,
+    leg:P.base, legShade:P.shade, shoe:P.hoof, sole:P.ink, shoeLight:0x9c6547 }, { arm:.155, leg:.17, shoe:.29 });
+  h.arms.forEach(({ hand }) => {
+    spriteBox(hand, P.shade, -.028, -.079, -.08, .012,.035,.018, '손가락 홈');
+    spriteBox(hand, P.shade, .028, -.079, -.08, .012,.035,.018, '손가락 홈');
+  });
+  h.legs.forEach(({ hip }) => spriteBox(hip, P.blueD, 0, -.025, 0, .23,.11,.23, '반바지 밑단'));
+  h.tail.position.set(-.10, 1.13, .31);
+  const curl = [[0,0,0],[0,0,.18],[-.15,0,.18],[-.15,.15,.18],[.005,.15,.18],[.005,.075,.18],[-.06,.075,.18]];
+  for (let i=1;i<curl.length;i++) spriteBeam(h.tail, i%2 ? P.shade:P.base, curl[i-1],curl[i],.065,.065,'꺾인 돼지 꼬리');
+  return finishSprite(h);
+}
+
+// ───────────────────────── 척추: 비어 있는 흉곽 / 붉은 눈 / 세 갈래 목도리 ─────────────────────────
+function buildChuk() {
+  const P = { base:0xf2efd0, shade:0xb7b28b, light:0xfffbe3, ink:0x25211e, red:0xcc4029, redD:0x842a20 };
+  const h = makeSpriteRig('척추 · 도트 리빌드', { shoulder:.36, shoulderY:1.55, headY:2.08, hipX:.22 });
+  h.tailMotion = { idle: .07, run: .17, pitch: -.16 };
+  const { head, torso } = h;
+  // 척추뼈는 앞/뒤가 모두 보이도록 마디마다 골체·가로돌기·극돌기를 분리.
+  for (let i=0;i<10;i++) {
+    const y = .87 + i*.075;
+    spriteBox(torso,P.shade,0,y,.115,.135,.054,.12,'척추 골체');
+    spriteBox(torso,P.base,0,y+.015,.09,.16,.031,.12,'척추 밝은 마디');
+    spriteBox(torso,P.base,0,y,.215,.060,.040,.13,'등 가시돌기');
+    if (i>1) spriteBox(torso,P.shade,0,y,.135,.25,.028,.055,'가로돌기');
+  }
+  // 늑골의 빈 공간은 실제 빈 공간이다. 어두운 몸통 구체로 메우지 않는다.
+  const ribs = [[1.49,.56],[1.34,.61],[1.19,.57],[1.04,.48]];
+  ribs.forEach(([y,w]) => {
+    spriteBox(torso,P.light,0,y,-.177,w,.062,.075,'전면 갈비뼈');
+    for (const s of [-1,1]) {
+      spriteBox(torso,P.base,s*w*.5,y+.018,-.02,.065,.094,.32,'측면 갈비뼈');
+      spriteBeam(torso,P.shade,[s*w*.5,y+.035,.14],[s*.06,y+.067,.16],.045,.055,'등 갈비뼈');
+    }
+  });
+  spriteBox(torso,P.base,0,1.34,-.216,.068,.38,.05,'흉골');
+  spriteBox(torso,P.base,0,1.59,0,.66,.055,.10,'쇄골');
+  for (const s of [-1,1]) {
+    spriteBox(torso,P.base,s*.20,.84,.015,.22,.19,.25,'골반 장골');
+    spriteBox(torso,P.shade,s*.12,.755,-.015,.15,.08,.22,'골반 아래');
+  }
+  spriteBox(torso,P.light,0,.90,-.10,.53,.065,.13,'골반 능선');
+  spriteSteps(head, [[-.38,.49,.43,.12],[-.26,.77,.57,.17],[-.09,.96,.66,.27],[.18,.84,.61,.17],[.35,.62,.51,.11]], P);
+  spriteBox(head,P.base,0,.49,.015,.10,.09,.19,'두개골 꼭대기 픽셀');
+  // 검은 사각 안와에 작은 적색 동공만 남긴다. 흰 눈알은 사용하지 않는다.
+  for (const s of [-1,1]) {
+    const eye = spriteGroup(head,'검은 안와와 붉은 눈',s*.225,.085,-.345);
+    spriteBox(eye,P.shade,0,0,.006,.235,.24,.035,'안와 테두리');
+    spriteBox(eye,P.ink,0,0,-.014,.195,.20,.03,'안와');
+    spriteBox(eye,0xd9402e,s*-.013,.006,-.035,.060,.067,.016,'붉은 동공',.15);
+    spriteBox(eye,0xffa56a,s*-.013,.025,-.046,.024,.020,.012,'동공 하이라이트');
+    h.eyes.push(eye);
+  }
+  spriteBox(head,P.ink,0,-.125,-.342,.066,.115,.035,'코 구멍');
+  spriteBox(head,P.ink,0,-.30,-.282,.40,.088,.034,'치아 사이 빈 공간');
+  for (let i=-2;i<=2;i++) spriteBox(head,P.light,i*.078,-.30,-.31,.044,.10,.035,'분리된 치아');
+  spriteBox(head,P.base,0,-.40,-.16,.48,.075,.29,'아래턱');
+  spriteBox(head,P.shade,-.20,.345,-.27,.055,.08,.025,'두개골 금');
+  spriteBox(head,P.shade,-.15,.305,-.31,.055,.025,.022,'두개골 금');
+  // 뼈 팔: 위팔뼈와 두 줄의 아래팔뼈, 관절의 둥근 인상은 작은 계단 블록으로 표현.
+  h.arms.forEach(({ sh, el, hand, s }) => {
+    spriteBeam(sh,P.base,[0,-.025,0],[s*.025,-.25,0],.085,.09,'위팔뼈');
+    spriteBox(sh,P.light,0,-.02,0,.14,.105,.14,'어깨 관절');
+    spriteBox(el,P.shade,0,0,0,.13,.11,.13,'팔꿈치');
+    const long = s>0 ? .10 : 0;
+    for (const side of [-1,1]) spriteBeam(el,side<0?P.base:P.light,[side*.038,-.035,0],[side*.031,-.245-long,-.015],.040,.055,'요골 / 척골');
+    hand.position.y -= long;
+    spriteBox(hand,P.base,0,-.02,0,.14,.105,.10,'손목 뼈');
+    for (let i=-1;i<=1;i++) {
+      spriteBox(hand,P.light,i*.045,-.10,-.015,.034,.08,.045,'손가락 마디');
+      spriteBox(hand,P.shade,i*.045,-.149,-.035,.033,.027,.045,'손가락 끝');
+    }
+  });
+  h.legs.forEach(({ hip, knee, foot }) => {
+    spriteBox(hip,P.base,0,-.13,0,.105,.27,.12,'대퇴골');
+    spriteBox(hip,P.light,0,-.03,0,.16,.11,.16,'대퇴골 관절');
+    spriteBox(knee,P.light,0,-.015,-.015,.16,.12,.15,'슬개골');
+    spriteBox(knee,P.base,-.036,-.15,0,.070,.24,.085,'경골');
+    spriteBox(knee,P.shade,.046,-.15,.025,.036,.24,.05,'비골');
+    spriteBox(foot,P.ink,0,-.106,-.07,.29,.045,.36,'발 외곽');
+    spriteBox(foot,P.shade,0,-.066,-.07,.255,.065,.32,'발뼈');
+    for (let i=-1;i<=1;i++) spriteBox(foot,P.base,i*.075,-.037,-.185,.065,.07,.14,'발가락뼈');
+  });
+  spriteBox(torso,P.redD,0,1.715,.015,.45,.14,.39,'목도리 목 감싸기');
+  spriteBox(torso,P.red,0,1.74,-.19,.43,.105,.08,'목도리 정면');
+  spriteBox(torso,0xe65a37,-.24,1.705,.05,.17,.16,.21,'목도리 매듭');
+  h.tail.position.set(-.20,1.72,.18); h.tail.name='세 갈래 붉은 목도리';
+  const ribbons = [
+    [[-.04,.03,.01],[-.32,.14,.21],[-.60,.30,.30],[-.78,.42,.34]],
+    [[-.04,-.01,.02],[-.38,-.02,.23],[-.71,.02,.34],[-.86,.02,.38]],
+    [[-.02,-.05,.02],[-.28,-.19,.20],[-.57,-.23,.34],[-.73,-.18,.38]],
+  ];
+  ribbons.forEach((pts,i) => {
+    const ribbon=spriteGroup(h.tail,'목도리 꼬리 '+i);
+    for(let k=1;k<pts.length;k++) {
+      spriteBeam(ribbon,i===1?P.redD:P.red,pts[k-1],pts[k],.10-k*.016,.045,'계단형 천');
+    }
+    h.secondary.push({ node:ribbon, axis:'x', amplitude:.08, speed:4.1, phase:i*.9, base:0 });
+  });
+  return finishSprite(h);
+}
+
+// ───────────────────────── 원숭이: 갈색 털 / 밝은 얼굴과 배 / 말린 꼬리 / 바나나 ─────────────────────────
+function buildMonkey() {
+  const P={base:0x955b2c,shade:0x653d1d,light:0xb67b3c,face:0xf0c58f,faceL:0xffdba6,ink:0x30231b};
+  const h=makeSpriteRig('원숭이 · 도트 리빌드',{shoulder:.40,shoulderY:1.49,headY:1.97});
+  h.tailMotion = { idle: .11, run: .23, pitch: -.20 };
+  const {torso,head}=h;
+  spriteSteps(torso,[[.79,.63,.46,.16],[.95,.73,.54,.24],[1.19,.70,.52,.23],[1.42,.51,.43,.20]],P);
+  spritePixels(torso,['..LLL..','.LLLLL.','.LLLLL.','LLLLLLL','LLLLLLL','.LLLLL.','..LLL..'],{L:P.face},.063,0,1.39,-.289,.035,'아몬드색 배');
+  spriteBox(torso,P.faceL,-.055,1.30,-.312,.11,.16,.025,'배 밝은 면');
+  spriteSteps(head,[[-.35,.57,.45,.11],[-.24,.83,.60,.19],[-.05,.99,.68,.24],[.19,.80,.60,.15],[.34,.54,.47,.10]],P);
+  // 정수리 털이 픽셀 단위로 뾰족하게 솟고, 옆머리는 세 단으로 넓어진다.
+  spriteBox(head,P.shade,-.08,.46,.015,.14,.12,.20,'정수리 털');
+  spriteBox(head,P.base,.065,.435,0,.12,.08,.24,'정수리 털');
+  for(const s of [-1,1]) {
+    spriteBox(head,P.base,s*.51,-.01,-.005,.15,.20,.31,'옆머리');
+    const ear=spriteGroup(head,'네모 귀',s*.59,-.005,.015);
+    spriteBox(ear,P.shade,0,0,0,.20,.25,.18);
+    spriteBox(ear,P.base,s*.035,0,-.015,.20,.16,.20);
+    spriteBox(ear,P.face,0,0,-.123,.11,.115,.026);
+    ear.userData.base=s*-.04; ear.userData.baseX=0; h.ears.push(ear);
+  }
+  // 눈 주위 두 봉우리 + 넓은 주둥이를 하나의 계단 얼굴 패치로 연결.
+  spritePixels(head,['..LL.LL..','.LLLLLLL.','LLLLLLLLL','LLLLLLLLL','.LLLLLLL.','..LLLLL..'],
+    {L:P.face},.075,0,.225,-.358,.045,'연한 얼굴 마스크');
+  spriteBox(head,P.face,0,-.145,-.435,.53,.24,.19,'돌출된 입 주변');
+  spriteBox(head,P.faceL,0,-.20,-.54,.43,.075,.028,'아랫입술 밝은 면');
+  spriteEyes(h,head,{x:.17,y:.13,z:-.395,w:.13,height:.17,look:-.01});
+  spriteBox(head,P.shade,-.05,-.075,-.54,.039,.045,.018,'왼쪽 콧구멍');
+  spriteBox(head,P.shade,.05,-.075,-.54,.039,.045,.018,'오른쪽 콧구멍');
+  spriteBox(head,P.shade,0,-.185,-.561,.24,.025,.02,'입');
+  spriteBox(head,P.shade,.128,-.159,-.554,.03,.05,.021,'웃는 입꼬리');
+  spriteLimbs(h,{arm:P.base,armShade:P.shade,hand:P.face,handShade:0xc48c55,leg:P.shade,legShade:0x4d301b,
+    shoe:P.face,sole:P.ink,shoeLight:P.faceL},{arm:.17,leg:.18,shoe:.30});
+  for(const {sh} of h.arms) spriteBox(sh,P.light,0,-.07,-.096,.11,.15,.022,'팔 털 명암');
+  // 몸 왼쪽으로 크게 말린 긴 꼬리. 뒷모습에서도 명확한 갈색 실루엣.
+  h.tail.position.set(-.25,1.00,.25);
+  const curl=[[0,0,0],[-.23,-.02,.17],[-.46,.03,.24],[-.55,.22,.30],[-.54,.48,.32],[-.39,.67,.32],[-.23,.76,.28]];
+  for(let i=1;i<curl.length;i++) spriteBeam(h.tail,i%2?P.shade:P.base,curl[i-1],curl[i],.11,.11,'각진 긴 꼬리');
+  spriteBox(h.tail,P.light,-.23,.76,.28,.105,.085,.105,'꼬리 끝');
+  // 오른손 바나나: 갈색 꼭지 / 초록 목 / 밝은 과육면 / 황토색 바깥 굴곡.
+  const arm=h.arms[1]; arm.carry=.75;
+  const banana=spriteGroup(arm.hand,'바나나',.105,-.025,-.055);
+  const pieces=[
+    [.015,.04,0,.10,.12,.12,0x827018],
+    [.035,-.065,0,.16,.17,.15,0xffdf2b],
+    [.095,-.21,0,.17,.18,.16,0xffda16],
+    [.16,-.35,0,.17,.17,.16,0xf6ce13],
+    [.18,-.49,0,.15,.16,.15,0xe4b80d],
+    [.12,-.59,0,.14,.10,.14,0x776017],
+  ];
+  pieces.forEach(([x,y,z,w,hh,d,c])=>spriteBox(banana,c,x,y,z,w,hh,d,'바나나 곡선'));
+  spriteBox(banana,0xfff286,.005,-.075,-.088,.06,.14,.025,'바나나 안쪽 빛');
+  spriteBox(banana,0xffed57,.065,-.23,-.092,.065,.17,.025,'바나나 밝은 면');
+  spriteBox(banana,0xb88b07,.25,-.40,.005,.035,.19,.155,'바나나 바깥 면');
+  spriteBox(arm.hand,P.face,-.005,-.02,-.142,.14,.075,.065,'바나나를 쥔 손가락');
+  h.secondary.push({node:banana,axis:'z',amplitude:.045,speed:3.2,phase:.4,base:-.06});
+  return finishSprite(h);
+}
+
+// ───────────────────────── 청사과나무: 계단 잎 / 청사과 / 나무 얼굴 / 파란 휴대폰 ─────────────────────────
+function buildApple() {
+  const P={base:0x8b5b2b,shade:0x5b3b1e,light:0xb17b3a,leaf:0x3da641,leafD:0x237d36,leafL:0x70c94e,apple:0xb5eb47,ink:0x2b2219};
+  const h=makeSpriteRig('청사과나무 · 도트 리빌드',{shoulder:.43,shoulderY:1.24,headY:2.12,hipX:.22});
+  const {torso,head}=h;
+  spriteSteps(torso,[[.50,.70,.52,.20],[.70,.74,.55,.46],[1.16,.72,.53,.46],[1.62,.67,.49,.26]],P);
+  // 나무껍질: 세로 홈, 짧은 가로 금, 밝은 벗겨진 조각. 앞/옆/뒤를 모두 만든다.
+  const bark=[[-.29,1.48,.045,.32],[-.22,.87,.035,.23],[.25,1.54,.035,.23],[.29,.86,.04,.22],[-.10,1.68,.035,.18],[.11,.66,.045,.15]];
+  bark.forEach(([x,y,w,hh])=>spriteBox(torso,P.shade,x,y,-.282,w,hh,.025,'앞 껍질 홈'));
+  [[-.28,1.30],[.27,1.12],[-.24,.70],[.22,1.75]].forEach(([x,y])=>spriteBox(torso,P.light,x,y,-.291,.07,.08,.025,'껍질 조각'));
+  for(const s of [-1,1]) {
+    spriteBox(torso,P.shade,s*.371,1.18,.05,.018,.65,.045,'측면 껍질 홈');
+    spriteBox(torso,P.light,s*.375,1.48,-.08,.02,.15,.10,'측면 밝은 껍질');
+  }
+  for(const [x,y,hh] of [[-.23,1.35,.55],[.08,1.10,.78],[.25,1.63,.26]])
+    spriteBox(torso,P.shade,x,y,.29,.044,hh,.022,'등 껍질 홈');
+  // 나이테 모양의 뒤 옹이.
+  spritePixels(torso,['.DDD.','D.L.D','D.D.D','D.L.D','.DDD.'],{D:P.shade,L:P.light},.04,-.17,1.02,.302,.02,'등 옹이');
+  spriteEyes(h,torso,{x:.155,y:1.235,z:-.302,w:.135,height:.18,look:-.015});
+  spriteBox(torso,P.light,0,1.105,-.33,.095,.11,.09,'나무 코');
+  spriteBox(torso,P.ink,0,.963,-.302,.30,.037,.035,'넓은 웃음');
+  spriteBox(torso,P.ink,-.18,1.00,-.302,.06,.043,.035,'왼쪽 입꼬리');
+  spriteBox(torso,P.ink,.18,1.00,-.302,.06,.043,.035,'오른쪽 입꼬리');
+  spriteBox(torso,P.ink,-.215,1.045,-.302,.03,.06,.035,'웃음 끝');
+  spriteBox(torso,0xe4bf71,0,.919,-.299,.16,.024,.027,'입 아래 밝은 나무');
+  // 왕관의 중앙 덩어리와 좌우 가지를 분리. 넓고 낮은 픽셀 실루엣을 유지한다.
+  const leafP={base:P.leaf,shade:P.leafD,light:P.leafL};
+  spriteSteps(head,[[-.42,.96,.72,.14],[-.28,1.27,.91,.20],[-.08,1.40,.95,.22],[.14,1.17,.85,.20],[.34,.82,.64,.16],[.50,.38,.38,.08]],leafP);
+  for(const s of [-1,1]) {
+    const lobe=spriteGroup(head,'좌우 잎사귀',s*.68,-.16,0);
+    spriteBox(lobe,P.leafD,0,-.04,0,.32,.29,.63,'잎 아래 그림자');
+    spriteBox(lobe,P.leaf,s*.045,.08,-.015,.31,.25,.62);
+    spriteBox(lobe,P.leaf,s*.09,-.035,-.005,.24,.17,.65);
+    spriteBox(lobe,P.leafL,-s*.03,.22,-.03,.20,.06,.43);
+    lobe.userData.base=0; lobe.userData.baseX=0; lobe.userData.flapScale=.24; h.ears.push(lobe);
+  }
+  spritePixels(head,['.LLL...','LLLLL..','.LLLLL.','...LLL.'],{L:P.leafL},.105,-.32,.27,-.488,.026,'좌측 밝은 잎');
+  spritePixels(head,['..LLL.','.LLLLL','LLLLL.','.LLL..'],{L:0x58b946},.09,.34,.09,-.494,.025,'우측 잎');
+  spritePixels(head,['.DDD.','DDDDD','.DDD.'],{D:0x30913a},.09,.05,-.17,-.489,.024,'아래 잎 명암');
+  // 네 개의 십자형 청사과: 원본의 노란 연두 도트를 두 단계 두께로 구현.
+  const apples=[[-.54,.01,-.50],[.02,.37,-.405],[.49,.10,-.50],[-.19,-.25,-.50]];
+  apples.forEach(([x,y,z],i)=>{
+    const apple=spriteGroup(head,'청사과 '+(i+1),x,y,z);
+    spriteBox(apple,P.apple,0,0,0,.18,.11,.10);
+    spriteBox(apple,P.apple,0,0,0,.11,.20,.10);
+    spriteBox(apple,0xe7ff85,-.035,.035,-.059,.057,.055,.025,'사과 하이라이트');
+    spriteBox(apple,0x8dc338,.058,-.025,-.052,.038,.08,.022,'사과 그림자');
+    spriteBox(apple,P.shade,0,.115,.015,.027,.055,.032,'사과 꼭지');
+    spriteBox(apple,0xd0f164,.049,.113,-.01,.075,.037,.04,'사과 잎');
+  });
+  // 뒷면도 빈 구가 되지 않게 잎 패치와 사과를 추가한다.
+  spritePixels(head,['.LLL.','LLLLL','.LLL.'],{L:0x64bc47},.11,-.24,.18,.485,.024,'뒤 잎 패치');
+  spriteBox(head,P.apple,.34,.04,.50,.16,.16,.09,'뒤 청사과');
+  spriteBox(head,0xe7ff85,.31,.08,.552,.045,.046,.016);
+  // 짧은 가지 팔. 휴대폰을 든 오른손도 실제 어깨/팔꿈치 관절에 연결된다.
+  h.arms.forEach(({sh,el,hand,s})=>{
+    spriteBox(sh,P.shade,0,-.09,0,.115,.23,.14,'가지 위팔');
+    spriteBox(el,P.base,0,-.10,0,.105,.24,.13,'가지 아래팔');
+    spriteBox(hand,P.base,0,0,-.02,.13,.13,.13,'나무 손');
+    spriteBox(sh,P.light,s*.052,-.09,-.035,.024,.12,.07,'가지 껍질');
+  });
+  h.legs.forEach(({hip,knee,foot,s})=>{
+    spriteBox(hip,P.shade,0,-.13,.015,.16,.29,.18,'뿌리 위다리');
+    spriteBox(knee,P.shade,0,-.13,.01,.13,.27,.14,'뿌리 아래다리');
+    spriteBox(knee,P.base,s*.05,-.125,-.035,.035,.21,.07,'뿌리 밝은 선');
+    spriteBox(foot,P.ink,s*.045,-.107,-.055,.36,.055,.34,'평평한 뿌리 바닥');
+    spriteBox(foot,P.shade,s*.035,-.067,-.06,.30,.075,.29,'뿌리 발');
+    spriteBeam(foot,P.shade,[0,-.06,0],[s*.23,-.08,-.07],.065,.09,'옆 뿌리');
+    spriteBeam(foot,P.shade,[0,-.07,-.08],[s*.08,-.08,-.26],.06,.07,'앞 뿌리');
+  });
+  const arm=h.arms[1]; arm.carry=1;
+  const phone=spriteGroup(arm.hand,'파란 휴대폰',.15,.10,-.09);
+  spriteBox(phone,0x232333,0,0,0,.34,.61,.105,'휴대폰 검은 테두리');
+  spriteBox(phone,0x315bd1,0,0,-.061,.29,.55,.03,'파란 케이스');
+  spriteBox(phone,0xf7f5e9,0,.012,-.083,.215,.43,.018,'아이보리 화면',.17);
+  spriteBox(phone,0xdce6d9,-.045,.134,-.096,.047,.074,.009,'화면 빛');
+  spriteBox(phone,0xa9baf4,0,.248,-.084,.065,.013,.012,'스피커');
+  spriteBox(phone,0x9aadea,0,-.245,-.084,.055,.018,.012,'홈 버튼');
+  spriteBox(phone,0x294aa4,0,0,.059,.29,.55,.023,'케이스 뒷면');
+  spriteBox(phone,0x151d33,-.075,.19,.077,.075,.08,.015,'뒷면 카메라');
+  spriteBox(phone,0x6484d9,-.075,.19,.087,.032,.033,.009,'카메라 렌즈');
+  spriteBox(arm.hand,P.light,.022,-.03,-.12,.10,.13,.08,'휴대폰 잡은 손');
+  return finishSprite(h);
+}
+
+// ───────────────────────── 제빵사: 높은 흰 모자 / 붉은 스카프 / 앞치마 / 바게트 ─────────────────────────
+function buildBaker() {
+  const P={base:0xf0c69b,shade:0xcb996d,light:0xffdcaf,white:0xfffdf6,cloth:0xe3e6e9,
+    apron:0xe4d7b6,apronD:0xbbae8e,hair:0x49301d,red:0xd8452b,pants:0x404d6e,ink:0x282129};
+  const h=makeSpriteRig('제빵사 · 도트 리빌드',{shoulder:.42,shoulderY:1.49,headY:2.02});
+  const {head,torso}=h;
+  spriteSteps(torso,[[.70,.73,.46,.17],[.87,.78,.51,.30],[1.17,.75,.51,.28],[1.45,.60,.43,.20]],
+    {base:P.white,shade:P.cloth,light:0xffffff});
+  // 조리복 앞섶과 작은 단추. 앞치마 위로 보이는 부분에만 배치.
+  spriteBox(torso,P.cloth,0,1.38,-.27,.025,.35,.018,'조리복 앞섶');
+  for(const y of [1.47,1.34]) spriteBox(torso,0xb9bcc6,.18,y,-.278,.035,.035,.024,'조리복 단추');
+  spriteBox(torso,P.apron,0,1.08,-.285,.53,.66,.045,'앞치마 본체');
+  spriteBox(torso,P.apron,0,.745,-.29,.64,.14,.044,'앞치마 아래 넓은 단');
+  spriteBox(torso,0xf1e6c9,0,1.40,-.292,.44,.055,.037,'앞치마 윗단');
+  spriteBox(torso,P.apronD,-.257,1.055,-.313,.026,.59,.018,'앞치마 옆 박음질');
+  spriteBox(torso,P.apronD,.257,1.055,-.313,.026,.59,.018,'앞치마 옆 박음질');
+  spriteBox(torso,0xd6c7a4,0,.94,-.318,.29,.20,.025,'앞치마 포켓');
+  spriteBox(torso,0xf5ead0,0,1.038,-.334,.29,.025,.015,'포켓 입구');
+  spriteBox(torso,0xbcae86,-.15,1.15,-.322,.045,.049,.015,'앞치마 밀가루 자국');
+  spriteBox(torso,0xc7b894,.14,.845,-.327,.04,.04,.015,'앞치마 작은 자국');
+  // 등에 둘러진 앞치마 끈 + 묶인 매듭. 달릴 때에도 캐릭터 정체성이 보인다.
+  spriteBox(torso,P.apron,0,1.05,.272,.78,.065,.033,'등 허리끈');
+  spriteBox(torso,P.apronD,0,1.05,.31,.10,.09,.055,'앞치마 매듭');
+  for(const s of [-1,1]) {
+    const tie=spriteGroup(torso,'앞치마 리본',s*.09,1.05,.31);
+    spriteBox(tie,P.apron,s*.04,0,0,.16,.10,.04);
+    spriteBox(tie,P.apron,s*.015,-.14,.012,.065,.23,.035);
+    h.secondary.push({node:tie,axis:'z',base:s*.18,amplitude:.06,speed:4,phase:s});
+    spriteBox(torso,P.apron,s*.20,1.40,.25,.055,.38,.028,'앞치마 어깨끈');
+  }
+  spriteBox(torso,P.red,0,1.645,.008,.43,.10,.37,'붉은 목 스카프');
+  spriteBox(torso,0xad3020,0,1.565,-.263,.105,.12,.065,'스카프 매듭');
+  spriteBox(torso,P.red,-.035,1.435,-.303,.068,.22,.035,'스카프 긴 끝');
+  spriteBox(torso,0xee6040,.045,1.48,-.30,.065,.14,.034,'스카프 짧은 끝');
+  spriteSteps(head,[[-.34,.50,.43,.10],[-.24,.64,.52,.19],[-.05,.72,.58,.27],[.22,.67,.55,.12]],P);
+  spriteBox(head,P.hair,0,.25,.22,.68,.18,.15,'뒤 머리카락');
+  for(const s of [-1,1]) {
+    spriteBox(head,P.hair,s*.335,.11,.025,.055,.26,.38,'옆머리');
+    const ear=spriteGroup(head,'귀',s*.39,-.01,.01);
+    spriteBox(ear,P.base,0,0,0,.10,.17,.15);
+    spriteBox(ear,P.shade,0,-.01,-.079,.042,.072,.02);
+    ear.userData.base=0; ear.userData.baseX=0; h.ears.push(ear);
+  }
+  spriteEyes(h,head,{x:.16,y:.075,z:-.308,w:.12,height:.15,look:-.014});
+  spriteBox(head,P.light,0,-.045,-.38,.135,.125,.17,'각진 코');
+  spriteBox(head,P.shade,0,-.108,-.425,.13,.028,.08,'코 아래 명암');
+  // 원본처럼 두꺼운 일자 콧수염. 끝을 한 픽셀 낮춰 계단형으로 마무리.
+  spriteBox(head,P.hair,0,-.173,-.337,.48,.085,.08,'일자 콧수염');
+  spriteBox(head,P.hair,-.255,-.195,-.32,.055,.047,.07,'콧수염 끝');
+  spriteBox(head,P.hair,.255,-.195,-.32,.055,.047,.07,'콧수염 끝');
+  spriteBox(head,0x8c5038,0,-.268,-.283,.17,.024,.025,'입');
+  // 높은 흰 제빵 모자: 직선 밴드 + 세 단으로 부풀어 오른 왕관. 회색 접힘선.
+  const hat=spriteGroup(head,'흰 제빵 모자',0,.35,0);
+  spriteBox(hat,0xc9d0df,0,.01,0,.76,.085,.64,'모자 밴드 그림자');
+  spriteBox(hat,P.white,0,.085,-.003,.79,.12,.66,'모자 밴드');
+  spriteBox(hat,P.white,0,.235,0,.92,.24,.71,'모자 넓은 중앙');
+  spriteBox(hat,P.white,0,.385,0,.82,.12,.67,'모자 윗단');
+  spriteBox(hat,P.white,-.255,.44,0,.24,.075,.52,'모자 왼쪽 봉우리');
+  spriteBox(hat,P.white,.255,.44,0,.24,.075,.52,'모자 오른쪽 봉우리');
+  spriteBox(hat,0xffffff,0,.455,0,.21,.085,.56,'모자 중앙 봉우리');
+  for(const x of [-.29,-.105,.105,.29]) {
+    spriteBox(hat,0xe6e9ef,x,.255,-.365,.022,.18,.012,'모자 앞 주름');
+    spriteBox(hat,0xdce1e9,x,.255,.365,.024,.18,.012,'모자 뒤 주름');
+  }
+  spriteLimbs(h,{arm:P.white,armShade:P.cloth,hand:P.base,handShade:P.shade,leg:P.pants,legShade:0x313b56,
+    shoe:0x4b342a,sole:P.ink,shoeLight:0x76503b},{arm:.18,leg:.19,shoe:.29,cuff:0xd4d9e2});
+  h.legs.forEach(({hip})=>spriteBox(hip,0x526180,0,-.07,-.105,.15,.12,.023,'바지 밝은 주름'));
+  // 오른손의 길쭉한 바게트. 노란 속빛, 갈색 크러스트, 다섯 개 사선 칼집.
+  const arm=h.arms[1]; arm.carry=.92;
+  const bread=spriteGroup(arm.hand,'바게트',.10,-.03,-.055); bread.rotation.z=.20;
+  const breadP={base:0xd89428,shade:0x92601c,light:0xf5c454};
+  spriteSteps(bread,[[-.59,.12,.15,.10],[-.49,.21,.19,.16],[-.33,.25,.21,.43],[.10,.21,.19,.13],[.23,.12,.14,.08]],breadP);
+  spriteBox(bread,0xf2bb47,-.035,-.15,-.112,.095,.59,.026,'빵의 황금색 면');
+  for(let i=0;i<5;i++) {
+    const score=spriteBox(bread,0xffdb82,.01,.14-i*.137,-.132,.14,.045,.022,'바게트 칼집');
+    score.rotation.z=-.34;
+    const crust=spriteBox(bread,0xad6b1d,.028,.104-i*.137,-.13,.135,.019,.022,'칼집 아래 구운 면');
+    crust.rotation.z=-.34;
+  }
+  spriteBox(arm.hand,P.base,.005,-.025,-.16,.155,.09,.075,'빵을 쥔 손가락');
+  h.secondary.push({node:bread,axis:'z',base:.20,amplitude:.035,speed:3.8,phase:.7});
+  return finishSprite(h);
+}
+
+
+
+// 스트리트파이터 성격: 근접(부타 깔아뭉개기 / 제빵사 바게트) · 원거리(척추 / 원숭이 / 청사과나무)
+const MOB = {
+  buta:   { n: '부타',       build: buildButa,   hw: 0.38, h: 1.8,  hp: 18, speed: 3.4, style: 'slam',   cd: 3.4, col: 0xee9ab3 },
+  chuk:   { n: '척추',       build: buildChuk,   hw: 0.32, h: 1.8,  hp: 12, speed: 3.0, style: 'ranged', cd: 2.6, band: [7, 13], proj: 'bone',   col: 0xf2efd0 },
+  monkey: { n: '원숭이',     build: buildMonkey, hw: 0.32, h: 1.7,  hp: 12, speed: 4.6, style: 'ranged', cd: 2.2, band: [5, 10], proj: 'banana', col: 0x8b5b2b },
+  apple:  { n: '청사과나무', build: buildApple,  hw: 0.42, h: 1.9,  hp: 24, speed: 2.2, style: 'ranged', cd: 1.9, band: [6, 12], proj: 'apple',  col: 0x3da641 },
+  baker:  { n: '제빵사',     build: buildBaker,  hw: 0.34, h: 1.85, hp: 15, speed: 3.2, style: 'melee',  cd: 1.2, reach: 2.7,        col: 0xffffff },
+};
+const MOB_TYPES = Object.keys(MOB);
+const MOB_SCALE = 0.72;
 function spawnMob(type, x, y, z) {
-  const { g, limbs } = makeMobModel(type);
-  g.position.set(x, y, z); scene.add(g);
-  mobs.push({ type, x, y, z, vx: 0, vy: 0, vz: 0, yaw: Math.random() * 6.28, want: 0, wt: 0, hp: MOB[type].hp, g, limbs, phase: 0, atk: 0, hurt: 0, onGround: false, say: 3 + Math.random() * 8 });
+  const rig = MOB[type].build();
+  rig.root.scale.setScalar(MOB_SCALE);
+  const g = new THREE.Group(); g.add(rig.root); g.position.set(x, y, z); scene.add(g);
+  mobs.push({ type, x, y, z, vx: 0, vy: 0, vz: 0, yaw: Math.random() * 6.28, want: 0, wt: 0, walk: false, hp: MOB[type].hp, g, rig,
+    phase: Math.random() * 6, t: Math.random() * 10, runK: 0, atk: 0, cd: 2 + Math.random() * 2, wind: 0, windMax: 1, rec: 0, armUp: 0, crouch: 0,
+    leaping: false, leapV: [0, 0], hurt: 0, onGround: false, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: 2, say: 3 + Math.random() * 8, blink: 0, nextBlink: 2 });
 }
-function removeMob(m) { scene.remove(m.g); const i = mobs.indexOf(m); if (i >= 0) mobs.splice(i, 1); }
-function clearMobs() { while (mobs.length) removeMob(mobs[0]); }
+function removeMob(m) {
+  scene.remove(m.g); const i = mobs.indexOf(m); if (i >= 0) mobs.splice(i, 1);
+}
+function clearMobs() { while (mobs.length) removeMob(mobs[0]); for (const p of projs) scene.remove(p.mesh); projs.length = 0; }
 function surfaceY(x, z) {
   for (let y = TOPY; y >= MINY; y--) { const b = getBlock(x, y, z); if (b === WATER) return -999; if (b && b !== LEAVES) return y + 1; }
   return -999;
 }
+let mobSpawnT = 1;
 function trySpawnMobs(dt) {
   mobSpawnT -= dt; if (mobSpawnT > 0) return;
   mobSpawnT = 2;
-  const passive = mobs.filter(m => !MOB[m.type].hostile).length, hostile = mobs.length - passive;
-  const wantHostile = daylight < 0.35 && hostile < 5, wantPassive = passive < 6;
-  if (!wantHostile && !wantPassive) return;
+  if (daylight > 0.35 || mobs.length >= 6) return;
   const a = Math.random() * 6.28, d = 14 + Math.random() * 16;
   const x = Math.floor(player.x + Math.cos(a) * d), z = Math.floor(player.z + Math.sin(a) * d);
   const y = surfaceY(x, z); if (y < MINY) return;
-  const type = wantHostile && (!wantPassive || Math.random() < 0.6) ? 'yunjae' : 'pig';
-  spawnMob(type, x + 0.5, y + 0.01, z + 0.5);
+  spawnMob(MOB_TYPES[Math.random() * MOB_TYPES.length | 0], x + 0.5, y + 0.01, z + 0.5);
 }
-let mobSpawnT = 1;
 function moveMob(m, dt) {
   const d = MOB[m.type];
   m.vy = Math.max(m.vy - 24 * dt, -30);
@@ -826,46 +1314,172 @@ function moveMob(m, dt) {
   const ny = m.y + m.vy * dt; m.onGround = false;
   if (collidesBox(m.x, ny, m.z, d.hw, d.h)) { if (m.vy < 0) { m.y = Math.floor(ny + EPS) + 1; m.onGround = true; } m.vy = 0; } else m.y = ny;
 }
+
+// ---- 투사체: 척추(뼈) / 원숭이(바나나) / 청사과나무(초록사과) ----
+const PROJ = {
+  bone:   { speed: 15, g: 0,  dmg: 4, col: 0xf2efd0, size: [0.12, 0.12, 0.55], slow: 0 },
+  banana: { speed: 10, g: 12, dmg: 2, col: 0xf2d33a, size: [0.16, 0.16, 0.42], slow: 2.5 },
+  apple:  { speed: 12, g: 2,  dmg: 3, col: 0xb5eb47, size: [0.26, 0.26, 0.26], slow: 0 },
+};
+function fireProj(m, kind) {
+  const P = PROJ[kind], d = MOB[m.type];
+  const ox = m.x + Math.sin(m.yaw) * 0.4, oy = m.y + d.h * 0.8, oz = m.z + Math.cos(m.yaw) * 0.4;
+  const tx = player.x - ox, ty = player.y + 1.1 - oy, tz = player.z - oz;
+  const dist = Math.hypot(tx, tz) || 1, t = dist / P.speed;
+  const vy = (ty + 0.5 * P.g * t * t) / t;
+  const mesh = new THREE.Group();
+  const body = new THREE.Mesh(bgeo(...P.size), partMat(P.col)); mesh.add(body);
+  if (kind === 'bone') for (const s of [-1, 1]) for (const k of [-1, 1]) { const kn = new THREE.Mesh(bgeo(0.1, 0.1, 0.1), partMat(P.col)); kn.position.set(k * 0.07, 0, s * 0.28); mesh.add(kn); }
+  if (kind === 'apple') { const c = new THREE.Mesh(bgeo(0.1, 0.34, 0.1), partMat(P.col)); mesh.add(c); }
+  mesh.position.set(ox, oy, oz); scene.add(mesh);
+  projs.push({ kind, mesh, x: ox, y: oy, z: oz, vx: tx / dist * P.speed, vy, vz: tz / dist * P.speed, life: 4, spin: Math.random() * 6 });
+  tone(500, 900, 0.12, 0.2, 'triangle');
+}
+function updateProjs(dt) {
+  for (let i = projs.length - 1; i >= 0; i--) {
+    const p = projs[i], P = PROJ[p.kind];
+    let dead = false;
+    const steps = Math.ceil(Math.hypot(p.vx, p.vy, p.vz) * dt / 0.25);
+    for (let s = 0; s < steps && !dead; s++) {
+      const sd = dt / steps;
+      p.vy -= P.g * sd; p.x += p.vx * sd; p.y += p.vy * sd; p.z += p.vz * sd;
+      if (isSolid(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z))) { dead = true; burst(p.x, p.y, p.z, P.col, 6, 0.3, 2.5); sfx.hit(); }
+      else if (p.x > player.x - HW - 0.15 && p.x < player.x + HW + 0.15 && p.y > player.y - 0.1 && p.y < player.y + PH + 0.1 && p.z > player.z - HW - 0.15 && p.z < player.z + HW + 0.15) {
+        dead = true; burst(p.x, p.y, p.z, P.col, 8, 0.3, 3);
+        hurtPlayer(P.dmg);
+        if (gm === 'survival' && P.slow) player.slowT = P.slow;
+      }
+    }
+    p.life -= dt; p.spin += dt * 12;
+    p.mesh.position.set(p.x, p.y, p.z);
+    p.mesh.rotation.y = Math.atan2(p.vx, p.vz);
+    if (p.kind === 'bone') p.mesh.rotation.z = p.spin; else if (p.kind === 'banana') p.mesh.rotation.x = p.spin * 0.5;
+    if (dead || p.life <= 0) { scene.remove(p.mesh); projs.splice(i, 1); }
+  }
+}
+
+// ---- 몹 AI ----
+function startWind(m, t) { m.wind = t; m.windMax = t; }
 function updateMobs(dt) {
   trySpawnMobs(dt);
   for (let i = mobs.length - 1; i >= 0; i--) {
     const m = mobs[i], d = MOB[m.type];
-    const dx = player.x - m.x, dz = player.z - m.z, dist = Math.hypot(dx, dz);
+    const dx = player.x - m.x, dz = player.z - m.z, dist = Math.hypot(dx, dz) || 0.001;
     if (dist > 64 || m.y < MINY - 5) { removeMob(m); continue; }
-    if (d.hostile && daylight > 0.8 && Math.random() < dt * 0.5) { burst(m.x, m.y + 1, m.z, 0xd9a97a, 12, 0.6); removeMob(m); continue; }
-    let tvx = 0, tvz = 0, moving = false;
-    if (d.hostile && dist < 20) {
-      if (dist > 0.8) { tvx = dx / dist * d.speed; tvz = dz / dist * d.speed; moving = true; }
-      m.want = Math.atan2(dx, dz);
+    if (daylight > 0.8 && Math.random() < dt * 0.4) { burst(m.x, m.y + 1, m.z, d.col, 14, 0.7); removeMob(m); continue; }
+    m.cd -= dt; m.rec = Math.max(0, m.rec - dt);
+    const aggro = dist < 26;
+    const nx = dx / dist, nz = dz / dist;
+    let tvx = 0, tvz = 0, moving = false, face = null;
+    if (m.wind > 0) {
+      // 공격 준비 동작: 제자리에서 플레이어를 바라본다
+      m.wind -= dt; face = Math.atan2(dx, dz);
+      m.armUp = 1 - m.wind / m.windMax; m.crouch = d.style === 'slam' ? m.armUp : 0;
+      if (m.wind <= 0) {
+        m.crouch = 0; m.armUp = 0;
+        if (d.style === 'ranged') { fireProj(m, d.proj); m.cd = d.cd * (0.85 + Math.random() * 0.3); m.rec = 0.35; }
+        else if (d.style === 'melee') {
+          m.rec = 0.35; m.cd = d.cd; noise(900, 0.8, 0.12, 0.35);
+          if (dist < d.reach + 0.5 && Math.abs(player.y - m.y) < 1.8) { hurtPlayer(3); player.vx += nx * 7; player.vz += nz * 7; player.vy = Math.max(player.vy, 4.5); sfx.hit(); }
+        } else if (d.style === 'slam') {
+          const spd = Math.min(10, dist / 0.75);
+          m.leaping = true; m.vy = 9.5; m.leapV = [nx * spd, nz * spd]; m.cd = d.cd;
+        }
+      }
+    } else if (m.leaping) {
+      tvx = m.leapV[0]; tvz = m.leapV[1]; m.vx = tvx; m.vz = tvz; moving = true; face = Math.atan2(dx, dz);
+    } else if (aggro) {
+      face = Math.atan2(dx, dz);
+      const speed = d.speed;
+      if (d.style === 'ranged') {
+        const [lo, hi] = d.band;
+        m.strafeT -= dt; if (m.strafeT <= 0) { m.strafeT = 1.5 + Math.random() * 2.5; m.strafe = -m.strafe; }
+        if (dist < lo) { tvx = -nx * speed; tvz = -nz * speed; }
+        else if (dist > hi) { tvx = nx * speed; tvz = nz * speed; }
+        else { tvx = -nz * m.strafe * speed * 0.6; tvz = nx * m.strafe * speed * 0.6; }
+        moving = true;
+        if (m.cd <= 0 && dist < hi + 4) startWind(m, 0.5);
+      } else if (d.style === 'melee') {
+        if (dist > d.reach * 0.7) { tvx = nx * speed; tvz = nz * speed; moving = true; }
+        if (m.cd <= 0 && dist < d.reach) startWind(m, 0.35);
+      } else { // slam
+        if (dist > 3.2) { tvx = nx * speed; tvz = nz * speed; moving = true; }
+        if (m.cd <= 0 && dist < 8 && dist > 2.2) startWind(m, 0.6);
+      }
     } else {
       m.wt -= dt;
       if (m.wt <= 0) { m.wt = 2 + Math.random() * 4; m.walk = Math.random() < 0.55; m.want = Math.random() * 6.28; }
-      if (m.walk) { tvx = Math.sin(m.want) * d.speed; tvz = Math.cos(m.want) * d.speed; moving = true; }
+      if (m.walk) { tvx = Math.sin(m.want) * d.speed * 0.4; tvz = Math.cos(m.want) * d.speed * 0.4; moving = true; face = m.want; }
     }
-    let da = m.want - m.yaw; da = Math.atan2(Math.sin(da), Math.cos(da));
-    if (moving || d.hostile) m.yaw += da * Math.min(1, dt * 8);
-    const k = 1 - Math.exp(-dt * (m.onGround ? 10 : 2));
-    m.vx += (tvx - m.vx) * k; m.vz += (tvz - m.vz) * k;
+    if (face !== null) { let da = face - m.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); m.yaw += da * Math.min(1, dt * 9); }
+    if (!m.leaping) { const k = 1 - Math.exp(-dt * (m.onGround ? 10 : 2)); m.vx += (tvx - m.vx) * k; m.vz += (tvz - m.vz) * k; }
     moveMob(m, dt);
-    if (m.bx && m.onGround && moving) m.vy = 8;
-    if (d.hostile && gm === 'survival' && dist < 1.2 && Math.abs(player.y - m.y) < 1.6) {
-      m.atk -= dt;
-      if (m.atk <= 0) { m.atk = 1; hurtPlayer(2); player.vx += dx / (dist || 1) * 5; player.vz += dz / (dist || 1) * 5; player.vy = Math.max(player.vy, 4); }
+    if (m.bx && m.onGround && moving && !m.leaping) m.vy = 8;
+    if (m.leaping && m.onGround && m.vy <= 0) {
+      m.leaping = false; m.vx = m.vz = 0; sfx.land(); noise(250, 0.7, 0.25, 0.6, 'lowpass');
+      burst(m.x, m.y + 0.1, m.z, 0x8b6b3b, 16, 1.8, 4);
+      const px = player.x - m.x, pz = player.z - m.z, pd = Math.hypot(px, pz) || 1;
+      if (pd < 2.6 && Math.abs(player.y - m.y) < 1.8) { hurtPlayer(4); player.vx += px / pd * 7; player.vz += pz / pd * 7; player.vy = Math.max(player.vy, 5); if (gm === 'survival') player.slowT = 1.5; }
     }
     m.say -= dt;
-    if (m.say <= 0) { m.say = 6 + Math.random() * 10; if (dist < 16) (d.hostile ? sfx.moan : sfx.oink)(); }
-    m.phase += Math.hypot(m.vx, m.vz) * dt * 2.6;
-    const sw = Math.sin(m.phase) * 0.7 * Math.min(1, Math.hypot(m.vx, m.vz) / 1.2);
-    if (m.type === 'pig') { m.limbs[0].rotation.x = sw; m.limbs[1].rotation.x = -sw; m.limbs[2].rotation.x = -sw; m.limbs[3].rotation.x = sw; }
-    else {
-      m.limbs[0].rotation.x = sw; m.limbs[1].rotation.x = -sw;
-      const reach = dist < 20 ? -1.45 : 0;
-      m.limbs[2].rotation.x = reach + sw * 0.2; m.limbs[3].rotation.x = reach - sw * 0.2;
-    }
-    m.hurt = Math.max(0, m.hurt - dt);
-    m.g.position.set(m.x, m.y, m.z); m.g.rotation.y = m.yaw;
-    m.g.scale.setScalar(1 + m.hurt * 0.4);
+    if (m.say <= 0) { m.say = 6 + Math.random() * 10; if (dist < 18) sfx.voice(m.type); }
+    animMob(m, dt, moving);
   }
+}
+// 서브웨이 animateButa를 몹용으로 축약: 달리기/점프 포즈 + 공격 동작
+function animMob(m, dt, moving) {
+  const h = m.rig, d = MOB[m.type];
+  m.t += dt;
+  const spd = Math.hypot(m.vx, m.vz);
+  m.runK = damp(m.runK, moving && m.onGround ? Math.min(1, spd / 3) : 0, 8, dt);
+  const air = m.onGround ? 0 : 1;
+  m.phase += dt * m.runK * (7 + spd * 1.4);
+  const p = m.phase, rb = m.runK, it = m.t;
+  h.legs.forEach(({ hip, knee, foot, s }) => {
+    const q = p + (s > 0 ? 0 : Math.PI);
+    const rHip = Math.sin(q) * 0.95, rKnee = 0.25 + Math.max(0, Math.cos(q)) * 1.35;
+    hip.rotation.x = mix(rHip * rb, s > 0 ? 0.85 : -0.45, air) + (m.crouch ? 1.0 * m.crouch : 0);
+    knee.rotation.x = -(mix(rKnee * rb, s > 0 ? 0.9 : 1.5, air) + m.crouch * 1.6);
+    foot.rotation.x = mix((-Math.sin(q) * 0.35 + 0.2) * rb, 0.3, air) + m.crouch * 0.5;
+  });
+  const raise = m.armUp;
+  h.arms.forEach(({ sh, el, s: side, carry = 0 }, ai) => {
+    const q = p + (side > 0 ? Math.PI : 0);
+    let sx = Math.sin(it * 1.8 + side) * 0.05 * (1 - rb) + Math.sin(q) * 1.0 * rb;
+    let sz = side * mix(0.12, 0.2, rb), ex = mix(0.1, 1.25 + Math.max(0, Math.cos(q)) * 0.3, rb);
+    const hold = carry * (1 - air);
+    sx = mix(sx, Math.sin(q) * 0.3 * rb, hold); sz = mix(sz, side * 0.2, hold); ex = mix(ex, 0.16 + Math.max(0, Math.cos(q)) * 0.16 * rb, hold);
+    if (m.leaping) { sx = 2.5; sz = side * 0.45; ex = 0.3; }
+    const armed = d.style === 'slam' ? true : ai === 1;
+    if (armed && raise > 0) { sx = mix(sx, d.style === 'melee' ? 2.9 : 2.6, raise); ex = mix(ex, d.style === 'melee' ? 0.2 : 1.9, raise); }
+    else if (armed && m.rec > 0) { const k = m.rec / 0.35; sx = mix(sx, d.style === 'melee' ? 0.4 : 1.2, k); }
+    sh.rotation.x = sx; sh.rotation.z = sz; el.rotation.x = ex;
+  });
+  const bounce = Math.abs(Math.sin(p)) * 0.09 * rb * (1 - air);
+  h.rig.position.y = bounce - 0.18 * m.crouch;
+  h.rig.scale.set(1 + m.crouch * 0.1, 1 - m.crouch * 0.22, 1 + m.crouch * 0.1);
+  h.rig.rotation.x = -0.14 * rb;
+  h.torso.rotation.y = Math.sin(p) * 0.12 * rb;
+  h.head.rotation.y = -Math.sin(p) * 0.08 * rb;
+  h.head.rotation.x = mix(Math.sin(it * 1.3) * 0.02, 0.1, rb) + m.crouch * 0.3;
+  const tm = h.tailMotion || { idle: 0.15, run: 0.25, pitch: -0.2 };
+  h.tail.rotation.z = Math.sin(it * 3 + p) * tm.idle * (1 - rb) + Math.sin(p * 2) * tm.run * rb;
+  h.tail.rotation.x = tm.pitch * rb;
+  h.ears.forEach((ear, i) => {
+    const side = i === 0 ? -1 : 1;
+    const flap = Math.sin(p * 2 + 1) * 0.22 * rb + Math.sin(it * 2.5 + i) * 0.03, st = ear.userData.flapScale ?? 1;
+    ear.rotation.z = (ear.userData.base || 0) + (side * flap + side * 0.25 * rb) * st;
+    ear.rotation.x = (ear.userData.baseX ?? -0.25) + 0.21 * rb * st;
+  });
+  (h.secondary || []).forEach(({ node, axis, base = 0, amplitude, speed, phase = 0 }) => {
+    node.rotation[axis] = base + Math.sin(it * speed + p * 0.45 + phase) * amplitude * (0.35 + rb * 0.65);
+  });
+  m.nextBlink -= dt; if (m.nextBlink < 0) { m.blink = 0.14; m.nextBlink = 1.8 + Math.random() * 2.4; }
+  m.blink = Math.max(0, m.blink - dt);
+  const bl = m.blink > 0 ? 0.1 : 1; h.eyes.forEach(e => { e.scale.y = bl; });
+  m.hurt = Math.max(0, m.hurt - dt);
+  m.g.position.set(m.x, m.y, m.z); m.g.rotation.y = m.yaw + Math.PI;
+  m.g.scale.setScalar(1 + m.hurt * 0.4);
 }
 function mobRay(o, d, maxT) {
   let best = null;
@@ -884,11 +1498,12 @@ function mobRay(o, d, maxT) {
 }
 function attackMob(m) {
   const d = MOB[m.type];
-  m.hp -= 2; m.hurt = 0.25; sfx.hit();
+  m.hp -= 3; m.hurt = 0.25; sfx.hit();
   const dx = m.x - player.x, dz = m.z - player.z, l = Math.hypot(dx, dz) || 1;
   m.vx += dx / l * 7; m.vz += dz / l * 7; m.vy = 4.5;
-  burst(m.x, m.y + d.h * 0.6, m.z, d.hostile ? 0xd9a97a : 0xf3a3b6, 5, 0.4, 2.5);
-  if (m.hp <= 0) { sfx.pop(); burst(m.x, m.y + d.h * 0.5, m.z, d.hostile ? 0x2a8f8f : 0xe07b94, 16, 0.6, 4); removeMob(m); }
+  if (m.wind > 0) { m.wind = 0; m.armUp = 0; m.crouch = 0; }
+  burst(m.x, m.y + d.h * 0.6, m.z, d.col, 6, 0.4, 2.5);
+  if (m.hp <= 0) { sfx.pop(); burst(m.x, m.y + d.h * 0.5, m.z, d.col, 18, 0.7, 4); removeMob(m); }
 }
 
 /* ================= 체력 ================= */
@@ -902,7 +1517,7 @@ function hurtPlayer(n) {
     showToast('쓰러졌어요! 처음 위치에서 다시 시작해요.', 2500);
     Object.assign(player, { x: spawn.x, y: spawn.y, z: spawn.z, vx: 0, vy: 0, vz: 0 });
     hp = MAXHP; refreshHearts();
-    for (let i = mobs.length - 1; i >= 0; i--) if (MOB[mobs[i].type].hostile) removeMob(mobs[i]);
+    clearMobs();
   }
 }
 
@@ -1208,7 +1823,7 @@ let startTerrain = 'flat';
 try { const m = JSON.parse(localStorage.getItem('blockworld_meta')); if (m && m.terrain === 'hills') startTerrain = 'hills'; } catch (e) {}
 loadWorld(startTerrain);
 requestAnimationFrame(frame);
-window.__bw = { mine, mouse, player, getBlock, setBlock, chunks, mobs, spawnMob, hurtPlayer, loadWorld, snapshot, save,
+window.__bw = { projs, mine, mouse, player, getBlock, setBlock, chunks, mobs, spawnMob, hurtPlayer, loadWorld, snapshot, save,
   get target() { return target; }, get gm() { return gm; }, set gm(v) { gm = v; refreshHotbar(); refreshHearts(); },
   get inv() { return inv; }, get terrain() { return terrain; }, set tod(v) { tod = v; }, get daylight() { return daylight; }, get hp() { return hp; }, get paused() { return paused; }, set paused(v) { paused = v; }, toggleFly };
 </script>
