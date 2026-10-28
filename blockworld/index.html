@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>블록 월드 (마크 인디브)</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #87ceeb; font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
+  canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  #cross { position: fixed; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; pointer-events: none; z-index: 5; mix-blend-mode: difference; }
+  #cross::before, #cross::after { content: ""; position: absolute; background: #fff; }
+  #cross::before { left: 10px; top: 0; width: 2px; height: 22px; }
+  #cross::after { top: 10px; left: 0; height: 2px; width: 22px; }
+
+  #hotbar { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; background: #0008; border: 2px solid #000; z-index: 6; }
+  .slot { position: relative; width: 48px; height: 48px; background: #8b8b8b55; border: 3px solid #3338; cursor: pointer; }
+  .slot canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+  .slot .n { position: absolute; left: 2px; top: 0; font: 700 11px/1.2 monospace; color: #fff; text-shadow: 1px 1px 0 #000; }
+  .slot.sel { border-color: #fff; background: #fff3; transform: scale(1.1); z-index: 1; }
+
+  #hud { position: fixed; left: 10px; top: 10px; z-index: 6; color: #fff; font: 700 13px/1.5 monospace; text-shadow: 1px 1px 0 #000; pointer-events: none; }
+  #toast { position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); color: #fff; font: 700 16px/1 sans-serif; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000; z-index: 6; opacity: 0; transition: opacity .3s; pointer-events: none; }
+
+  #overlay { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #000a; color: #fff; text-align: center; padding: 16px; }
+  #overlay.hidden { display: none; }
+  #overlay h1 { margin: 0; font-size: 34px; text-shadow: 3px 3px 0 #000; }
+  #overlay p { margin: 0; font-size: 14px; line-height: 1.7; color: #ddd; }
+  #overlay button { font: 700 18px "Malgun Gothic", sans-serif; padding: 12px 40px; background: #5a9a3a; color: #fff; border: 3px solid #fff; cursor: pointer; }
+  #overlay button.sub { font-size: 13px; padding: 6px 14px; background: #7a2f2f; border-width: 2px; }
+
+  #touch { display: none; }
+  body.touch #touch { display: block; }
+  #joy { position: fixed; left: 24px; bottom: 28px; width: 130px; height: 130px; border-radius: 50%; background: #fff3; border: 2px solid #fff6; z-index: 7; }
+  #joy i { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%; background: #fffa; }
+  .tbtn { position: fixed; z-index: 7; width: 62px; height: 62px; border-radius: 50%; background: #0007; border: 2px solid #fff8; color: #fff; font: 700 13px sans-serif; display: flex; align-items: center; justify-content: center; }
+  .tbtn.on { background: #fff6; }
+  #bJump { right: 22px; bottom: 150px; }
+  #bBreak { right: 96px; bottom: 100px; }
+  #bPlace { right: 22px; bottom: 70px; }
+  body.touch #hotbar { bottom: auto; top: 10px; }
+  body.touch .slot { width: 38px; height: 38px; }
+  body.touch #hud { top: 62px; }
+
+  .home-btn { position: fixed; right: 12px; bottom: 12px; z-index: 9999; padding: 8px 14px; border-radius: 999px;
+    background: #000a; color: #fff; font: 700 14px/1 "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    text-decoration: none; border: 1px solid #fff6; }
+  .home-btn:active { transform: translateY(2px); }
+  body.touch .home-btn { bottom: auto; top: 10px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<a class="home-btn" href="../">🏠 메인 메뉴</a>
+
+<canvas id="view"></canvas>
+<div id="cross"></div>
+<div id="hud"></div>
+<div id="toast"></div>
+<div id="hotbar"></div>
+
+<div id="touch">
+  <div id="joy"><i></i></div>
+  <div class="tbtn" id="bJump">점프</div>
+  <div class="tbtn" id="bBreak">부수기</div>
+  <div class="tbtn" id="bPlace">설치</div>
+</div>
+
+<div id="overlay">
+  <h1>⛏️ 블록 월드</h1>
+  <p>
+    <b>WASD</b> 이동 · <b>마우스</b> 시점 · <b>Space</b> 점프 · <b>Shift</b> 달리기<br>
+    <b>좌클릭</b> 블록 부수기 · <b>우클릭</b> 블록 설치<br>
+    <b>1~9 / 마우스 휠</b> 블록 선택 · <b>ESC</b> 일시정지<br>
+    <span id="touchHelp" style="display:none">📱 왼쪽 조이스틱 이동 · 화면 드래그로 시점 · 오른쪽 버튼으로 점프/부수기/설치</span>
+  </p>
+  <button id="startBtn">▶ 시작</button>
+  <button id="resetBtn" class="sub">월드 초기화</button>
+  <p id="loadMsg">불러오는 중…</p>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ---------------- 상수 / 블록 정의 ---------------- */
+const CS = 16, MINY = -4, H = 48, R = 6;
+const SAVE_KEY = 'blockworld_v1';
+const GRASS = 1, DIRT = 2, STONE = 3, PLANKS = 4, LOG = 5, BRICK = 6, SAND = 7, GLASS = 8, WOOL = 9, BEDROCK = 10;
+const NAMES = { 1: '잔디', 2: '흙', 3: '돌', 4: '나무 판자', 5: '통나무', 6: '벽돌', 7: '모래', 8: '유리', 9: '붉은 양털' };
+const HOTBAR = [GRASS, DIRT, STONE, PLANKS, LOG, BRICK, SAND, GLASS, WOOL];
+// [위, 옆, 아래] 타일 번호
+const FACE_TILES = { 1: [0, 1, 2], 2: [2, 2, 2], 3: [3, 3, 3], 4: [4, 4, 4], 5: [6, 5, 6], 6: [7, 7, 7], 7: [8, 8, 8], 8: [9, 9, 9], 9: [10, 10, 10], 10: [11, 11, 11] };
+const NT = 12, TS = 16;
+
+/* ---------------- 텍스처 아틀라스 (절차 생성) ---------------- */
+function rng(seed) { let a = seed; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const atlas = document.createElement('canvas');
+atlas.width = NT * TS; atlas.height = TS;
+const actx = atlas.getContext('2d');
+function tile(i, fn) {
+  const r = rng(i * 977 + 13);
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const c = fn(x, y, r);
+    actx.fillStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${c[3] === undefined ? 1 : c[3]})`;
+    actx.fillRect(i * TS + x, y, 1, 1);
+  }
+}
+const noisy = (base, amp) => (x, y, r) => { const n = (r() - 0.5) * amp; return [base[0] + n, base[1] + n, base[2] + n]; };
+tile(0, (x, y, r) => { const n = (r() - 0.5) * 30; const edge = x === 0 || y === 0 || x === 15 || y === 15; const k = edge ? -22 : 0; return [90 + n + k, 160 + n + k, 55 + n + k]; });
+tile(1, (x, y, r) => { const n = (r() - 0.5) * 24; const depth = 3 + ((x * 7 + 3) % 3); if (y < depth) return [90 + n, 160 + n, 55 + n]; return [134 + n, 96 + n, 67 + n]; });
+tile(2, noisy([134, 96, 67], 28));
+tile(3, noisy([125, 125, 125], 34));
+tile(4, (x, y, r) => { const n = (r() - 0.5) * 12; const line = y % 5 === 0; return [(line ? 130 : 180) + n, (line ? 98 : 142) + n, (line ? 58 : 88) + n]; });
+tile(5, (x, y, r) => { const n = (r() - 0.5) * 14; const s = (x % 4 === 0) ? -18 : 0; return [104 + n + s, 82 + n + s, 50 + n + s]; });
+tile(6, (x, y, r) => { const n = (r() - 0.5) * 10; const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5)); const ring = (d | 0) % 3 === 0 ? -26 : 0; return [180 + n + ring, 144 + n + ring, 90 + n + ring]; });
+tile(7, (x, y, r) => { const n = (r() - 0.5) * 14; const row = (y / 4) | 0; const off = row % 2 ? 4 : 0; const mortar = y % 4 === 3 || (x + off) % 8 === 7; return mortar ? [190 + n, 188 + n, 180 + n] : [150 + n, 66 + n, 52 + n]; });
+tile(8, noisy([219, 207, 142], 20));
+tile(9, (x, y, r) => { const edge = x === 0 || y === 0 || x === 15 || y === 15; if (edge) return [200, 230, 240, 0.9]; if ((x === 3 && y >= 3 && y <= 6) || (y === 3 && x >= 3 && x <= 6)) return [255, 255, 255, 0.8]; return [190, 225, 240, 0.18]; });
+tile(10, (x, y, r) => { const n = (r() - 0.5) * 22; const w = ((x + y) % 8 < 1) ? -24 : 0; return [196 + n + w, 40 + n + w, 40 + n + w]; });
+tile(11, noisy([50, 50, 55], 40));
+
+/* ---------------- 렌더러 ---------------- */
+const canvas = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const SKY = 0x87ceeb;
+scene.background = new THREE.Color(SKY);
+scene.fog = new THREE.Fog(SKY, 28, (R - 0.6) * CS);
+const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 300);
+camera.rotation.order = 'YXZ';
+function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+const tex = new THREE.CanvasTexture(atlas);
+tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+tex.colorSpace = THREE.SRGBColorSpace; tex.generateMipmaps = false;
+const matO = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true });
+const matT = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, depthWrite: false });
+
+/* ---------------- 월드 데이터 (청크) ---------------- */
+const chunks = new Map();
+const edits = new Map(); // "cx,cz" -> Map(index -> type)
+const idx = (lx, y, lz) => ((y - MINY) * CS + lz) * CS + lx;
+function baseBlock(y) { if (y > 0) return 0; if (y === 0) return GRASS; if (y >= -2) return DIRT; if (y === -3) return STONE; return BEDROCK; }
+
+function getChunk(cx, cz) {
+  const k = cx + ',' + cz;
+  let c = chunks.get(k);
+  if (c) return c;
+  const data = new Uint8Array(CS * CS * H);
+  for (let y = MINY; y <= 0; y++) data.fill(baseBlock(y), idx(0, y, 0), idx(0, y, 0) + CS * CS);
+  let maxY = 0;
+  const e = edits.get(k);
+  if (e) for (const [i, t] of e) { data[i] = t; if (t) maxY = Math.max(maxY, Math.floor(i / (CS * CS)) + MINY); }
+  c = { cx, cz, data, maxY, o: null, t: null };
+  chunks.set(k, c);
+  return c;
+}
+function getBlock(x, y, z) {
+  if (y < MINY) return BEDROCK;
+  if (y >= MINY + H) return 0;
+  return getChunk(x >> 4, z >> 4).data[idx(x & 15, y, z & 15)];
+}
+const isSolid = (x, y, z) => getBlock(x, y, z) !== 0;
+
+let saveTimer = 0;
+function setBlock(x, y, z, t) {
+  if (y <= MINY || y >= MINY + H) return false;
+  const cx = x >> 4, cz = z >> 4, lx = x & 15, lz = z & 15;
+  const c = getChunk(cx, cz), i = idx(lx, y, lz);
+  c.data[i] = t;
+  if (t && y > c.maxY) c.maxY = y;
+  const k = cx + ',' + cz;
+  let e = edits.get(k);
+  if (t === baseBlock(y)) { if (e) e.delete(i); }
+  else { if (!e) edits.set(k, e = new Map()); e.set(i, t); }
+  buildChunk(c);
+  if (lx === 0) rebuildIfLoaded(cx - 1, cz);
+  if (lx === CS - 1) rebuildIfLoaded(cx + 1, cz);
+  if (lz === 0) rebuildIfLoaded(cx, cz - 1);
+  if (lz === CS - 1) rebuildIfLoaded(cx, cz + 1);
+  clearTimeout(saveTimer); saveTimer = setTimeout(save, 600);
+  return true;
+}
+function rebuildIfLoaded(cx, cz) { const c = chunks.get(cx + ',' + cz); if (c && c.o !== null) buildChunk(c); }
+
+/* ---------------- 청크 메시 생성 ---------------- */
+const DX = [1, -1, 0, 0, 0, 0], DY = [0, 0, 1, -1, 0, 0], DZ = [0, 0, 0, 0, 1, -1];
+const SHADE = [0.85, 0.85, 1, 0.5, 0.75, 0.75];
+const FV = [
+  [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]],
+  [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]],
+  [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]],
+  [[0, 0, 1], [0, 0, 0], [1, 0, 0], [1, 0, 1]],
+  [[1, 0, 1], [1, 1, 1], [0, 1, 1], [0, 0, 1]],
+  [[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0]],
+];
+const FUV = [[0, 0], [0, 1], [1, 1], [1, 0]];
+
+function addFace(g, x, y, z, d, tileNo) {
+  const base = g.p.length / 3, s = SHADE[d];
+  const u0 = (tileNo * TS + 0.5) / (NT * TS), u1 = (tileNo * TS + TS - 0.5) / (NT * TS);
+  for (let v = 0; v < 4; v++) {
+    const f = FV[d][v];
+    g.p.push(x + f[0], y + f[1], z + f[2]);
+    g.u.push(FUV[v][0] ? u1 : u0, FUV[v][1] ? 1 - 0.5 / TS : 0.5 / TS);
+    g.c.push(s, s, s);
+  }
+  g.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
+}
+function disposeMesh(c) {
+  for (const m of [c.o, c.t]) if (m) { scene.remove(m); m.geometry.dispose(); }
+  c.o = c.t = null;
+}
+function makeMesh(g, mat, order) {
+  if (!g.i.length) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(g.p, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(g.u, 2));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(g.c, 3));
+  geo.setIndex(g.i);
+  geo.computeBoundingSphere();
+  const m = new THREE.Mesh(geo, mat);
+  m.renderOrder = order;
+  scene.add(m);
+  return m;
+}
+function buildChunk(c) {
+  disposeMesh(c);
+  const O = { p: [], u: [], c: [], i: [] }, T = { p: [], u: [], c: [], i: [] };
+  const x0 = c.cx * CS, z0 = c.cz * CS, data = c.data;
+  const top = Math.min(c.maxY, MINY + H - 1);
+  for (let y = MINY; y <= top; y++) for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
+    const b = data[idx(lx, y, lz)];
+    if (!b) continue;
+    const g = b === GLASS ? T : O, ft = FACE_TILES[b];
+    for (let d = 0; d < 6; d++) {
+      const nx = lx + DX[d], ny = y + DY[d], nz = lz + DZ[d];
+      const n = (nx >= 0 && nx < CS && nz >= 0 && nz < CS && ny >= MINY && ny < MINY + H)
+        ? data[idx(nx, ny, nz)] : getBlock(x0 + nx, ny, z0 + nz);
+      if (n === 0 || (n === GLASS && b !== GLASS)) addFace(g, x0 + lx, y, z0 + lz, d, d === 2 ? ft[0] : d === 3 ? ft[2] : ft[1]);
+    }
+  }
+  c.o = makeMesh(O, matO, 0) || false; // null = 아직 미생성, false = 빌드됐지만 비어있음
+  c.t = makeMesh(T, matT, 1) || false;
+}
+
+/* ---------------- 청크 로딩/언로딩 ---------------- */
+let pending = [], lastCx = 1e9, lastCz = 1e9;
+function updateChunks(px, pz, budget) {
+  const pcx = Math.floor(px / CS), pcz = Math.floor(pz / CS);
+  if (pcx !== lastCx || pcz !== lastCz) {
+    lastCx = pcx; lastCz = pcz;
+    pending = [];
+    for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) {
+      if (dx * dx + dz * dz > R * R + 1) continue;
+      const c = chunks.get((pcx + dx) + ',' + (pcz + dz));
+      if (!c || c.o === null) pending.push([pcx + dx, pcz + dz, dx * dx + dz * dz]);
+    }
+    pending.sort((a, b) => b[2] - a[2]); // 가까운 것을 pop()
+    for (const [k, c] of chunks) {
+      if (Math.abs(c.cx - pcx) > R + 2 || Math.abs(c.cz - pcz) > R + 2) { disposeMesh(c); chunks.delete(k); }
+    }
+  }
+  while (budget-- > 0 && pending.length) {
+    const [cx, cz] = pending.pop();
+    const c = getChunk(cx, cz);
+    if (c.o === null) buildChunk(c);
+  }
+  return pending.length;
+}
+
+/* ---------------- 저장 / 불러오기 ---------------- */
+const player = { x: 0.5, y: 1.001, z: 0.5, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, onGround: false };
+let sel = 0;
+function save() {
+  try {
+    const e = [];
+    for (const [k, m] of edits) {
+      const [cx, cz] = k.split(',').map(Number);
+      for (const [i, t] of m) e.push([cx * CS + i % CS, Math.floor(i / (CS * CS)) + MINY, cz * CS + Math.floor(i / CS) % CS, t]);
+    }
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ e, p: [player.x, player.y, player.z, player.yaw, player.pitch], s: sel }));
+  } catch (err) {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (!d) return;
+    for (const [x, y, z, t] of d.e) {
+      const k = (x >> 4) + ',' + (z >> 4);
+      let m = edits.get(k); if (!m) edits.set(k, m = new Map());
+      m.set(idx(x & 15, y, z & 15), t);
+    }
+    [player.x, player.y, player.z, player.yaw, player.pitch] = d.p;
+    sel = d.s || 0;
+  } catch (err) {}
+}
+load();
+addEventListener('beforeunload', save);
+
+/* ---------------- 핫바 UI ---------------- */
+const hotbar = document.getElementById('hotbar');
+const slots = [];
+HOTBAR.forEach((b, i) => {
+  const s = document.createElement('div'); s.className = 'slot';
+  const cv = document.createElement('canvas'); cv.width = cv.height = 16;
+  cv.getContext('2d').drawImage(atlas, FACE_TILES[b][1] * TS, 0, TS, TS, 0, 0, 16, 16);
+  const n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1;
+  s.append(cv, n);
+  s.addEventListener('pointerdown', e => { e.stopPropagation(); select(i); });
+  hotbar.append(s); slots.push(s);
+});
+const toast = document.getElementById('toast');
+let toastT = 0;
+function select(i) {
+  sel = (i + HOTBAR.length) % HOTBAR.length;
+  slots.forEach((s, j) => s.classList.toggle('sel', j === sel));
+  toast.textContent = NAMES[HOTBAR[sel]]; toast.style.opacity = 1;
+  clearTimeout(toastT); toastT = setTimeout(() => toast.style.opacity = 0, 1200);
+}
+select(sel); toast.style.opacity = 0;
+
+/* ---------------- 블록 레이캐스트 / 선택 박스 ---------------- */
+const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.004, 1.004, 1.004)), new THREE.LineBasicMaterial({ color: 0x000000 }));
+outline.visible = false; scene.add(outline);
+const REACH = 6;
+function raycast(o, d) {
+  let x = Math.floor(o.x), y = Math.floor(o.y), z = Math.floor(o.z);
+  const sx = Math.sign(d.x), sy = Math.sign(d.y), sz = Math.sign(d.z);
+  const tdx = sx ? Math.abs(1 / d.x) : Infinity, tdy = sy ? Math.abs(1 / d.y) : Infinity, tdz = sz ? Math.abs(1 / d.z) : Infinity;
+  let tx = sx > 0 ? (x + 1 - o.x) * tdx : sx < 0 ? (o.x - x) * tdx : Infinity;
+  let ty = sy > 0 ? (y + 1 - o.y) * tdy : sy < 0 ? (o.y - y) * tdy : Infinity;
+  let tz = sz > 0 ? (z + 1 - o.z) * tdz : sz < 0 ? (o.z - z) * tdz : Infinity;
+  let nx = 0, ny = 0, nz = 0, t = 0;
+  for (let n = 0; n < 40; n++) {
+    if (getBlock(x, y, z)) return { x, y, z, nx, ny, nz };
+    if (tx <= ty && tx <= tz) { t = tx; if (t > REACH) return null; x += sx; tx += tdx; nx = -sx; ny = 0; nz = 0; }
+    else if (ty <= tz) { t = ty; if (t > REACH) return null; y += sy; ty += tdy; nx = 0; ny = -sy; nz = 0; }
+    else { t = tz; if (t > REACH) return null; z += sz; tz += tdz; nx = 0; ny = 0; nz = -sz; }
+  }
+  return null;
+}
+let target = null;
+const dirV = new THREE.Vector3(), eyeV = new THREE.Vector3();
+
+/* ---------------- 플레이어 물리 ---------------- */
+const HW = 0.3, PH = 1.8, EYE = 1.62, EPS = 1e-4;
+function collides(px, py, pz) {
+  const x0 = Math.floor(px - HW + EPS), x1 = Math.floor(px + HW - EPS);
+  const y0 = Math.floor(py + EPS), y1 = Math.floor(py + PH - EPS);
+  const z0 = Math.floor(pz - HW + EPS), z1 = Math.floor(pz + HW - EPS);
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) if (isSolid(x, y, z)) return true;
+  return false;
+}
+function playerOverlaps(bx, by, bz) {
+  return player.x + HW > bx && player.x - HW < bx + 1 && player.y + PH > by && player.y < by + 1 && player.z + HW > bz && player.z - HW < bz + 1;
+}
+function stepPhysics(dt, input) {
+  const sp = input.sprint ? 6.4 : 4.4;
+  let f = input.f, s = input.s;
+  const len = Math.hypot(f, s); if (len > 1) { f /= len; s /= len; }
+  const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw);
+  const tvx = (-sy * f + cy * s) * sp, tvz = (-cy * f - sy * s) * sp;
+  const k = 1 - Math.exp(-dt * (player.onGround ? 20 : 6));
+  player.vx += (tvx - player.vx) * k; player.vz += (tvz - player.vz) * k;
+  if (input.jump && player.onGround) { player.vy = 9; player.onGround = false; }
+  player.vy = Math.max(player.vy - 28 * dt, -50);
+
+  let nx = player.x + player.vx * dt;
+  if (collides(nx, player.y, player.z)) player.vx = 0; else player.x = nx;
+  let nz = player.z + player.vz * dt;
+  if (collides(player.x, player.y, nz)) player.vz = 0; else player.z = nz;
+  let ny = player.y + player.vy * dt;
+  player.onGround = false;
+  if (collides(player.x, ny, player.z)) {
+    if (player.vy < 0) { player.y = Math.floor(ny + EPS) + 1; player.onGround = true; }
+    else { player.y = Math.floor(ny + PH) - PH - 0.001; }
+    player.vy = 0;
+  } else player.y = ny;
+}
+
+/* ---------------- 입력 ---------------- */
+const keys = {};
+const mouse = { 0: false, 2: false };
+let paused = true, isTouch = false;
+const overlay = document.getElementById('overlay');
+const startBtn = document.getElementById('startBtn');
+
+function startPlay() {
+  overlay.classList.add('hidden'); paused = false;
+  if (!isTouch) canvas.requestPointerLock?.();
+}
+startBtn.addEventListener('click', startPlay);
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('설치/파괴한 모든 블록이 초기화됩니다. 계속할까요?')) return;
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+  edits.clear();
+  for (const c of chunks.values()) disposeMesh(c);
+  chunks.clear(); lastCx = 1e9;
+  Object.assign(player, { x: 0.5, y: 1.001, z: 0.5, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0 });
+});
+document.addEventListener('pointerlockchange', () => {
+  if (isTouch) return;
+  if (document.pointerLockElement === canvas) { paused = false; overlay.classList.add('hidden'); }
+  else { paused = true; overlay.classList.remove('hidden'); mouse[0] = mouse[2] = false; save(); }
+});
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space') e.preventDefault();
+  if (e.code.startsWith('Digit')) { const n = +e.code.slice(5); if (n >= 1 && n <= 9) select(n - 1); }
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+document.addEventListener('mousemove', e => {
+  if (document.pointerLockElement !== canvas) return;
+  player.yaw -= e.movementX * 0.0023;
+  player.pitch = Math.max(-1.55, Math.min(1.55, player.pitch - e.movementY * 0.0023));
+});
+canvas.addEventListener('mousedown', e => {
+  if (paused || isTouch) return;
+  e.preventDefault();
+  if (e.button === 0) { mouse[0] = true; breakTimer = 0; doBreak(); breakTimer = 0.28; }
+  if (e.button === 2) { mouse[2] = true; doPlace(); placeTimer = 0.28; }
+});
+addEventListener('mouseup', e => { if (e.button === 0 || e.button === 2) mouse[e.button] = false; });
+addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('wheel', e => { if (!paused) select(sel + (e.deltaY > 0 ? 1 : -1)); }, { passive: true });
+
+let breakTimer = 0, placeTimer = 0;
+function doBreak() {
+  if (!target) return;
+  if (getBlock(target.x, target.y, target.z) === BEDROCK) return;
+  setBlock(target.x, target.y, target.z, 0);
+}
+function doPlace() {
+  if (!target) return;
+  const x = target.x + target.nx, y = target.y + target.ny, z = target.z + target.nz;
+  if (getBlock(x, y, z) !== 0 || playerOverlaps(x, y, z)) return;
+  setBlock(x, y, z, HOTBAR[sel]);
+}
+
+/* ---------------- 터치 조작 ---------------- */
+const touchIn = { f: 0, s: 0, jump: false, brk: false, plc: false };
+function setupTouch() {
+  isTouch = true;
+  document.body.classList.add('touch');
+  document.getElementById('touchHelp').style.display = 'inline';
+  const joy = document.getElementById('joy'), knob = joy.firstElementChild;
+  let jid = null;
+  const jmove = t => {
+    const r = joy.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    let dx = t.clientX - cx, dy = t.clientY - cy; const m = Math.hypot(dx, dy), max = r.width / 2;
+    if (m > max) { dx = dx / m * max; dy = dy / m * max; }
+    knob.style.transform = `translate(${dx}px,${dy}px)`;
+    touchIn.s = dx / max; touchIn.f = -dy / max;
+  };
+  joy.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; jid = t.identifier; jmove(t); }, { passive: false });
+  joy.addEventListener('touchmove', e => { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === jid) jmove(t); }, { passive: false });
+  const jend = e => { for (const t of e.changedTouches) if (t.identifier === jid) { jid = null; touchIn.s = touchIn.f = 0; knob.style.transform = ''; } };
+  joy.addEventListener('touchend', jend); joy.addEventListener('touchcancel', jend);
+
+  const hold = (id, key, onDown) => {
+    const el = document.getElementById(id);
+    el.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); touchIn[key] = true; el.classList.add('on'); onDown && onDown(); }, { passive: false });
+    const up = e => { e.preventDefault(); touchIn[key] = false; el.classList.remove('on'); };
+    el.addEventListener('touchend', up); el.addEventListener('touchcancel', up);
+  };
+  hold('bJump', 'jump');
+  hold('bBreak', 'brk', () => { doBreak(); breakTimer = 0.3; });
+  hold('bPlace', 'plc', () => { doPlace(); placeTimer = 0.3; });
+
+  let lid = null, lx = 0, ly = 0;
+  canvas.addEventListener('touchstart', e => { if (lid !== null) return; const t = e.changedTouches[0]; lid = t.identifier; lx = t.clientX; ly = t.clientY; }, { passive: true });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) if (t.identifier === lid) {
+      player.yaw -= (t.clientX - lx) * 0.006;
+      player.pitch = Math.max(-1.55, Math.min(1.55, player.pitch - (t.clientY - ly) * 0.006));
+      lx = t.clientX; ly = t.clientY;
+    }
+  }, { passive: false });
+  const lend = e => { for (const t of e.changedTouches) if (t.identifier === lid) lid = null; };
+  canvas.addEventListener('touchend', lend); canvas.addEventListener('touchcancel', lend);
+}
+if ('ontouchstart' in window || navigator.maxTouchPoints > 0) setupTouch();
+
+/* ---------------- 메인 루프 ---------------- */
+const hud = document.getElementById('hud');
+let last = performance.now(), hudT = 0, ready = false, fps = 60;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
+  const left = updateChunks(player.x, player.z, ready ? 3 : 12);
+  if (!ready && !left) {
+    ready = true;
+    // 시작 위치가 막혀 있으면 위로 올려준다
+    while (collides(player.x, player.y, player.z) && player.y < MINY + H - 3) player.y += 1;
+    document.getElementById('loadMsg').style.display = 'none';
+    startBtn.disabled = false;
+  }
+  if (!paused && ready) {
+    const input = {
+      f: (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) + touchIn.f,
+      s: (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touchIn.s,
+      sprint: keys.ShiftLeft || keys.ShiftRight,
+      jump: keys.Space || touchIn.jump,
+    };
+    const n = Math.ceil(dt / (1 / 90));
+    for (let i = 0; i < n; i++) stepPhysics(dt / n, input);
+    if (player.y < MINY - 20) { player.y = 5; player.vy = 0; }
+  }
+  camera.position.set(player.x, player.y + EYE, player.z);
+  camera.rotation.set(player.pitch, player.yaw, 0);
+
+  eyeV.copy(camera.position); camera.getWorldDirection(dirV);
+  target = ready ? raycast(eyeV, dirV) : null;
+  if (target) { outline.visible = true; outline.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5); }
+  else outline.visible = false;
+
+  if (!paused) {
+    const brk = mouse[0] || touchIn.brk, plc = mouse[2] || touchIn.plc;
+    if (brk) { breakTimer -= dt; if (breakTimer <= 0) { doBreak(); breakTimer = 0.2; } }
+    if (plc) { placeTimer -= dt; if (placeTimer <= 0) { doPlace(); placeTimer = 0.2; } }
+  }
+
+  hudT += dt;
+  if (hudT > 0.25) {
+    hudT = 0;
+    hud.textContent = `X ${player.x.toFixed(1)}  Y ${player.y.toFixed(1)}  Z ${player.z.toFixed(1)}\n${fps.toFixed(0)} FPS`;
+    hud.style.whiteSpace = 'pre';
+  }
+  renderer.render(scene, camera);
+}
+startBtn.disabled = true;
+requestAnimationFrame(frame);
+window.__bw = { player, getBlock, setBlock, chunks, get target() { return target; } };
+</script>
+</body>
+</html>
