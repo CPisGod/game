@@ -97,6 +97,34 @@ service cloud.firestore {
         allow delete: if true;
       }
     }
+    // 블록 월드 멀티플레이 (카트와 같은 구조: 방 문서 + msgs 이벤트 + peers 각자의 상태)
+    match /blockworld_rooms/{code} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['name', 'hb', 'n'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 10
+        && request.resource.data.hb is number
+        && request.resource.data.n is int;
+      allow delete: if true;
+      match /msgs/{mid} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasOnly(['from', 'to', 'd', 'ts'])
+          && request.resource.data.from is string && request.resource.data.from.size() <= 12
+          && request.resource.data.to is string && request.resource.data.to.size() <= 12
+          && request.resource.data.d is string && request.resource.data.d.size() <= 12000
+          && request.resource.data.ts is number;
+        allow update: if false;
+        allow delete: if true;
+      }
+      match /peers/{pid} {
+        allow read: if true;
+        allow create, update: if request.resource.data.keys().hasOnly(['s', 'ts'])
+          && request.resource.data.s is string && request.resource.data.s.size() <= 8000
+          && request.resource.data.ts is number;
+        allow delete: if true;
+      }
+    }
     // 카트 레이서 맵별 최고 랩 기록 (문서 ID: 맵__닉네임, 기록은 갱신만 가능)
     match /kart_records/{id} {
       allow read: if true;
