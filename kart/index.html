@@ -295,10 +295,10 @@ const MAPS = [
 const NSAMP = 700;
 const MAXSPD = 40, ACC = 22;
 // 드리프트 / 부스트 파라미터 (서로 독립적으로 조정 가능)
-const DRIFT_CHARGE = 20;      // 드리프트 중 초당 게이지 충전량 (× 보정값)
+const DRIFT_CHARGE = 40;      // 드리프트 중 초당 게이지 충전량 (× 보정값)
 const BOOST_DUR = 2.4;        // 부스트 지속시간(초)
-const BOOST_ACC = 2.4;        // 부스트 중 가속력 배율
-const BOOST_VMAX = 1.4;       // 부스트 중 최고속도 배율
+const BOOST_ACC = 4.8;        // 부스트 중 가속력 배율
+const BOOST_VMAX = 1.8;       // 부스트 중 최고속도 배율
 const BOOST_PASSIVE = 3;      // 게이지 기본 충전 (초당 %)
 const MAX_BOOSTS = 2;         // 부스트 보관 칸 수
 const ITEMS = { banana: '🍌', missile: '🚀', boost: '⚡', shield: '🛡️', oil: '🛢️', thunder: '🌩️', magnet: '🧲' };
@@ -1018,7 +1018,7 @@ function startRace(grid, nBots) {
       const bn = +id.slice(1), free = COLORS.filter(c => !humans().some(h => colorOf(h.color).toLowerCase() === c));
       const bc = lobby.uniq && free.length ? free[(bn - 1) % free.length] : (bn * 3 + 1) % 8;
       k = makeKart(id, BOTNAMES[(bn - 1) % BOTNAMES.length], bc, bn % 3, net.host || !net.online, true, [['#cfd6e6', '#ffc93d', '#ff3fb4', '#22e5ff'][bn % 4], bn % 3 === 0 ? '#ffffff' : '', ['#5fd0ff', '#b04dff', '#3dff7a', '#ff5fb7'][bn % 4]]);
-      k.aiSkill = [.92, 1.04, 1.14][lobby.diff | 0] * rnd(.97, 1); k.useSC = lobby.diff >= 2 || (lobby.diff === 1 && bn % 2 === 1);
+      k.aiSkill = [.94, 1.08, 1.2][lobby.diff | 0] * rnd(.98, 1); k.useSC = lobby.diff >= 2 || (lobby.diff === 1 && bn % 2 === 1);
     } else { const p = lobby.players.find(q => q.id === id) || { name: '?', color: 0, body: 0 }; k = makeKart(id, p.name, p.color, p.body, id === net.myId, false, p.cos); }
     // 출발 그리드 (2열)
     const row = Math.floor(slot / 2), col = slot % 2, i = (track.N - Math.round((10 + row * 14) / track.seg) + track.N) % track.N, p = track.pts[i];
@@ -1242,23 +1242,23 @@ function aiInput(k, dt) {
   }
   const want = Math.atan2(tx - k.x, tz - k.z), d = angDiff(k.h, want);
   const humanBest = karts.filter(o => !o.bot).reduce((m, o) => Math.max(m, o.prog), -1e9);
-  let rb = 1; if (humanBest > -1e8) rb = clamp(1 + (humanBest - k.prog) / T.N * 1.2, [.9, .94, .97][ds], [1.03, 1.1, 1.17][ds]);
+  let rb = 1; if (humanBest > -1e8) rb = clamp(1 + (humanBest - k.prog) / T.N * 1.2, [.92, .97, 1.0][ds], [1.04, 1.12, 1.22][ds]);
   // 드리프트: 일반 조향으로 못 도는 커브에서 사용
   let wantDrift = false;
   if (ds >= 1 && !scAim && k.spin <= 0 && !(k.oil > 0) && k.y < .1) {
     if (k.drift) wantDrift = c1 > .007 && Math.sign(k.drift) === sgn1 && Math.abs(k.lat) < T.half * .9;
-    else wantDrift = c1 > .014 && Math.abs(turn1) > .22 && k.fwd > 18 && k.fwd * c1 > turnMax(k.fwd) * .8;
+    else wantDrift = c1 > .014 && Math.abs(turn1) > .22 && k.fwd > 18 && k.fwd * c1 > turnMax(k.fwd) * .7;
   }
   const vmax = MAXSPD * k.aiSkill * rb; let target = vmax;
   if (scAim) target = Math.min(vmax, 34);
-  else if (wantDrift || k.drift) { while (target > 14 && target * c > 1.55) target -= 1.5; }
-  else while (target > 14 && target * c > turnMax(target) * .75) target -= 1.5;
-  if ((k.boost > 0 || k.burn) && c < .012) target = MAXSPD * 1.4;
-  target = clamp(target, 14, MAXSPD * (k.boost > 0 || k.burn ? 1.45 : [1.02, 1.1, 1.2][ds]));
+  else if (wantDrift || k.drift) { while (target > 14 && target * c > 1.95) target -= 1.5; }
+  else while (target > 14 && target * c > turnMax(target) * ([.75, .88, .95][ds])) target -= 1.5;
+  if ((k.boost > 0 || k.burn) && c < .012) target = MAXSPD * BOOST_VMAX;
+  target = clamp(target, 14, MAXSPD * (k.boost > 0 || k.burn ? BOOST_VMAX + .05 : [1.02, 1.12, 1.25][ds]));
   const vh = Math.hypot(k.vx, k.vz) > 5 ? Math.atan2(k.vx, k.vz) : k.h, dv = angDiff(vh, want);   // 드리프트 중엔 진행 방향 기준으로 조향 (바깥으로 밀리지 않게)
   let steer = clamp((k.drift && !scAim ? dv : d) * 2.6, -1, 1);
   if (wantDrift && !k.drift) steer = sgn1 * .9;   // 드리프트 진입 방향
-  const useN2o = k.boosts > 0 && c1 < .004 && c < .02 && !k.offroad && k.fwd > 24;
+  const useN2o = k.boosts > 0 && c1 < .008 && c < .03 && !k.offroad && k.fwd > 20;
   return { steer, gas: k.fwd < target ? 1 : 0, brake: k.fwd > target + 6 && !k.drift ? 1 : 0, drift: wantDrift ? 1 : 0, n2o: useN2o ? 1 : 0 };
 }
 
