@@ -392,6 +392,53 @@ function surfAt(x, z) {
 }
 function hasTree(x, z, s) { return s > SEA + 1 && s < 14 && hash2(x, z, 91) < 0.011; }
 
+// 지상 입구에서 비스듬히 내려가는 큰 동굴 (72칸 격자마다 최대 하나): 입구 → 굽은 터널 → 거대한 지하 동굴방
+const CAVE_CELL = 72, caveCache = new Map();
+function caveAt(gx, gz) {
+  const k = gx + ',' + gz;
+  if (caveCache.has(k)) return caveCache.get(k);
+  let cv = null;
+  if (hash2(gx, gz, 301) < 0.8) {
+    for (let t = 0; t < 6 && !cv; t++) {
+      const ex = gx * CAVE_CELL + 8 + (hash2(gx, gz, 310 + t) * (CAVE_CELL - 16) | 0);
+      const ez = gz * CAVE_CELL + 8 + (hash2(gx, gz, 320 + t) * (CAVE_CELL - 16) | 0);
+      const s = surfAt(ex, ez);
+      if (s < 4) continue;
+      const ang = hash2(gx, gz, 330 + t) * Math.PI * 2, cy = -10;
+      const ey = s + 2, L = Math.max(24, Math.min(40, (ey - cy) / 0.7));
+      const dx = Math.cos(ang), dz = Math.sin(ang), bend = (hash2(gx, gz, 340 + t) - 0.5) * 24;
+      const A = [ex, ey, ez], B = [ex + dx * L, cy, ez + dz * L];
+      const M = [(A[0] + B[0]) / 2 - dz * bend, (ey + cy) / 2 + 1, (A[2] + B[2]) / 2 + dx * bend];
+      cv = { A, M, B, ex, ez, ey, rx: 13 + (hash2(gx, gz, 350 + t) * 4 | 0), ry: 7 };
+    }
+  }
+  caveCache.set(k, cv);
+  return cv;
+}
+function segDist2(p, a, b) {
+  const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * abx + (p[1] - a[1]) * aby + (p[2] - a[2]) * abz) / (abx * abx + aby * aby + abz * abz)));
+  const dx = p[0] - a[0] - abx * t, dy = p[1] - a[1] - aby * t, dz = p[2] - a[2] - abz * t;
+  return dx * dx + dy * dy + dz * dz;
+}
+function bigCave(x, y, z, s) {
+  if (y < MINY + 5) return false;
+  const gx = Math.floor(x / CAVE_CELL), gz = Math.floor(z / CAVE_CELL), p = [x, y, z];
+  for (let i = gx - 1; i <= gx + 1; i++) for (let j = gz - 1; j <= gz + 1; j++) {
+    const c = caveAt(i, j);
+    if (!c) continue;
+    if (Math.abs(x - c.B[0]) > 70 && Math.abs(x - c.A[0]) > 70) continue;
+    // 호수 바닥이 뚫리지 않도록 물가 근처 지표는 보존
+    if (y > s - 4 && s <= SEA + 1) continue;
+    const d = Math.min(segDist2(p, c.A, c.M), segDist2(p, c.M, c.B));
+    const r = y > c.ey - 5 ? 4.2 : 3.4;
+    if (d < r * r) return true;
+    const ex = (x - c.B[0]) / c.rx, ey = (y - c.B[1]) / c.ry, ez = (z - c.B[2]) / c.rx;
+    if (ex * ex + ey * ey + ez * ez < 1 + (vnoise3(x / 6, y / 5, z / 6, 41) - 0.5) * 0.7) return true;
+  }
+  return false;
+}
+
 function genChunk(cx, cz, data) {
   const x0 = cx * CS, z0 = cz * CS;
   let maxY = 0;
@@ -403,6 +450,7 @@ function genChunk(cx, cz, data) {
     for (let y = MINY; y <= s; y++) {
       let b;
       if (y === MINY) b = BEDROCK;
+      else if (hills && bigCave(wx, y, wz, s)) b = 0;
       else if (y === s) b = top;
       else if (y >= s - 2) b = top === SAND ? SAND : DIRT;
       else if (y <= s - 4 && isCave(wx, y, wz)) b = y <= MINY + 4 ? WATER : 0;
