@@ -67,6 +67,29 @@
   #inv .recipe canvas { width: 28px; height: 28px; image-rendering: pixelated; flex: none; }
   #inv .recipe.no { background: #aaa; opacity: .5; cursor: default; }
   #inv .recipe:not(.no):hover { border-color: #fff; }
+  #chatLog { position: fixed; left: 10px; bottom: 112px; width: min(46vw, 360px); z-index: 6; pointer-events: none; font: 13px/1.4 sans-serif; color: #fff; text-shadow: 1px 1px 0 #000; }
+  #chatLog .cl { background: #0006; padding: 1px 6px; margin-top: 2px; word-break: break-all; }
+  #chatLog .cl.sys { color: #ffe97a; }
+  #chatIn { display: none; position: fixed; left: 10px; bottom: 80px; width: min(46vw, 360px); z-index: 7; font: 14px sans-serif; padding: 4px 8px; background: #000b; color: #fff; border: 1px solid #fff8; }
+  #mp { position: fixed; inset: 0; z-index: 22; display: none; align-items: center; justify-content: center; background: #000b; padding: 14px; }
+  #mp.show { display: flex; }
+  #mp .panel { background: #2a2f38; color: #fff; border: 3px solid #fff; padding: 14px 16px; width: min(94vw, 420px); max-height: 90vh; overflow: auto; text-align: center; }
+  #mp h2 { margin: 0 0 8px; font-size: 20px; }
+  #mp .row { display: flex; gap: 6px; justify-content: center; align-items: center; margin: 6px 0; font-size: 14px; }
+  #mp input { font: 700 16px sans-serif; padding: 6px 8px; width: 130px; text-align: center; background: #111; color: #fff; border: 2px solid #888; }
+  #mp button { font: 700 14px "Malgun Gothic", sans-serif; padding: 7px 14px; background: #2f5f7a; color: #fff; border: 2px solid #fff; cursor: pointer; }
+  #mp button.big { background: #5a9a3a; width: 100%; padding: 10px; font-size: 16px; }
+  #mp button.leave { background: #7a2f2f; margin-top: 8px; }
+  #mp #mpRooms { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
+  #mp .room { display: flex; align-items: center; gap: 8px; background: #3a414d; padding: 5px 8px; text-align: left; }
+  #mp .room b { flex: 1; } #mp .room small { color: #bbb; }
+  #mp .empty { color: #aaa; font-size: 13px; padding: 8px; }
+  #mp .code b { font-size: 30px; letter-spacing: 6px; color: #ffe97a; }
+  #mp .pl { font-size: 13px; color: #ccc; }
+  #mp #mpMsg { min-height: 18px; font-size: 13px; color: #ffb0b0; margin: 8px 0 4px; }
+  #mpTag { font-size: 13px; color: #7affa0; }
+  #bChat { right: 12px; top: 104px; width: 44px; height: 44px; font-size: 20px; }
+  body.touch #chatLog { bottom: 150px; width: 52vw; }
   #touch { display: none; }
   body.touch #touch { display: block; }
   #joy { position: fixed; left: 24px; bottom: 28px; width: 130px; height: 130px; border-radius: 50%; background: #fff3; border: 2px solid #fff6; z-index: 7; }
@@ -102,6 +125,8 @@
 <div id="toast"></div>
 <div id="fx"><div id="water" class="fx" style="position:absolute;inset:0"></div><div id="hurt" style="position:absolute;inset:0"></div></div>
 <canvas id="mini" width="64" height="64"></canvas>
+<div id="chatLog"></div>
+<input id="chatIn" maxlength="80" placeholder="채팅 (Enter 전송)" autocomplete="off">
 <div id="hearts"></div>
 <div id="hotbar"></div>
 <div id="inv"><div class="panel"><h2>🎒 인벤토리</h2><div id="invGrid"></div><p class="hint" id="invHint"></p><div id="craft"></div><button class="close" id="invClose">닫기 (E)</button></div></div>
@@ -113,6 +138,7 @@
   <div class="tbtn" id="bPlace">설치</div>
   <div class="tbtn" id="bDown">하강</div>
   <div class="tbtn" id="bInv">🎒</div>
+  <div class="tbtn" id="bChat">💬</div>
 </div>
 
 <div id="overlay">
@@ -126,13 +152,27 @@
     <div>지형 <button class="opt" data-terrain="flat">평지</button><button class="opt" data-terrain="hills">산과 호수</button></div>
     <div>모드 <button class="opt" data-gm="creative">크리에이티브</button><button class="opt" data-gm="survival">서바이벌</button></div>
   </div>
+  <p id="mpTag" style="display:none;margin:0"></p>
   <button id="startBtn">▶ 시작</button>
   <div class="row">
+    <button id="mpBtn" class="sub ok">🌐 멀티플레이</button>
     <button id="exportBtn" class="sub ok">📤 내보내기</button>
     <button id="importBtn" class="sub ok">📥 가져오기</button>
     <button id="soundBtn" class="sub ok">🔊 효과음 ON</button>
     <button id="resetBtn" class="sub">월드 초기화</button>
   </div>
+  <div id="mp"><div class="panel">
+    <h2>🌐 멀티플레이</h2>
+    <div class="row">닉네임 <input id="mpNick" maxlength="10" placeholder="닉네임"></div>
+    <div id="mpState" style="display:none"></div>
+    <div id="mpLobby">
+      <button id="mpCreate" class="big">🏠 방 만들기 (지금 월드로)</button>
+      <div class="row"><input id="mpCode" maxlength="4" placeholder="코드 4자리"><button id="mpJoin">입장</button></div>
+      <div id="mpRooms"><div class="empty">방 목록을 불러오는 중…</div></div>
+    </div>
+    <p id="mpMsg"></p>
+    <button id="mpClose">닫기</button>
+  </div></div>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
   <p id="saveInfo" style="font-size:12px;color:#aaa"></p>
   <p id="loadMsg">불러오는 중…</p>
@@ -421,7 +461,7 @@ function getBlock(x, y, z) {
 const isSolid = (x, y, z) => { const b = getBlock(x, y, z); return b !== 0 && b !== WATER; };
 
 let saveTimer = 0;
-function setBlock(x, y, z, t) {
+function setBlock(x, y, z, t, remote) {
   if (y <= MINY || y > TOPY) return false;
   const cx = x >> 4, cz = z >> 4, lx = x & 15, lz = z & 15;
   const c = getChunk(cx, cz), i = idx(lx, y, lz);
@@ -433,12 +473,13 @@ function setBlock(x, y, z, t) {
   let e = edits.get(k);
   if (!e) edits.set(k, e = new Map());
   e.set(i, t);
-  buildChunk(c);
+  if (!remote || c.meshes !== null) buildChunk(c);
   if (lx === 0) rebuildIfLoaded(cx - 1, cz);
   if (lx === CS - 1) rebuildIfLoaded(cx + 1, cz);
   if (lz === 0) rebuildIfLoaded(cx, cz - 1);
   if (lz === CS - 1) rebuildIfLoaded(cx, cz + 1);
   clearTimeout(saveTimer); saveTimer = setTimeout(save, 800);
+  if (!remote) netEdit(x, y, z, t);
   return true;
 }
 function glowChange(x, y, z, on) {
@@ -589,6 +630,7 @@ function snapshot(clean) {
 }
 const saveInfoEl = document.getElementById('saveInfo');
 function save() {
+  if (net.online && !net.host) return; // 멀티 손님은 자기 월드 저장을 덮어쓰지 않는다
   try {
     const now = performance.now();
     const clean = now - lastClean > 30000; if (clean) lastClean = now;
@@ -756,6 +798,7 @@ function updateSky() {
   lightCol.setRGB(0.2 + 0.8 * daylight, 0.22 + 0.78 * daylight, 0.38 + 0.62 * daylight);
   uDay.value.copy(lightCol);
   for (const m of dropMats.values()) m.color.copy(lightCol).lerp(WHITE, 0.45);
+  for (const m of avatarMats) m.color.copy(m.userData.base).multiply(lightCol).lerp(m.userData.base, 0.35);
   for (const m of pMats.values()) m.color.copy(m.userData.base).multiply(lightCol);
   ambLight.color.copy(lightCol); ambLight.intensity = 0.9 + daylight * 0.5;
   sunLight.intensity = daylight * 1.6; sunLight.position.set(Math.cos(a) * 0.9, Math.max(0.2, sn), 0.3);
@@ -809,6 +852,10 @@ function collidesBox(px, py, pz, hw, h) {
 const collides = (x, y, z) => collidesBox(x, y, z, HW, PH);
 function boxOverlapsPlayer(bx, by, bz) {
   return player.x + HW > bx && player.x - HW < bx + 1 && player.y + PH > by && player.y < by + 1 && player.z + HW > bz && player.z - HW < bz + 1;
+}
+function boxOverlapsPeer(bx, by, bz) {
+  for (const p of net.peers.values()) if (p.x + HW > bx && p.x - HW < bx + 1 && p.y + PH > by && p.y < by + 1 && p.z + HW > bz && p.z - HW < bz + 1) return true;
+  return false;
 }
 function boxOverlapsMob(bx, by, bz) {
   for (const m of mobs) { const d = MOB[m.type]; if (m.x + d.hw > bx && m.x - d.hw < bx + 1 && m.y + d.h > by && m.y < by + 1 && m.z + d.hw > bz && m.z - d.hw < bz + 1) return true; }
@@ -1532,11 +1579,12 @@ const MOB = {
 };
 const MOB_TYPES = Object.keys(MOB);
 const MOB_SCALE = 0.72;
-function spawnMob(type, x, y, z) {
+let mobSeq = 0;
+function spawnMob(type, x, y, z, id) {
   const rig = MOB[type].build();
   rig.root.scale.setScalar(MOB_SCALE);
   const g = new THREE.Group(); g.add(rig.root); g.position.set(x, y, z); scene.add(g);
-  mobs.push({ type, x, y, z, vx: 0, vy: 0, vz: 0, yaw: Math.random() * 6.28, want: 0, wt: 0, walk: false, hp: MOB[type].hp, g, rig,
+  mobs.push({ id: id || ++mobSeq, remote: false, type, x, y, z, vx: 0, vy: 0, vz: 0, yaw: Math.random() * 6.28, want: 0, wt: 0, walk: false, hp: MOB[type].hp, g, rig,
     phase: Math.random() * 6, t: Math.random() * 10, runK: 0, atk: 0, cd: 2 + Math.random() * 2, wind: 0, windMax: 1, rec: 0, armUp: 0, crouch: 0,
     leaping: false, leapV: [0, 0], hurt: 0, onGround: false, strafe: Math.random() < 0.5 ? 1 : -1, strafeT: 2, say: 3 + Math.random() * 8, blink: 0, nextBlink: 2 });
 }
@@ -1549,25 +1597,44 @@ function surfaceY(x, z) {
   return -999;
 }
 let mobSpawnT = 1;
+// 모든 플레이어(나 + 접속한 사람들). 몹은 가장 가까운 사람을 노린다.
+function allPlayers() {
+  const L = [{ id: net.myId, x: player.x, y: player.y, z: player.z, local: true }];
+  for (const [id, p] of net.peers) L.push({ id, x: p.x, y: p.y, z: p.z, local: false });
+  return L;
+}
+function nearestOf(L, x, z) {
+  let best = L[0], bd = 1e12;
+  for (const p of L) { const d = (p.x - x) ** 2 + (p.z - z) ** 2; if (d < bd) { bd = d; best = p; } }
+  return best;
+}
+function hurtAt(tp, n, kx, kz, vy, slow) {
+  if (tp.local) {
+    hurtPlayer(n); player.vx += kx; player.vz += kz; player.vy = Math.max(player.vy, vy);
+    if (slow && gm === 'survival') player.slowT = slow;
+    sfx.hit();
+  } else netSend(tp.id, { t: 'hurt', n, kx: +kx.toFixed(2), kz: +kz.toFixed(2), vy, slow });
+}
 function trySpawnMobs(dt) {
   mobSpawnT -= dt; if (mobSpawnT > 0) return;
   mobSpawnT = 2;
-  if (mobs.length >= 6) return;
-  const under = player.y < skyTop(Math.floor(player.x), Math.floor(player.z)) - 3;
+  if (mobs.length >= 6 + (net.online ? net.peers.size * 2 : 0)) return;
+  const L = allPlayers(), pp = L[Math.random() * L.length | 0];
+  const under = pp.y < skyTop(Math.floor(pp.x), Math.floor(pp.z)) - 3;
   if (!under && daylight > 0.35) return;
   let x, y, z;
   if (under) { // 동굴 안: 시간과 상관없이 어두운 바닥에서 나온다
-    x = Math.floor(player.x + (Math.random() - 0.5) * 28); z = Math.floor(player.z + (Math.random() - 0.5) * 28);
-    if (Math.hypot(x - player.x, z - player.z) < 8) return;
+    x = Math.floor(pp.x + (Math.random() - 0.5) * 28); z = Math.floor(pp.z + (Math.random() - 0.5) * 28);
+    if (Math.hypot(x - pp.x, z - pp.z) < 8) return;
     y = -999;
-    const y0 = Math.floor(player.y) + 4;
+    const y0 = Math.floor(pp.y) + 4;
     for (let yy = y0; yy >= y0 - 12; yy--) {
       if (!isSolid(x, yy, z) && !isSolid(x, yy + 1, z) && getBlock(x, yy, z) !== WATER && isSolid(x, yy - 1, z) && yy < skyTop(x, z)) { y = yy; break; }
     }
     if (y < MINY) return;
   } else {
     const a = Math.random() * 6.28, d = 14 + Math.random() * 16;
-    x = Math.floor(player.x + Math.cos(a) * d); z = Math.floor(player.z + Math.sin(a) * d);
+    x = Math.floor(pp.x + Math.cos(a) * d); z = Math.floor(pp.z + Math.sin(a) * d);
     y = surfaceY(x, z); if (y < MINY) return;
   }
   if (nearGlow(x, y, z, 7)) return; // 발광석 근처에는 안 나온다
@@ -1591,19 +1658,24 @@ const PROJ = {
   banana: { speed: 10, g: 12, dmg: 2, col: 0xf2d33a, size: [0.16, 0.16, 0.42], slow: 2.5 },
   apple:  { speed: 12, g: 2,  dmg: 3, col: 0xb5eb47, size: [0.26, 0.26, 0.26], slow: 0 },
 };
-function fireProj(m, kind) {
-  const P = PROJ[kind], d = MOB[m.type];
-  const ox = m.x + Math.sin(m.yaw) * 0.4, oy = m.y + d.h * 0.8, oz = m.z + Math.cos(m.yaw) * 0.4;
-  const tx = player.x - ox, ty = player.y + 1.1 - oy, tz = player.z - oz;
-  const dist = Math.hypot(tx, tz) || 1, t = dist / P.speed;
-  const vy = (ty + 0.5 * P.g * t * t) / t;
+function spawnProj(kind, ox, oy, oz, vx, vy, vz) {
+  const P = PROJ[kind]; if (!P) return;
   const mesh = new THREE.Group();
   const body = new THREE.Mesh(bgeo(...P.size), partMat(P.col)); mesh.add(body);
   if (kind === 'bone') for (const s of [-1, 1]) for (const k of [-1, 1]) { const kn = new THREE.Mesh(bgeo(0.1, 0.1, 0.1), partMat(P.col)); kn.position.set(k * 0.07, 0, s * 0.28); mesh.add(kn); }
   if (kind === 'apple') { const c = new THREE.Mesh(bgeo(0.1, 0.34, 0.1), partMat(P.col)); mesh.add(c); }
   mesh.position.set(ox, oy, oz); scene.add(mesh);
-  projs.push({ kind, mesh, x: ox, y: oy, z: oz, vx: tx / dist * P.speed, vy, vz: tz / dist * P.speed, life: 4, spin: Math.random() * 6 });
+  projs.push({ kind, mesh, x: ox, y: oy, z: oz, vx, vy, vz, life: 4, spin: Math.random() * 6 });
   tone(500, 900, 0.12, 0.2, 'triangle');
+}
+function fireProj(m, kind, tp) {
+  const P = PROJ[kind], d = MOB[m.type];
+  const ox = m.x + Math.sin(m.yaw) * 0.4, oy = m.y + d.h * 0.8, oz = m.z + Math.cos(m.yaw) * 0.4;
+  const tx = tp.x - ox, ty = tp.y + 1.1 - oy, tz = tp.z - oz;
+  const dist = Math.hypot(tx, tz) || 1, t = dist / P.speed;
+  const vy = (ty + 0.5 * P.g * t * t) / t, vx = tx / dist * P.speed, vz = tz / dist * P.speed;
+  spawnProj(kind, ox, oy, oz, vx, vy, vz);
+  if (net.online) netAll({ t: 'proj', kind, x: +ox.toFixed(2), y: +oy.toFixed(2), z: +oz.toFixed(2), vx: +vx.toFixed(2), vy: +vy.toFixed(2), vz: +vz.toFixed(2) });
 }
 function updateProjs(dt) {
   for (let i = projs.length - 1; i >= 0; i--) {
@@ -1632,9 +1704,11 @@ function updateProjs(dt) {
 function startWind(m, t) { m.wind = t; m.windMax = t; }
 function updateMobs(dt) {
   trySpawnMobs(dt);
+  const L = allPlayers();
   for (let i = mobs.length - 1; i >= 0; i--) {
     const m = mobs[i], d = MOB[m.type];
-    const dx = player.x - m.x, dz = player.z - m.z, dist = Math.hypot(dx, dz) || 0.001;
+    const tp = nearestOf(L, m.x, m.z);
+    const dx = tp.x - m.x, dz = tp.z - m.z, dist = Math.hypot(dx, dz) || 0.001;
     if (dist > 64 || m.y < MINY - 5) { removeMob(m); continue; }
     if (daylight > 0.8 && m.y >= skyTop(Math.floor(m.x), Math.floor(m.z)) && Math.random() < dt * 0.4) { burst(m.x, m.y + 1, m.z, d.col, 14, 0.7); removeMob(m); continue; }
     m.cd -= dt; m.rec = Math.max(0, m.rec - dt);
@@ -1647,10 +1721,10 @@ function updateMobs(dt) {
       m.armUp = 1 - m.wind / m.windMax; m.crouch = d.style === 'slam' ? m.armUp : 0;
       if (m.wind <= 0) {
         m.crouch = 0; m.armUp = 0;
-        if (d.style === 'ranged') { fireProj(m, d.proj); m.cd = d.cd * (0.85 + Math.random() * 0.3); m.rec = 0.35; }
+        if (d.style === 'ranged') { fireProj(m, d.proj, tp); m.cd = d.cd * (0.85 + Math.random() * 0.3); m.rec = 0.35; }
         else if (d.style === 'melee') {
           m.rec = 0.35; m.cd = d.cd; noise(900, 0.8, 0.12, 0.35);
-          if (dist < d.reach + 0.5 && Math.abs(player.y - m.y) < 1.8) { hurtPlayer(3); player.vx += nx * 7; player.vz += nz * 7; player.vy = Math.max(player.vy, 4.5); sfx.hit(); }
+          if (dist < d.reach + 0.5 && Math.abs(tp.y - m.y) < 1.8) hurtAt(tp, 3, nx * 7, nz * 7, 4.5, 0);
         } else if (d.style === 'slam') {
           const spd = Math.min(10, dist / 0.75);
           m.leaping = true; m.vy = 9.5; m.leapV = [nx * spd, nz * spd]; m.cd = d.cd;
@@ -1688,13 +1762,40 @@ function updateMobs(dt) {
     if (m.leaping && m.onGround && m.vy <= 0) {
       m.leaping = false; m.vx = m.vz = 0; sfx.land(); noise(250, 0.7, 0.25, 0.6, 'lowpass');
       burst(m.x, m.y + 0.1, m.z, 0x8b6b3b, 16, 1.8, 4);
-      const px = player.x - m.x, pz = player.z - m.z, pd = Math.hypot(px, pz) || 1;
-      if (pd < 2.6 && Math.abs(player.y - m.y) < 1.8) { hurtPlayer(4); player.vx += px / pd * 7; player.vz += pz / pd * 7; player.vy = Math.max(player.vy, 5); if (gm === 'survival') player.slowT = 1.5; }
+      for (const q of L) { // 착지 범위 안의 모든 플레이어
+        const px = q.x - m.x, pz = q.z - m.z, pd = Math.hypot(px, pz) || 1;
+        if (pd < 2.6 && Math.abs(q.y - m.y) < 1.8) hurtAt(q, 4, px / pd * 7, pz / pd * 7, 5, 1.5);
+      }
     }
     m.say -= dt;
     if (m.say <= 0) { m.say = 6 + Math.random() * 10; if (dist < 18) sfx.voice(m.type); }
     animMob(m, dt, moving);
   }
+}
+// 손님 쪽: 방장이 보낸 몹 상태를 따라가며 보여주기만 한다
+function updateRemoteMobs(dt) {
+  const k = 1 - Math.exp(-dt * 10);
+  for (const m of mobs) {
+    if (m.tx === undefined) continue;
+    const ox = m.x, oz = m.z, oy = m.y;
+    m.x += (m.tx - m.x) * k; m.z += (m.tz - m.z) * k; m.y += (m.ty - m.y) * k;
+    let da = m.tyaw - m.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); m.yaw += da * k;
+    m.vx = (m.x - ox) / Math.max(dt, 1e-3); m.vz = (m.z - oz) / Math.max(dt, 1e-3);
+    m.onGround = Math.abs(m.y - oy) / Math.max(dt, 1e-3) < 1.5 && !m.leaping;
+    animMob(m, dt, Math.hypot(m.vx, m.vz) > 0.6);
+  }
+}
+function applyMobState(list) {
+  const seen = new Set();
+  for (const e of list) {
+    const [id, type, x, y, z, yaw, armUp, crouch, leap, mhp] = e;
+    if (!MOB[type]) continue;
+    seen.add(id);
+    let m = mobs.find(mm => mm.id === id);
+    if (!m) { spawnMob(type, x, y, z, id); m = mobs[mobs.length - 1]; m.remote = true; m.tyaw = yaw; m.yaw = yaw; }
+    m.tx = x; m.ty = y; m.tz = z; m.tyaw = yaw; m.armUp = armUp; m.crouch = crouch; m.leaping = !!leap; m.hp = mhp;
+  }
+  for (const m of [...mobs]) if (m.remote && !seen.has(m.id)) { burst(m.x, m.y + 0.9, m.z, MOB[m.type].col, 14, 0.7, 3.5); removeMob(m); }
 }
 // 서브웨이 animateButa를 몹용으로 축약: 달리기/점프 포즈 + 공격 동작
 function animMob(m, dt, moving) {
@@ -1774,14 +1875,28 @@ function mobDrops(m) {
   if (Math.random() < 0.15) spawnDrop(IRON, 1, m.x, m.y + 0.8, m.z);
 }
 function attackDamage() { const t = heldTool(); return t && t.tt === 'sword' ? SWORD_DMG[t.tier] : 3; }
-function attackMob(m) {
+function damageMob(m, dmg, kx, kz, killer) {
   const d = MOB[m.type];
-  m.hp -= attackDamage(); m.hurt = 0.25; sfx.hit();
-  const dx = m.x - player.x, dz = m.z - player.z, l = Math.hypot(dx, dz) || 1;
-  m.vx += dx / l * 7; m.vz += dz / l * 7; m.vy = 4.5;
+  m.hp -= dmg; m.hurt = 0.25; sfx.hit();
+  m.vx += kx; m.vz += kz; m.vy = 4.5;
   if (m.wind > 0) { m.wind = 0; m.armUp = 0; m.crouch = 0; }
   burst(m.x, m.y + d.h * 0.6, m.z, d.col, 6, 0.4, 2.5);
-  if (m.hp <= 0) { sfx.pop(); burst(m.x, m.y + d.h * 0.5, m.z, d.col, 18, 0.7, 4); mobDrops(m); removeMob(m); }
+  if (m.hp <= 0) {
+    sfx.pop(); burst(m.x, m.y + d.h * 0.5, m.z, d.col, 18, 0.7, 4);
+    if (!killer || killer === net.myId) mobDrops(m);
+    else netSend(killer, { t: 'mobdrop', type: m.type, x: +m.x.toFixed(2), y: +m.y.toFixed(2), z: +m.z.toFixed(2) });
+    removeMob(m);
+  }
+}
+function attackMob(m) {
+  const d = MOB[m.type];
+  const dx = m.x - player.x, dz = m.z - player.z, l = Math.hypot(dx, dz) || 1;
+  if (isGuest()) { // 손님은 방장에게 공격을 알린다 (몹은 방장이 계산)
+    sfx.hit(); m.hurt = 0.25; burst(m.x, m.y + d.h * 0.6, m.z, d.col, 6, 0.4, 2.5);
+    netSend('p0', { t: 'hit', id: m.id, dmg: attackDamage(), kx: +(dx / l * 7).toFixed(2), kz: +(dz / l * 7).toFixed(2) });
+    return;
+  }
+  damageMob(m, attackDamage(), dx / l * 7, dz / l * 7, net.myId);
 }
 
 /* ================= 체력 ================= */
@@ -1873,7 +1988,9 @@ function eat(id) {
 }
 function sleep(t) {
   if (mobs.some(m => Math.hypot(m.x - player.x, m.z - player.z) < 16)) { showToast('근처에 몹이 있어서 잘 수 없어요!', 2000); return; }
-  tod = 0.08; spawn = { x: t.x + 0.5, y: t.y + 1.001, z: t.z + 0.5 };
+  spawn = { x: t.x + 0.5, y: t.y + 1.001, z: t.z + 0.5 };
+  if (isGuest()) { netSend('p0', { t: 'sleep' }); showToast('🛏 방장에게 잠자기를 요청했어요', 2000); return; }
+  tod = 0.08; netPush(true);
   hp = MAXHP; refreshHearts(); clearMobs(); sfx.wake();
   showToast('🛏 좋은 아침! 리스폰 지점이 저장됐어요', 2500); save();
 }
@@ -1892,7 +2009,7 @@ function placeBlock() {
   const x = target.x + target.nx, y = target.y + target.ny, z = target.z + target.nz;
   const cur = getBlock(x, y, z);
   if (cur !== 0 && cur !== WATER) return;
-  if (id !== WATER && (boxOverlapsPlayer(x, y, z) || boxOverlapsMob(x, y, z))) return;
+  if (id !== WATER && (boxOverlapsPlayer(x, y, z) || boxOverlapsMob(x, y, z) || boxOverlapsPeer(x, y, z))) return;
   if (!setBlock(x, y, z, id)) return;
   blockSound(id, 'place');
   if (gm === 'survival') { inv[id]--; refreshHotbar(); }
@@ -1934,6 +2051,8 @@ function toggleFly() {
   document.getElementById('bDown').style.display = player.fly && isTouch ? 'flex' : 'none';
 }
 addEventListener('keydown', e => {
+  if (document.activeElement === chatIn || document.activeElement === mpNickEl || document.activeElement === mpCodeEl) return;
+  if ((e.code === 'KeyT' || e.code === 'Enter') && !e.repeat && net.online && !paused) { e.preventDefault(); openChat(); return; }
   keys[e.code] = true;
   if (e.code === 'KeyM' && !e.repeat) { miniOn = !miniOn; miniEl.style.display = miniOn ? 'block' : 'none'; }
   if (e.code === 'Space') {
@@ -1990,6 +2109,7 @@ function setupTouch() {
   hold('bBreak', 'brk');
   hold('bPlace', 'plc', () => { doPlace(); placeCd = 0.3; });
   hold('bDown', 'down');
+  document.getElementById('bChat').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); openChat(); }, { passive: false });
   document.getElementById('bInv').addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); if (invOpen) closeInv(); else if (!paused) openInv(); }, { passive: false });
   let lid = null, lx = 0, ly = 0;
   canvas.addEventListener('touchstart', e => { if (lid !== null) return; const t = e.changedTouches[0]; lid = t.identifier; lx = t.clientX; ly = t.clientY; }, { passive: true });
@@ -2006,6 +2126,368 @@ function setupTouch() {
 }
 if ('ontouchstart' in window || navigator.maxTouchPoints > 0) setupTouch();
 
+/* ================= 멀티플레이 (Firestore: 방 문서 + msgs 이벤트 + peers 상태, 카트 레이서와 같은 방식) ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBPgoO4EXWFagGEutquysQPmcvFk37eXbU", authDomain: "game-81004.firebaseapp.com", projectId: "game-81004",
+  storageBucket: "game-81004.firebasestorage.app", messagingSenderId: "217133907611", appId: "1:217133907611:web:a62de72fc5c909390bd03e"
+};
+let db = null, fs = null;
+const net = { online: false, host: false, code: '', myId: 'p0', unsubs: [], timers: [], primed: false, peers: new Map(), lastPush: 0, seq: 0,
+  worldReady: false, welcome: null, wparts: [], pendingB: [], editQ: new Map(), lastSent: '', leaving: false, rooms: [], welcomed: {}, editT: 0 };
+const isGuest = () => net.online && !net.host;
+const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let myNick = '';
+try { myNick = localStorage.getItem('blockworld_nick') || ''; } catch (e) {}
+async function connectDb() {
+  if (db) return true;
+  try {
+    if (window.__BW_FS_MOCK) { fs = window.__BW_FS_MOCK; db = {}; return true; } // 테스트용
+    const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+    const [app, f] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-firestore.js')]);
+    db = f.getFirestore(app.initializeApp(firebaseConfig, 'blockworld')); fs = f;
+    return true;
+  } catch (e) { return false; }
+}
+const subCol = name => fs.collection(db, 'blockworld_rooms', net.code, name);
+function netSend(to, msg) {
+  if (!net.online || !db) return;
+  msg.q = ++net.seq;
+  fs.addDoc(subCol('msgs'), { from: net.myId, to, d: JSON.stringify(msg), ts: Date.now() }).catch(() => {});
+}
+const netAll = msg => netSend('', msg);
+
+/* ---- 다른 플레이어 아바타 ---- */
+const avatarMats = [];
+const avMat = color => { const m = new THREE.MeshBasicMaterial({ color }); m.userData.base = new THREE.Color(color); avatarMats.push(m); return m; };
+function nameHue(name) { let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+function makeAvatar(name) {
+  const g = new THREE.Group();
+  const col = new THREE.Color().setHSL(nameHue(name) / 360, 0.6, 0.5).getHex();
+  const skin = avMat(0xf0c8a0), shirt = avMat(col), pants = avMat(0x39467f), hair = avMat(0x4a3220);
+  const fc = document.createElement('canvas'); fc.width = fc.height = 16; const fg = fc.getContext('2d');
+  fg.fillStyle = '#f0c8a0'; fg.fillRect(0, 0, 16, 16); fg.fillStyle = '#4a3220'; fg.fillRect(0, 0, 16, 4);
+  fg.fillStyle = '#fff'; fg.fillRect(3, 7, 4, 3); fg.fillRect(9, 7, 4, 3); fg.fillStyle = '#2a4a9a'; fg.fillRect(5, 7, 2, 3); fg.fillRect(11, 7, 2, 3);
+  fg.fillStyle = '#a0522d'; fg.fillRect(5, 12, 6, 1);
+  const ft = new THREE.CanvasTexture(fc); ft.magFilter = THREE.NearestFilter; ft.colorSpace = THREE.SRGBColorSpace;
+  const face = new THREE.MeshBasicMaterial({ map: ft }); face.userData.base = new THREE.Color(0xffffff); avatarMats.push(face);
+  const head = new THREE.Mesh(bgeo(0.5, 0.5, 0.5), [skin, skin, hair, skin, hair, face]); // -Z가 앞
+  const headG = new THREE.Group(); headG.position.set(0, 1.55, 0); headG.add(head); head.position.y = 0.25; g.add(headG);
+  const body = new THREE.Mesh(bgeo(0.5, 0.65, 0.26), shirt); body.position.y = 0.9; g.add(body);
+  const limb = (w, h, d, mat, x, y) => { const piv = new THREE.Group(); piv.position.set(x, y, 0); const m = new THREE.Mesh(bgeo(w, h, d), mat); m.position.y = -h / 2; piv.add(m); g.add(piv); return piv; };
+  const armL = limb(0.2, 0.65, 0.2, skin, -0.36, 1.22), armR = limb(0.2, 0.65, 0.2, skin, 0.36, 1.22);
+  const legL = limb(0.24, 0.6, 0.24, pants, -0.13, 0.6), legR = limb(0.24, 0.6, 0.24, pants, 0.13, 0.6);
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 48; const c2 = cv.getContext('2d');
+  c2.fillStyle = 'rgba(0,0,0,0.55)'; c2.fillRect(0, 0, 256, 48); c2.fillStyle = '#fff'; c2.font = 'bold 28px sans-serif'; c2.textAlign = 'center'; c2.textBaseline = 'middle';
+  c2.fillText(name, 128, 26);
+  const tt = new THREE.CanvasTexture(cv); tt.colorSpace = THREE.SRGBColorSpace;
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tt, fog: false })); tag.scale.set(1.6, 0.3, 1); tag.position.y = 2.3; g.add(tag);
+  scene.add(g);
+  return { g, headG, armL, armR, legL, legR, tag, phase: 0 };
+}
+function applyPeer(id, st) {
+  if (!st || !Array.isArray(st.p) || st.p.length < 5) return;
+  const nums = st.p.map(Number); if (nums.some(n => !isFinite(n))) return;
+  let p = net.peers.get(id);
+  if (!p) {
+    const name = String(st.n || '플레이어').slice(0, 10);
+    p = { name, x: nums[0], y: nums[1], z: nums[2], ax: nums[0], ay: nums[1], az: nums[2], yaw: nums[3], ayaw: nums[3], pitch: nums[4], av: makeAvatar(name), seen: 0 };
+    net.peers.set(id, p);
+    addChat('', `👋 ${name} 님이 입장했어요`, true);
+    refreshMpUI();
+  }
+  p.x = nums[0]; p.y = nums[1]; p.z = nums[2]; p.yaw = nums[3]; p.pitch = nums[4]; p.seen = performance.now();
+  if (id === 'p0' && !net.host && net.worldReady) {
+    if (typeof st.t === 'number') tod = st.t;
+    if (Array.isArray(st.m)) applyMobState(st.m);
+  }
+}
+function removePeer(id) {
+  const p = net.peers.get(id); if (!p) return;
+  scene.remove(p.av.g); net.peers.delete(id);
+  addChat('', `👋 ${p.name} 님이 나갔어요`, true); refreshMpUI();
+}
+function updatePeers(dt) {
+  const k = 1 - Math.exp(-dt * 12), now = performance.now();
+  for (const [id, p] of [...net.peers]) {
+    if (now - p.seen > 15000) { removePeer(id); continue; }
+    const ox = p.ax, oz = p.az;
+    p.ax += (p.x - p.ax) * k; p.ay += (p.y - p.ay) * k; p.az += (p.z - p.az) * k;
+    let da = p.yaw - p.ayaw; da = Math.atan2(Math.sin(da), Math.cos(da)); p.ayaw += da * k;
+    const sp = Math.hypot(p.ax - ox, p.az - oz) / Math.max(dt, 1e-3);
+    const a = p.av; a.phase += sp * dt * 1.6;
+    const sw = Math.sin(a.phase) * 0.8 * Math.min(1, sp / 3);
+    a.legL.rotation.x = sw; a.legR.rotation.x = -sw; a.armL.rotation.x = -sw; a.armR.rotation.x = sw;
+    a.headG.rotation.x = p.pitch;
+    a.g.position.set(p.ax, p.ay, p.az); a.g.rotation.y = p.ayaw;
+  }
+}
+
+/* ---- 채팅 ---- */
+const chatLog = document.getElementById('chatLog'), chatIn = document.getElementById('chatIn');
+function addChat(name, text, sys) {
+  const row = document.createElement('div'); row.className = 'cl' + (sys ? ' sys' : '');
+  if (name) { const b = document.createElement('b'); b.textContent = name + ': '; row.append(b); }
+  row.append(document.createTextNode(String(text).slice(0, 120)));
+  chatLog.append(row);
+  while (chatLog.children.length > 7) chatLog.firstChild.remove();
+  setTimeout(() => row.remove(), 14000);
+}
+function openChat() {
+  if (!net.online || paused) return;
+  if (isTouch) { const t = prompt('채팅'); if (t && t.trim()) sendChat(t); return; }
+  chatIn.style.display = 'block'; chatIn.value = ''; chatIn.focus();
+}
+function closeChat() { chatIn.style.display = 'none'; chatIn.blur(); }
+function sendChat(text) {
+  text = text.trim().slice(0, 80); if (!text) return;
+  addChat(myNick, text); netAll({ t: 'chat', name: myNick, text });
+}
+chatIn.addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Enter') { sendChat(chatIn.value); closeChat(); }
+  else if (e.key === 'Escape') closeChat();
+});
+
+/* ---- 상태 / 블록 편집 전송 ---- */
+function mobStateList() {
+  return mobs.map(m => [m.id, m.type, +m.x.toFixed(2), +m.y.toFixed(2), +m.z.toFixed(2), +m.yaw.toFixed(2), +m.armUp.toFixed(2), +m.crouch.toFixed(2), m.leaping ? 1 : 0, m.hp]);
+}
+function netPush(force) {
+  if (!net.online || !db || !net.worldReady) return;
+  const now = performance.now();
+  if (!force && now - net.lastPush < 250) return;
+  const sm = { n: myNick, p: [+player.x.toFixed(2), +player.y.toFixed(2), +player.z.toFixed(2), +player.yaw.toFixed(2), +player.pitch.toFixed(2)] };
+  if (net.host) { sm.t = +tod.toFixed(4); sm.m = mobStateList(); }
+  const s = JSON.stringify(sm);
+  if (!force && s === net.lastSent && now - net.lastPush < 4000) return; // 변화가 없으면 4초마다 생존 신호만
+  net.lastSent = s; net.lastPush = now;
+  fs.setDoc(fs.doc(db, 'blockworld_rooms', net.code, 'peers', net.myId), { s, ts: Date.now() }).catch(() => {});
+}
+function netEdit(x, y, z, t) { if (net.online) net.editQ.set(x + ',' + y + ',' + z, [x, y, z, t]); }
+function netFlushEdits() {
+  if (!net.online || !net.editQ.size) return;
+  const all = [...net.editQ.values()]; net.editQ.clear();
+  for (let i = 0; i < all.length; i += 300) netAll({ t: 'b', e: all.slice(i, i + 300) });
+}
+function applyEdits(list) {
+  if (!Array.isArray(list)) return;
+  for (const e of list.slice(0, 600)) {
+    if (!Array.isArray(e)) continue;
+    const [x, y, z, t] = e;
+    if (!Number.isInteger(x) || !Number.isInteger(y) || !Number.isInteger(z) || !Number.isInteger(t)) continue;
+    if (t !== 0 && !BLK[t]) continue;
+    setBlock(x, y, z, t, true);
+  }
+}
+function netFrame(dt) {
+  net.editT -= dt;
+  if (net.editT <= 0) { net.editT = 0.25; netFlushEdits(); }
+  netPush(false);
+  updatePeers(dt);
+}
+
+/* ---- 메시지 처리 ---- */
+function hostWelcome(to) {
+  const now = performance.now();
+  if (net.welcomed[to] && now - net.welcomed[to] < 20000) return; // 재시도 요청 중복 방지
+  net.welcomed[to] = now;
+  const parts = []; let cur = [];
+  for (const [k, m] of edits) {
+    const [cx, cz] = k.split(',').map(Number);
+    for (const [i, t] of m) {
+      cur.push(cx * CS + i % CS, Math.floor(i / (CS * CS)) + MINY, cz * CS + Math.floor(i / CS) % CS, t);
+      if (cur.length >= 360) { parts.push(cur); cur = []; }
+    }
+  }
+  if (cur.length) parts.push(cur);
+  netSend(to, { t: 'welcome', terrain, gm, tod, sp: [spawn.x, spawn.y, spawn.z], n: parts.length });
+  parts.forEach((p, i) => netSend(to, { t: 'wchunk', i, ef: p }));
+}
+function netCheckWorld() {
+  const w = net.welcome;
+  if (!w || net.worldReady || net.wparts.length !== w.n || net.wparts.some(p => !p)) return;
+  const ef = [].concat(...net.wparts);
+  loadWorld(w.terrain === 'hills' ? 'hills' : 'flat', { gm: w.gm, tod: w.tod, sp: w.sp, ef });
+  net.worldReady = true;
+  for (const e of net.pendingB) applyEdits(e);
+  net.pendingB = [];
+  const mp = document.getElementById('mp'); mp.classList.remove('show'); stopWatchRooms();
+  refreshMpUI(); netPush(true);
+  addChat('', '🌐 방에 입장했어요! 시작 버튼을 눌러 플레이하세요', true);
+}
+function netHandle(msg, from) {
+  switch (msg.t) {
+    case 'join': if (net.host) hostWelcome(from); break;
+    case 'welcome':
+      if (!net.host && !net.welcome) { net.welcome = msg; net.wparts = new Array(Math.min(2000, msg.n | 0)).fill(null); netCheckWorld(); }
+      break;
+    case 'wchunk':
+      if (!net.host && net.welcome && Number.isInteger(msg.i) && Array.isArray(msg.ef) && msg.i < net.wparts.length) { net.wparts[msg.i] = msg.ef; netCheckWorld(); }
+      break;
+    case 'b': if (!net.host && !net.worldReady) net.pendingB.push(msg.e); else applyEdits(msg.e); break;
+    case 'chat': addChat(String(msg.name || '?').slice(0, 10), msg.text); break;
+    case 'hit': if (net.host) { const m = mobs.find(mm => mm.id === msg.id && !mm.remote); if (m) damageMob(m, Math.max(0, Math.min(12, +msg.dmg || 3)), +msg.kx || 0, +msg.kz || 0, from); } break;
+    case 'hurt': hurtPlayer(Math.max(0, Math.min(10, msg.n | 0))); player.vx += +msg.kx || 0; player.vz += +msg.kz || 0; player.vy = Math.max(player.vy, +msg.vy || 0); if (gm === 'survival' && msg.slow) player.slowT = +msg.slow; sfx.hit(); break;
+    case 'proj': if (!net.host) spawnProj(msg.kind, +msg.x, +msg.y, +msg.z, +msg.vx, +msg.vy, +msg.vz); break;
+    case 'mobdrop': if (MOB_DROPS[msg.type]) mobDrops({ type: msg.type, x: +msg.x, y: +msg.y, z: +msg.z }); break;
+    case 'sleep': if (net.host) { tod = 0.08; clearMobs(); netPush(true); addChat('', '🛏 누군가 잠들어 아침이 됐어요', true); } break;
+    case 'bye': removePeer(msg.id || from); if (!net.host && from === 'p0') netFail('방장이 나갔어요'); break;
+  }
+}
+function startTransport() {
+  net.primed = false;
+  net.unsubs.push(fs.onSnapshot(subCol('msgs'), snap => {
+    if (!net.primed) { if (!snap.metadata.fromCache) net.primed = true; return; } // 처음 받은 스냅샷(이전 기록)은 무시
+    const add = snap.docChanges().filter(c => c.type === 'added').map(c => c.doc.data()).sort((a, b) => a.ts - b.ts);
+    for (const m of add) {
+      if (m.from === net.myId || (m.to && m.to !== net.myId)) continue;
+      let msg; try { msg = JSON.parse(m.d); } catch (e) { continue; }
+      if (msg && typeof msg === 'object') netHandle(msg, m.from);
+    }
+  }, () => { if (!net.leaving) netFail('서버 연결이 끊겼어요'); }));
+  net.unsubs.push(fs.onSnapshot(subCol('peers'), snap => {
+    snap.docChanges().forEach(ch => {
+      const id = ch.doc.id; if (id === net.myId) return;
+      if (ch.type === 'removed') { removePeer(id); return; }
+      let st; try { st = JSON.parse(ch.doc.data().s); } catch (e) { return; }
+      applyPeer(id, st);
+    });
+  }, () => {}));
+  net.timers.push(setInterval(() => {
+    if (net.host) { putRoom(); trimMsgs(); } // 방 목록 하트비트
+    if (isGuest() && net.worldReady) { const h = net.peers.get('p0'); if (h && performance.now() - h.seen > 20000) netFail('방장과 연결이 끊겼어요'); }
+  }, 8000));
+}
+const putRoom = () => { if (db && net.online && net.host) fs.setDoc(fs.doc(db, 'blockworld_rooms', net.code), { name: myNick, hb: Date.now(), n: net.peers.size + 1 }).catch(() => {}); };
+let lastTrim = 0;
+async function trimMsgs() { // 오래된 이벤트 문서 정리 (방이 길어져도 문서가 쌓이지 않게)
+  const now = Date.now(); if (now - lastTrim < 60000) return; lastTrim = now;
+  try { const snap = await fs.getDocs(subCol('msgs')); snap.docs.forEach(d => { if (now - (d.data().ts || 0) > 60000) fs.deleteDoc(d.ref).catch(() => {}); }); } catch (e) {}
+}
+function netReset() {
+  net.leaving = true;
+  if (net.online && db) {
+    const code = net.code, id = net.myId, host = net.host;
+    netFlushEdits(); netAll({ t: 'bye', id });
+    fs.deleteDoc(fs.doc(db, 'blockworld_rooms', code, 'peers', id)).catch(() => {});
+    if (host) {
+      fs.deleteDoc(fs.doc(db, 'blockworld_rooms', code)).catch(() => {});
+      setTimeout(async () => { for (const name of ['msgs', 'peers']) { try { const snap = await fs.getDocs(fs.collection(db, 'blockworld_rooms', code, name)); snap.docs.forEach(d => fs.deleteDoc(d.ref).catch(() => {})); } catch (e) {} } }, 4000);
+    }
+  }
+  net.unsubs.forEach(u => { try { u(); } catch (e) {} }); net.unsubs = [];
+  net.timers.forEach(clearInterval); net.timers = [];
+  for (const id of [...net.peers.keys()]) { const p = net.peers.get(id); scene.remove(p.av.g); }
+  net.peers.clear(); net.editQ.clear(); net.pendingB = []; net.welcome = null; net.wparts = []; net.welcomed = {};
+  net.online = false; net.host = false; net.code = ''; net.myId = 'p0'; net.worldReady = false; net.primed = false;
+  net.leaving = false;
+}
+function localTerrain() { try { const m = JSON.parse(localStorage.getItem('blockworld_meta')); return m && m.terrain === 'hills' ? 'hills' : 'flat'; } catch (e) { return 'flat'; } }
+// 방에서 나가기: 손님이었다면 내 월드로 되돌아간다
+function leaveMulti(msg) {
+  const wasGuest = isGuest(), wasWorld = net.worldReady;
+  netReset();
+  for (const m of [...mobs]) if (m.remote) removeMob(m);
+  if (wasGuest && wasWorld) loadWorld(localTerrain());
+  else if (wasGuest) refreshOptsUI();
+  refreshMpUI();
+  if (msg) { showToast(msg, 4000); mpMsg.textContent = msg; }
+}
+function netFail(msg) {
+  const playing = !paused;
+  leaveMulti(msg);
+  paused = true; overlay.classList.remove('hidden');
+  if (playing && document.pointerLockElement) document.exitPointerLock();
+}
+addEventListener('pagehide', () => { if (net.online) netReset(); });
+async function createRoom() {
+  if (!(await connectDb())) { mpMsg.textContent = '서버에 연결할 수 없어요'; return; }
+  if (net.online) netReset();
+  for (let t = 0; t < 8; t++) {
+    const code = Array.from({ length: 4 }, () => CODE_CH[Math.floor(Math.random() * 32)]).join('');
+    try {
+      const ex = await fs.getDoc(fs.doc(db, 'blockworld_rooms', code));
+      if (ex.exists() && Date.now() - ex.data().hb < 30000) continue;
+      await fs.setDoc(fs.doc(db, 'blockworld_rooms', code), { name: myNick, hb: Date.now(), n: 1 });
+    } catch (e) { mpMsg.textContent = '방을 만들 수 없어요. 서버 연결과 Firestore 규칙(blockworld_rooms)을 확인하세요'; return; }
+    net.host = true; net.myId = 'p0'; net.code = code; net.online = true; net.worldReady = true;
+    startTransport(); netPush(true);
+    refreshMpUI(); addChat('', `🌐 방 코드 ${code} — 친구에게 알려주세요!`, true);
+    return;
+  }
+  mpMsg.textContent = '방 코드를 만들 수 없어요. 다시 시도하세요';
+}
+async function joinRoom(code) {
+  code = (code || '').toUpperCase().trim();
+  if (code.length !== 4) { mpMsg.textContent = '방 코드 4자리를 입력하세요'; return; }
+  if (!(await connectDb())) { mpMsg.textContent = '서버에 연결할 수 없어요'; return; }
+  if (net.online) leaveMulti();
+  try {
+    const r = await fs.getDoc(fs.doc(db, 'blockworld_rooms', code));
+    if (!r.exists() || Date.now() - r.data().hb > 30000) { mpMsg.textContent = '방을 찾을 수 없어요'; return; }
+  } catch (e) { mpMsg.textContent = '서버에 연결할 수 없어요'; return; }
+  save(); // 입장 전에 내 월드 저장
+  net.host = false; net.myId = 'p' + Math.random().toString(36).slice(2, 7); net.code = code; net.online = true; net.worldReady = false;
+  startTransport(); refreshMpUI();
+  mpMsg.textContent = '방에 연결하는 중…';
+  const t0 = Date.now();
+  const tryJoin = () => {
+    if (!net.online || net.code !== code || net.worldReady) return;
+    if (Date.now() - t0 > 20000) { leaveMulti('연결 시간 초과. 방장이 접속 중인지 확인하세요'); return; }
+    if (net.primed) netSend('p0', { t: 'join' });
+    setTimeout(tryJoin, net.primed ? 2500 : 200);
+  };
+  tryJoin();
+}
+
+/* ---- 멀티플레이 패널 UI ---- */
+const mpEl = document.getElementById('mp'), mpMsg = document.getElementById('mpMsg'), mpRoomsEl = document.getElementById('mpRooms');
+const mpNickEl = document.getElementById('mpNick'), mpCodeEl = document.getElementById('mpCode');
+const mpState = document.getElementById('mpState'), mpLobby = document.getElementById('mpLobby'), mpTag = document.getElementById('mpTag');
+let roomsUnsub = null;
+function ensureNick() {
+  let n = mpNickEl.value.trim().slice(0, 10);
+  if (!n) n = myNick || ('플레이어' + (10 + Math.random() * 90 | 0));
+  myNick = n; mpNickEl.value = n;
+  try { localStorage.setItem('blockworld_nick', n); } catch (e) {}
+  return n;
+}
+function renderRooms() {
+  const live = net.rooms.filter(r => Date.now() - r.hb < 25000 && r.code !== net.code).sort((a, b) => b.hb - a.hb);
+  mpRoomsEl.innerHTML = live.length
+    ? live.map(r => `<div class="room"><b>${esc(r.name)}</b> <small>${r.n | 0}명</small><button data-c="${esc(r.code)}">입장</button></div>`).join('')
+    : '<div class="empty">열린 방이 없어요. 방을 만들어 보세요!</div>';
+}
+function watchRooms() {
+  if (roomsUnsub || !db) return;
+  roomsUnsub = fs.onSnapshot(fs.collection(db, 'blockworld_rooms'), snap => { net.rooms = snap.docs.map(d => ({ code: d.id, ...d.data() })); renderRooms(); },
+    () => { mpRoomsEl.innerHTML = '<div class="empty">방 목록을 불러올 수 없어요. 코드로 입장하세요.</div>'; });
+}
+function stopWatchRooms() { if (roomsUnsub) { try { roomsUnsub(); } catch (e) {} roomsUnsub = null; } }
+function refreshMpUI() {
+  if (net.online) {
+    const n = net.peers.size + 1;
+    mpState.style.display = ''; mpLobby.style.display = 'none';
+    mpState.innerHTML = `<div class="code">방 코드 <b>${esc(net.code)}</b></div><div>${net.host ? '🏠 내가 방장' : '🎮 손님'} · ${n}명 접속 중</div>` +
+      [...net.peers.values()].map(p => `<div class="pl">👤 ${esc(p.name)}</div>`).join('') + '<button id="mpLeave" class="leave">🚪 방 나가기</button>';
+    mpTag.style.display = ''; mpTag.textContent = `🌐 멀티플레이 · 방 ${net.code} · ${n}명 (${net.host ? '방장' : '손님'})`;
+    const lb = document.getElementById('mpLeave'); if (lb) lb.onclick = () => leaveMulti('방에서 나왔어요');
+  } else { mpState.style.display = 'none'; mpLobby.style.display = ''; mpTag.style.display = 'none'; }
+}
+async function openMp() {
+  mpEl.classList.add('show'); mpNickEl.value = myNick; mpMsg.textContent = ''; refreshMpUI();
+  if (!net.online) { if (await connectDb()) watchRooms(); else mpMsg.textContent = '서버에 연결할 수 없어요'; }
+}
+function closeMp() { mpEl.classList.remove('show'); stopWatchRooms(); }
+document.getElementById('mpBtn').addEventListener('click', openMp);
+document.getElementById('mpClose').addEventListener('click', closeMp);
+document.getElementById('mpCreate').addEventListener('click', async () => { ensureNick(); mpMsg.textContent = '방을 만드는 중…'; await createRoom(); if (net.online) mpMsg.textContent = ''; });
+document.getElementById('mpJoin').addEventListener('click', () => { ensureNick(); joinRoom(mpCodeEl.value); });
+mpRoomsEl.addEventListener('click', e => { const c = e.target.dataset && e.target.dataset.c; if (c) { ensureNick(); joinRoom(c); } });
+mpCodeEl.addEventListener('input', () => { mpCodeEl.value = mpCodeEl.value.toUpperCase(); });
+setInterval(() => { if (roomsUnsub) renderRooms(); }, 5000);
+
 /* ================= 월드 불러오기 / 옵션 UI ================= */
 function findSpawn() {
   if (!isHills()) return { x: 0.5, y: 1.001, z: 0.5 };
@@ -2021,7 +2503,13 @@ function refreshOptsUI() {
   document.querySelectorAll('.opt[data-gm]').forEach(b => b.classList.toggle('on', b.dataset.gm === gm));
   document.getElementById('soundBtn').textContent = soundOn ? '🔊 효과음 ON' : '🔇 효과음 OFF';
 }
-function loadWorld(t) {
+function addEditRaw(x, y, z, b) {
+  const k = (x >> 4) + ',' + (z >> 4);
+  let m = edits.get(k); if (!m) edits.set(k, m = new Map());
+  m.set(idx(x & 15, y, z & 15), b);
+  if (b === GLOW) glows.push([x, y, z]);
+}
+function loadWorld(t, netInfo) {
   terrain = t;
   for (const c of chunks.values()) disposeMesh(c);
   chunks.clear(); edits.clear(); clearMobs(); clearDrops(); glows.length = 0; pending = []; lastCx = 1e9;
@@ -2029,7 +2517,7 @@ function loadWorld(t) {
   spawn = findSpawn();
   Object.assign(player, { x: spawn.x, y: spawn.y, z: spawn.z, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, fly: false });
   try {
-    const d = JSON.parse(localStorage.getItem(saveKey(t)) || (t === 'flat' ? localStorage.getItem('blockworld_v1') : null));
+    const d = netInfo ? null : JSON.parse(localStorage.getItem(saveKey(t)) || (t === 'flat' ? localStorage.getItem('blockworld_v1') : null));
     if (d && (Array.isArray(d.e) || Array.isArray(d.ef))) {
       const add = (x, y, z, b) => {
         const k = (x >> 4) + ',' + (z >> 4);
@@ -2051,16 +2539,24 @@ function loadWorld(t) {
       if (Array.isArray(d.dr)) for (const [id, n, x, y, z, life] of d.dr) if (BLK[id] || ITEM[id]) spawnDrop(id, n, x, y, z, life, false);
     }
   } catch (err) {}
+  if (netInfo) { // 방장의 월드를 받아 시작 (내 저장 데이터는 건드리지 않는다)
+    gm = netInfo.gm === 'survival' ? 'survival' : 'creative'; tod = +netInfo.tod || 0.12;
+    for (let i = 0; i + 3 < netInfo.ef.length; i += 4) addEditRaw(netInfo.ef[i], netInfo.ef[i + 1], netInfo.ef[i + 2], netInfo.ef[i + 3]);
+    spawn = { x: netInfo.sp[0], y: netInfo.sp[1], z: netInfo.sp[2] };
+    Object.assign(player, { x: spawn.x, y: spawn.y, z: spawn.z });
+  }
   ready = false; startBtn.disabled = true; loadMsg.style.display = '';
   refreshHotbar(); refreshHearts(); refreshOptsUI(); select(sel, true);
   document.getElementById('bDown').style.display = 'none';
-  try { localStorage.setItem('blockworld_meta', JSON.stringify({ terrain })); } catch (e) {}
+  if (!netInfo) { try { localStorage.setItem('blockworld_meta', JSON.stringify({ terrain })); } catch (e) {} }
 }
 document.querySelectorAll('.opt[data-terrain]').forEach(b => b.addEventListener('click', () => {
+  if (net.online) { showToast('멀티플레이 중에는 바꿀 수 없어요', 1800); return; }
   if (b.dataset.terrain === terrain) return;
   save(); loadWorld(b.dataset.terrain);
 }));
 document.querySelectorAll('.opt[data-gm]').forEach(b => b.addEventListener('click', () => {
+  if (net.online && !net.host) { showToast('방장의 모드를 따라가요', 1800); return; }
   gm = b.dataset.gm; if (gm !== 'creative') player.fly = false;
   hp = MAXHP; refreshHotbar(); refreshHearts(); refreshOptsUI(); save();
 }));
@@ -2164,12 +2660,15 @@ function frame(now) {
       stride += Math.hypot(player.x - px, player.z - pz);
       if (stride > 2.3) { stride = 0; blockSound(getBlock(Math.floor(player.x), Math.floor(player.y - 0.1), Math.floor(player.z)) || GRASS, 'step'); }
     }
-    tod = (tod + dt / DAY_LEN) % 1;
-    updateMobs(dt);
+    if (!isGuest()) tod = (tod + dt / DAY_LEN) % 1;
+    if (!isGuest()) updateMobs(dt);
     survivalTick(dt, Math.hypot(player.x - px, player.z - pz), input.sprint);
     updateDrops(dt);
     autoSaveT += dt; if (autoSaveT > 20) { autoSaveT = 0; save(); }
   }
+  if (isGuest() && ready) updateRemoteMobs(dt);
+  if (net.online) netFrame(dt);
+  if (ready && collides(player.x, player.y, player.z)) { for (let i = 0; i < 4 && collides(player.x, player.y, player.z); i++) player.y += 1; } // 다른 사람이 놓은 블록에 끼었을 때
   updateParts(dt);
   camera.position.set(player.x, player.y + EYE, player.z);
   camera.rotation.set(player.pitch, player.yaw, 0);
@@ -2192,7 +2691,7 @@ function frame(now) {
   if (hudT > 0.25) {
     hudT = 0;
     const clk = daylight > 0.5 ? '🌞 낮' : '🌙 밤';
-    hud.textContent = `X ${player.x.toFixed(1)}  Y ${player.y.toFixed(1)}  Z ${player.z.toFixed(1)}\n${fps.toFixed(0)} FPS  ${clk}  ${gm === 'creative' ? '크리에이티브' : '서바이벌'}${player.fly ? '  ✈' : ''}\n📍 스폰까지 ${Math.hypot(spawn.x - player.x, spawn.z - player.z).toFixed(0)}칸`;
+    hud.textContent = `X ${player.x.toFixed(1)}  Y ${player.y.toFixed(1)}  Z ${player.z.toFixed(1)}\n${fps.toFixed(0)} FPS  ${clk}  ${gm === 'creative' ? '크리에이티브' : '서바이벌'}${player.fly ? '  ✈' : ''}${net.online ? `  🌐 ${net.code} (${net.peers.size + 1}명)` : ''}\n📍 스폰까지 ${Math.hypot(spawn.x - player.x, spawn.z - player.z).toFixed(0)}칸`;
   }
   renderer.render(scene, camera);
 }
@@ -2201,7 +2700,7 @@ let startTerrain = 'flat';
 try { const m = JSON.parse(localStorage.getItem('blockworld_meta')); if (m && m.terrain === 'hills') startTerrain = 'hills'; } catch (e) {}
 loadWorld(startTerrain);
 requestAnimationFrame(frame);
-window.__bw = { attackMob, renderer, scene, camera, matO, uDay, get hotbar() { return hotbar; }, set sel(v) { sel = v; refreshHotbar(); }, get food() { return food; }, set food(v) { food = v; refreshHearts(); }, drops, spawnDrop, giveItem, heldTool, breakTime, RECIPES, drawMini, glows, projs, mine, mouse, player, getBlock, setBlock, chunks, mobs, spawnMob, hurtPlayer, loadWorld, snapshot, save,
+window.__bw = { net, myNickSet(n) { myNick = n; }, createRoom, joinRoom, leaveMulti, openChat, sendChat, applyMobState, mobStateList, attackMob, renderer, scene, camera, matO, uDay, get hotbar() { return hotbar; }, set sel(v) { sel = v; refreshHotbar(); }, get food() { return food; }, set food(v) { food = v; refreshHearts(); }, drops, spawnDrop, giveItem, heldTool, breakTime, RECIPES, drawMini, glows, projs, mine, mouse, player, getBlock, setBlock, chunks, mobs, spawnMob, hurtPlayer, loadWorld, snapshot, save,
   get target() { return target; }, get gm() { return gm; }, set gm(v) { gm = v; refreshHotbar(); refreshHearts(); },
   get inv() { return inv; }, get terrain() { return terrain; }, set tod(v) { tod = v; }, get daylight() { return daylight; }, get hp() { return hp; }, get paused() { return paused; }, set paused(v) { paused = v; }, toggleFly };
 </script>
