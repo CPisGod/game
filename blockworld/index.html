@@ -156,6 +156,8 @@
   .dbar { position: absolute; left: 3px; right: 3px; bottom: 2px; height: 3px; background: #000; display: none; pointer-events: none; }
   .dbar i { display: block; height: 100%; }
   #portalfx { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; background: radial-gradient(circle, #b46cff55 0%, #6a24c8cc 70%, #3a0f80ee 100%); }
+  #boss { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); width: min(420px, 80vw); z-index: 6; display: none; text-align: center; color: #fff; font: 700 14px sans-serif; text-shadow: 1px 1px 0 #000; pointer-events: none; }
+  #boss .bb { height: 10px; background: #0009; border: 2px solid #000; margin-top: 2px; } #boss .bb i { display: block; height: 100%; width: 100%; background: #c04aff; }
   #bowbar { position: fixed; left: 50%; top: calc(50% + 22px); width: 60px; height: 5px; margin-left: -30px; background: #0009; border: 1px solid #000; z-index: 5; display: none; pointer-events: none; }
   #bowfill { height: 100%; width: 0; background: #ffd24a; }
   #xp { position: fixed; left: 50%; bottom: 64px; transform: translateX(-50%); width: min(290px, 70vw); height: 7px; background: #0009; border: 1px solid #000; z-index: 6; pointer-events: none; display: none; }
@@ -279,6 +281,7 @@
 
 <canvas id="view"></canvas>
 <div id="cross"></div>
+<div id="boss"><span>🐉 엔더 드래곤</span><div class="bb"><i id="bossFill"></i></div></div>
 <div id="fxlist"></div>
 <div id="portalfx"></div>
 <div id="bowbar"><div id="bowfill"></div></div>
@@ -483,6 +486,20 @@ BLK[GRAVEL].chance = [FLINT, 0.15];
 const FIRE = 177, BREWING = 178, EMERALD = 159, BLAZE_ROD = 192, BOTTLE = 193, POTION0 = 194;
 BLK[FIRE] = { n: '불', t: [64, 64, 64], h: 0, s: 'soft', shape: 'cross', noCol: 1, trans: 1, noDrop: 1, light: 10, box: [0.1, 0, 0.1, 0.9, 0.9, 0.9], fire: 1, hide: 1 };
 BLK[BREWING] = { n: '양조대', t: [65, 66, 66], h: 1.0, s: 'stone', tool: 'pick', need: 0, use: 1 };
+// ---- 6차: 엔드 / 네더 요새 / 레드스톤 / 낚시 (블록 230~, 아이템 211~) ----
+const END_STONE = 230, END_PORTAL = 231, NETHER_BRICK = 232, RS_ORE = 233, WIRE = 234, LEVER = 236, PLATE = 238, LAMP = 240, TNT = 242;
+const ENDER_EYE = 211, RAW_FISH = 212, COOKED_FISH = 213, ROD = 214, GUNPOWDER = 215;
+BLK[END_STONE] = { n: '엔드 스톤', t: [68, 68, 68], h: 1.2, s: 'stone', tool: 'pick', need: 0 };
+BLK[END_PORTAL] = { n: '엔드 차원문', t: [80, 80, 80], h: 0, s: 'glass', shape: 'flat', box: [0, 0, 0, 1, 0.75, 1], noCol: 1, endportal: 1, light: 9, hide: 1 };
+BLK[NETHER_BRICK] = { n: '네더 벽돌', t: [69, 69, 69], h: 2.0, s: 'stone', tool: 'pick', need: 0 };
+BLK[RS_ORE] = { n: '레드스톤 광석', t: [70, 70, 70], h: 3.0, s: 'stone', tool: 'pick', need: 2, drop: WIRE, extra: [WIRE, 2, 4], xp: 3 };
+for (let o = 0; o < 2; o++) {
+  BLK[WIRE + o] = { n: '레드스톤 가루', t: [71 + o, 71 + o, 71 + o], h: 0.05, s: 'soft', shape: 'flat', box: [0, 0, 0, 1, 0.06, 1], noCol: 1, rs: 'wire', on: o, drop: WIRE, hide: o };
+  BLK[LEVER + o] = { n: '레버', t: [73 + o, 73 + o, 73 + o], h: 0.2, s: 'wood', shape: 'flat', box: [0.3, 0, 0.3, 0.7, 0.4, 0.7], noCol: 1, rs: 'lever', on: o, use: 1, drop: LEVER, hide: o };
+  BLK[PLATE + o] = { n: '압력판', t: [75, 75, 75], h: 0.3, s: 'stone', shape: 'flat', box: [0.08, 0, 0.08, 0.92, o ? 0.03 : 0.07, 0.92], noCol: 1, rs: 'plate', on: o, drop: PLATE, hide: o };
+  BLK[LAMP + o] = { n: '레드스톤 등', t: [76 + o, 76 + o, 76 + o], h: 0.5, s: 'glass', rs: 'lamp', on: o, drop: LAMP, hide: o, light: o ? 14 : 0, emit: o };
+}
+BLK[TNT] = { n: 'TNT', t: [79, 78, 79], h: 0.05, s: 'soft', rs: 'tnt' };
 const POTIONS = [['heal', '치유', 'apple'], ['fireres', '화염 저항', 'flint'], ['jump', '도약', 'feather'], ['strength', '힘', 'iron'], ['speed', '신속', 'wheat'], ['night', '야간 투시', 'coal'], ['regen', '재생', 'diamond']];
 const BREW_FROM = { 140: 0, 157: 1, 147: 2, 102: 3, 154: 4, 101: 5, 103: 6 }; // 재료 → 물약 번호
 BLK[LEAVES].chance = [SAPLING, 0.07];
@@ -517,6 +534,7 @@ const ITEM = {
   153: { n: '씨앗', k: 'seeds' }, 154: { n: '밀', k: 'mat' }, 155: { n: '가죽', k: 'mat' },
   145: { n: '화살', k: 'mat' }, 146: { n: '활', k: 'bow' }, 147: { n: '깃털', k: 'mat' },
   159: { n: '에메랄드', k: 'mat' }, 192: { n: '블레이즈 막대', k: 'mat' }, 193: { n: '유리병', k: 'mat' },
+  211: { n: '엔더의 눈', k: 'eye' }, 212: { n: '생선', k: 'food', f: 2 }, 213: { n: '구운 생선', k: 'food', f: 6 }, 214: { n: '낚싯대', k: 'rod' }, 215: { n: '화약', k: 'mat' },
   156: { n: '용암 양동이', k: 'lbucket' }, 157: { n: '부싯돌', k: 'mat' }, 158: { n: '부싯돌과 철', k: 'lighter' },
 };
 for (let t = 0; t < 5; t++) for (let i = 0; i < 4; i++) ITEM[110 + t * 4 + i] = { n: TIERS[i] + ' ' + TTYPES[t], k: 'tool', tt: TCLS[t], tier: i };
@@ -526,9 +544,9 @@ const ARMOR_PTS = [[1, 3, 2, 1], [2, 6, 5, 2], [3, 8, 6, 3]], ARMOR_DUR = [[55, 
 const ARMOR_COL = [0xa5683a, 0xe2e7ea, 0x4be3e3];
 for (let t = 0; t < 3; t++) for (let p = 0; p < 4; p++) ITEM[180 + t * 4 + p] = { n: ARMOR_T[t] + ' ' + ARMOR_P[p], k: 'armor', part: p, tier: t };
 POTIONS.forEach(([fx, n], i) => { ITEM[POTION0 + i] = { n: n + ' 물약', k: 'potion', fx }; });
-const durMax = id => { const it = ITEM[id]; return !it ? 0 : it.k === 'tool' ? TOOL_DUR[it.tier] : it.k === 'armor' ? ARMOR_DUR[it.tier][it.part] : it.k === 'bow' ? 384 : it.k === 'lighter' ? 64 : 0; };
+const durMax = id => { const it = ITEM[id]; return !it ? 0 : it.k === 'tool' ? TOOL_DUR[it.tier] : it.k === 'armor' ? ARMOR_DUR[it.tier][it.part] : it.k === 'bow' ? 384 : it.k === 'lighter' ? 64 : it.k === 'rod' ? 64 : 0; };
 const nameOf = id => (BLK[id] || ITEM[id] || { n: '?' }).n;
-const ITEM_ORDER = [100, 101, 102, 103, 159, 192, 193, 140, 141, 142, 144, 143, 150, 151, 152, 156, 153, 154, 155, 145, 146, 147, 157, 158, ...Object.keys(ITEM).map(Number).filter(i => (i >= 110 && i < 140) || (i >= 180 && i < 202))];
+const ITEM_ORDER = [100, 101, 102, 103, 159, 192, 193, 215, 211, 214, 212, 213, 140, 141, 142, 144, 143, 150, 151, 152, 156, 153, 154, 155, 145, 146, 147, 157, 158, ...Object.keys(ITEM).map(Number).filter(i => (i >= 110 && i < 140) || (i >= 180 && i < 202))];
 // 제작법: 모양 있는 것(rows+key) / 모양 없는 것(list). 2x2 칸(인벤토리)과 3x3 칸(작업대)에서 만든다.
 const RECIPES = [];
 const shaped = (out, n, rows, key) => RECIPES.push({ out, n, rows, key, w: rows[0].length, h: rows.length });
@@ -547,6 +565,12 @@ shaped(CHEST, 1, ['PPP', 'P P', 'PPP'], { P: PLANKS });
 shaped(BUCKET, 1, ['I I', ' I '], { I: IRON });
 shaped(LADDER, 3, ['S S', 'SSS', 'S S'], { S: STICK });
 shapeless(LIGHTER, 1, [IRON, FLINT]);
+shapeless(ENDER_EYE, 1, [DIAMOND, BLAZE_ROD, EMERALD]);
+shaped(ROD, 1, ['  S', ' SL', 'S L'], { S: STICK, L: LEATHER });
+shaped(TNT, 1, ['GSG', 'SGS', 'GSG'], { G: GUNPOWDER, S: SAND });
+shaped(LAMP, 1, [' W ', 'WGW', ' W '], { W: WIRE, G: GLOW });
+shaped(LEVER, 1, ['W', 'S'], { W: WIRE, S: STICK });
+shaped(PLATE, 1, ['SS'], { S: STONE });
 shaped(BOTTLE, 3, ['G G', ' G '], { G: GLASS });
 shaped(BREWING, 1, [' R ', 'CCC'], { R: BLAZE_ROD, C: COBBLE });
 shaped(ARROW, 4, ['F', 'S', 'E'], { F: FLINT, S: STICK, E: FEATHER });
@@ -569,7 +593,7 @@ SMATS.forEach((m, i) => { shaped(40 + i * 4, 4, ['M  ', 'MM ', 'MMM'], { M: m })
   shaped(122 + i, 1, ['M', 'M', 'S'], { M: mat, S: STICK });
 });
 // 화로: 굽는 재료 → [결과], 연료 → 타는 시간(초). 한 개 굽는 데 SMELT_T초.
-const SMELT = { [IRON_ORE]: IRON, [SAND]: GLASS, [COBBLE]: STONE, [MEAT]: COOKED, [LOG]: COAL, [CLAY]: BRICK };
+const SMELT = { [IRON_ORE]: IRON, [SAND]: GLASS, [COBBLE]: STONE, [MEAT]: COOKED, [LOG]: COAL, [CLAY]: BRICK, [RAW_FISH]: COOKED_FISH };
 const FUEL = { [BLAZE_ROD]: 120, [COAL]: 40, [LOG]: 12, [PLANKS]: 6, [STICK]: 3, [CTABLE]: 6, [BED]: 6, [SAPLING]: 3, [LADDER]: 3 };
 const SMELT_T = 5;
 const TRANS = new Uint8Array(256), EMIT = new Uint8Array(256), PART = new Uint8Array(256);
@@ -582,8 +606,8 @@ for (const id in BLK) {
   ISW[id] = BLK[id].water ? 1 : 0; NOCOL[id] = BLK[id].noCol ? 1 : 0; GRAV[id] = BLK[id].gravity ? 1 : 0; LIGHT_R[id] = BLK[id].light || 0;
   CLIMB[id] = BLK[id].climb ? 1 : 0; GROWS[id] = BLK[id].grow ? 1 : 0;
   FLAM[id] = ([PLANKS, LOG, LEAVES, BED, CTABLE, CHEST, 9, 15, 16, 17, 18, 19].includes(+id) || BLK[id].mat === PLANKS || BLK[id].shape === 'door' || BLK[id].shape === 'ladder' || (BLK[id].shape === 'cross' && +id !== FIRE)) ? 1 : 0;
-  ISL[id] = BLK[id].lava ? 1 : 0; LIQ[id] = ISW[id] || ISL[id]; PASS[id] = LIQ[id] || BLK[id].portal ? 1 : 0;
-  NEEDS[id] = (+id >= TORCH && +id <= TORCH + 4) || (+id >= LADDER && +id <= LADDER + 3) || +id === CACTUS || BLK[id].shape === 'cross' || +id === FIRE ? 1 : 0;
+  ISL[id] = BLK[id].lava ? 1 : 0; LIQ[id] = ISW[id] || ISL[id]; PASS[id] = LIQ[id] || BLK[id].portal || BLK[id].endportal ? 1 : 0;
+  NEEDS[id] = (+id >= TORCH && +id <= TORCH + 4) || (+id >= LADDER && +id <= LADDER + 3) || +id === CACTUS || BLK[id].shape === 'cross' || +id === FIRE || (BLK[id].shape === 'flat' && !BLK[id].endportal) ? 1 : 0;
 }
 const isFullBlock = b => b !== 0 && !TRANS[b] && !PART[b];
 const WALL_OFF = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]]; // 벽 횃불이 기대는 쪽
@@ -597,6 +621,7 @@ function boxesOf(id) {
   else if (B.shape === 'slabT') r = [[0, 0.5, 0, 1, 1, 1]];
   else if (B.shape === 'stair') r = [[0, 0, 0, 1, 0.5, 1], [[0.5, 0.5, 0, 1, 1, 1], [0, 0.5, 0, 0.5, 1, 1], [0, 0.5, 0.5, 1, 1, 1], [0, 0.5, 0, 1, 1, 0.5]][B.dir]];
   else if (B.shape === 'plate') r = [B.along === 0 ? [0, 0, 0.375, 1, 1, 0.625] : [0.375, 0, 0, 0.625, 1, 1]];
+  else if (B.shape === 'flat') r = [B.box];
   else if (B.shape === 'cross') r = [B.box];
   else if (B.shape === 'ladder') { const o = WALL_OFF[B.dir - 1]; r = [o[0] > 0 ? [0.9, 0, 0, 1, 1, 1] : o[0] < 0 ? [0, 0, 0, 0.1, 1, 1] : o[2] > 0 ? [0, 0, 0.9, 1, 1, 1] : [0, 0, 0, 1, 1, 0.1]]; }
   else if (B.shape === 'torch') {
@@ -614,8 +639,8 @@ function boxesOf(id) {
   return r;
 }
 const FULL_OF = id => BLK[id].mat; // 반블록 두 개 = 통블록
-const INV_ORDER = [1, 2, 3, 20, 21, 4, 5, 11, 6, 7, 12, 8, 22, 14, 9, 15, 16, 17, 18, 19, 23, 24, 25, 26, 13, CTABLE, FURNACE, 30, 31, 32, 33, 34, 40, 44, 48, 52, 56, TORCH, CHEST, GRAVEL, LADDER, CACTUS, SAPLING, FLOWER_R, FLOWER_Y, TALLGRASS, FARMLAND, CLAY, ENCH, OBSIDIAN, NETHERRACK, LAVA, BREWING];
-const NT = 68, TS = 16;
+const INV_ORDER = [1, 2, 3, 20, 21, 4, 5, 11, 6, 7, 12, 8, 22, 14, 9, 15, 16, 17, 18, 19, 23, 24, 25, 26, 13, CTABLE, FURNACE, 30, 31, 32, 33, 34, 40, 44, 48, 52, 56, TORCH, CHEST, GRAVEL, LADDER, CACTUS, SAPLING, FLOWER_R, FLOWER_Y, TALLGRASS, FARMLAND, CLAY, ENCH, OBSIDIAN, NETHERRACK, LAVA, BREWING, END_STONE, NETHER_BRICK, RS_ORE, WIRE, LEVER, PLATE, LAMP, TNT];
+const NT = 84, TS = 16;
 
 /* ================= 해시 / 노이즈 ================= */
 function hash2(x, z, salt = 0) {
@@ -787,6 +812,20 @@ tile(66, (x, y, r) => { const n = (r() - 0.5) * 10; // 양조대 옆면
   if (y >= 11) return [96 + n, 96 + n, 102 + n];
   return [118 + n, 118 + n, 124 + n]; });
 
+tile(68, (x, y, r) => { const n = (r() - 0.5) * 16; const sp = ((x * 3 + y * 7) % 11 === 0) ? -26 : 0; return [222 + n + sp, 220 + n + sp, 160 + n + sp]; }); // 엔드 스톤
+tile(69, (x, y, r) => { const n = (r() - 0.5) * 12; const mortar = y % 4 === 3 || (x + ((y >> 2) % 2 ? 4 : 0)) % 8 === 7; return mortar ? [34 + n, 14 + n, 18 + n] : [64 + n, 24 + n, 30 + n]; }); // 네더 벽돌
+tile(70, (x, y, r) => { const n = (r() - 0.5) * 34; return ORE_SPOTS.has(x + ',' + y) ? [225 + n * 0.3, 30 + n * 0.3, 30 + n * 0.3] : [125 + n, 125 + n, 125 + n]; }); // 레드스톤 광석
+const dust = on => (x, y, r) => { const line = x === 7 || x === 8 || y === 7 || y === 8; const n = (r() - 0.5) * 12; return line ? (on ? [255, 40 + n, 30, 1] : [120 + n, 30, 30, 1]) : [38 + n, 36 + n, 38 + n, 1]; };
+tile(71, dust(false)); tile(72, dust(true));
+const lever = on => (x, y, r) => { const n = (r() - 0.5) * 10; const stick = on ? (x >= 7 && x <= 8 && y <= 9) : (x >= 7 && x <= 8 && y >= 6); const base = y >= 10 && x >= 4 && x <= 11; return stick ? [150 + n, 100 + n, 50, 1] : base ? [110 + n, 110 + n, 116 + n, 1] : [70 + n, 70 + n, 76 + n, 1]; };
+tile(73, lever(false)); tile(74, lever(true));
+tile(75, (x, y, r) => { const n = (r() - 0.5) * 20; const edge = x === 0 || y === 0 || x === 15 || y === 15; return edge ? [96 + n, 96 + n, 100 + n] : [132 + n, 132 + n, 136 + n]; });
+tile(76, (x, y, r) => { const n = (r() - 0.5) * 10; const frame = x < 2 || y < 2 || x > 13 || y > 13; return frame ? [92 + n, 60 + n, 40 + n] : [120 + n, 86 + n, 54 + n]; });
+tile(77, (x, y, r) => { const n = (r() - 0.5) * 14; const frame = x < 2 || y < 2 || x > 13 || y > 13; return frame ? [150 + n, 100 + n, 60 + n] : [255, 214 + n, 120 + n]; });
+tile(78, (x, y, r) => { const n = (r() - 0.5) * 10; const band = y >= 5 && y <= 10; return band ? [236 + n, 232 + n, 226 + n] : [204 + n * 2, 52 + n, 40 + n]; });
+tile(79, (x, y, r) => { const n = (r() - 0.5) * 10; const c = (x === 7 || x === 8) && (y === 7 || y === 8); return c ? [60, 60, 60] : [204 + n * 2, 52 + n, 40 + n]; });
+tile(80, (x, y, r) => { const n = r(); const star = n > 0.93; const sw = Math.sin((x * 1.3 + y) * 0.8) * 14; return star ? [200, 255, 230] : [14 + sw * 0.4, 28 + sw, 34 + sw * 1.2]; });
+
 // 블록별 평균 색 (파티클용)
 const blockColor = {};
 for (const id in BLK) {
@@ -945,15 +984,39 @@ function stoneAt(wx, y, wz, s) {
   const cell = hash3(wx >> 1, y >> 1, wz >> 1, 77);
   const pc = (y > -4 ? 0.018 : y > -14 ? 0.012 : 0.006) * 1.67;
   const pi = Math.max(0, 1 - Math.abs(y + 8) / 14) * 0.011 * 1.67;
+  const pr = (y < -8 ? 0.007 : 0) * 1.67;
   const pd = (y < -14 ? 0.0005 + Math.min(1, (-14 - y) / 9) * 0.0012 : 0) * 1.67;
-  if (cell < pc + pi + pd && hash3(wx, y, wz, 78) < 0.6) return cell < pc ? COAL_ORE : cell < pc + pi ? IRON_ORE : DIA_ORE;
+  if (cell < pc + pi + pd + pr && hash3(wx, y, wz, 78) < 0.6) return cell < pc ? COAL_ORE : cell < pc + pi ? IRON_ORE : cell < pc + pi + pd ? DIA_ORE : RS_ORE;
   if (y < s - 5 && y > MINY + 2 && hash3(wx >> 2, y >> 2, wz >> 2, 61) < 0.035) return GRAVEL; // 땅속 자갈 덩어리
   return STONE;
 }
 // reg: 불러온 청크에 등록할 것들(빛, 몹 생성기, 구조물 상자). 저장 정리용 호출에서는 넘기지 않는다.
 // 네더: 위아래가 기반암, 사이는 네더랙 동굴. 낮은 곳의 빈 칸은 용암 바다, 천장에는 발광석.
+const FORT_CELL = 72;
+function fortressAt(gx, gz) {
+  if (hash2(gx, gz, 801) > 0.5) return null;
+  return { x: gx * FORT_CELL + 12 + (hash2(gx, gz, 802) * (FORT_CELL - 24) | 0), z: gz * FORT_CELL + 12 + (hash2(gx, gz, 803) * (FORT_CELL - 24) | 0), y: 6 + (hash2(gx, gz, 804) * 9 | 0) };
+}
+function placeFortress(f, put) {
+  const { x, y, z } = f;
+  for (let dx = -7; dx <= 7; dx++) for (let dz = -4; dz <= 4; dz++) for (let dy = -1; dy <= 5; dy++) {
+    const wall = Math.abs(dx) === 7 || Math.abs(dz) === 4 || dy === -1 || dy === 5;
+    let b = wall ? NETHER_BRICK : 0;
+    if (wall && (dy === 2 || dy === 3) && Math.abs(dz) === 4 && dx % 3 === 0) b = 0;               // 창
+    if (wall && Math.abs(dx) === 7 && Math.abs(dz) <= 1 && dy >= 0 && dy <= 2) b = 0;                // 양쪽 출입구
+    put(x + dx, y + dy, z + dz, b, false);
+  }
+  for (const [dx, dz] of [[-7, -4], [7, -4], [-7, 4], [7, 4], [0, -4], [0, 4]]) for (let dy = -2; dy >= -16; dy--) put(x + dx, y + dy, z + dz, NETHER_BRICK, false); // 받침 기둥
+  put(x, y, z, SPAWNER, false); put(x + 4, y, z + 2, CHEST, false); put(x - 4, y, z - 2, CHEST, false);
+}
 function genNether(cx, cz, data, reg) {
   const x0 = cx * CS, z0 = cz * CS;
+  const put = (x, y, z, b) => {
+    const lx = x - x0, lz = z - z0;
+    if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || y >= TOPY || y <= MINY) return;
+    data[idx(lx, y, lz)] = b;
+    if (reg) { if (LIGHT_R[b]) reg.l.push([x, y, z]); else if (b === SPAWNER) reg.s.push([x, y, z]); else if (b === CHEST) reg.c.push([x, y, z]); }
+  };
   for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
     const wx = x0 + lx, wz = z0 + lz;
     for (let y = MINY; y <= TOPY; y++) {
@@ -969,10 +1032,35 @@ function genNether(cx, cz, data, reg) {
       if (reg && b === GLOW) reg.l.push([wx, y, wz]);
     }
   }
+  for (let gx = Math.floor((x0 - 8) / FORT_CELL); gx <= Math.floor((x0 + CS + 8) / FORT_CELL); gx++) for (let gz = Math.floor((z0 - 8) / FORT_CELL); gz <= Math.floor((z0 + CS + 8) / FORT_CELL); gz++) {
+    const f = fortressAt(gx, gz); if (f) placeFortress(f, put);
+  }
+  return TOPY;
+}
+// 엔드: 허공에 뜬 섬 + 흑요석 기둥 + 가운데 돌아가는 차원문
+const END_PILLARS = Array.from({ length: 8 }, (_, i) => ({ x: Math.round(Math.cos(i / 8 * Math.PI * 2) * 26), z: Math.round(Math.sin(i / 8 * Math.PI * 2) * 26), h: 12 + (i * 5) % 13 }));
+function endTop(wx, wz) { return 8 + Math.floor(vnoise(wx / 14, wz / 14) * 2.2); }
+function genEnd(cx, cz, data, reg) {
+  const x0 = cx * CS, z0 = cz * CS;
+  for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
+    const wx = x0 + lx, wz = z0 + lz, d = Math.hypot(wx, wz), R = 40 + (vnoise(wx / 18, wz / 18) - 0.5) * 8;
+    if (d >= R) continue;
+    const top = endTop(wx, wz), thick = Math.floor((1 - d / R) * 11) + 2;
+    for (let y = top - thick; y <= top; y++) data[idx(lx, y, lz)] = END_STONE;
+  }
+  const put = (x, y, z, b) => { const lx = x - x0, lz = z - z0; if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || y >= TOPY || y <= MINY) return; data[idx(lx, y, lz)] = b; if (reg && LIGHT_R[b]) reg.l.push([x, y, z]); };
+  for (const pl of END_PILLARS) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+    const top = endTop(pl.x + dx, pl.z + dz);
+    for (let y = top; y <= top + pl.h; y++) put(pl.x + dx, y, pl.z + dz, OBSIDIAN);
+    if (!dx && !dz) put(pl.x, top + pl.h + 1, pl.z, GLOW);
+  }
+  // 돌아가는 차원문: 흑요석 5x5 틀 + 안쪽 3x3
+  for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) { const ring = Math.abs(dx) === 2 || Math.abs(dz) === 2; put(dx, endTop(0, 0), dz, ring ? OBSIDIAN : END_PORTAL); }
   return TOPY;
 }
 function genChunk(cx, cz, data, reg) {
   if (terrain === 'nether') return genNether(cx, cz, data, reg);
+  if (terrain === 'end') return genEnd(cx, cz, data, reg);
   const x0 = cx * CS, z0 = cz * CS;
   let maxY = 0;
   const hills = isHills();
@@ -1197,6 +1285,7 @@ function supportedAt(x, y, z, id) {
   }
   if (id >= LADDER && id <= LADDER + 3) { const o = WALL_OFF[id - LADDER]; return isFullBlock(getBlock(x + o[0], y, z + o[2])); }
   const below = getBlock(x, y - 1, z);
+  if (BLK[id] && BLK[id].shape === 'flat') return isFullBlock(below);
   if (id === FIRE) { for (let d = 0; d < 6; d++) if (FLAM[getBlock(x + DX[d], y + DY[d], z + DZ[d])]) return true; return isFullBlock(below); }
   if (id >= WHEAT0 && id <= WHEAT0 + 7) return below === FARMLAND;
   if (id === CACTUS) return below === SAND || below === CACTUS;
@@ -1207,6 +1296,9 @@ function blockChanged(x, y, z, old, t, remote, sim) {
   if (GRAV[t]) fallQ.add(x + ',' + y + ',' + z);
   if (GRAV[getBlock(x, y + 1, z)]) fallQ.add(x + ',' + (y + 1) + ',' + z);
   const gk = x + ',' + y + ',' + z;
+  if (RS(old) || RS(t) || (t && BLK[t].shape === 'door')) rsPoke(x, y, z);
+  if (RS(old) === 'plate') plates.delete(gk);
+  if (RS(t) === 'plate') plates.set(gk, [x, y, z]);
   if (old === FIRE) fires.delete(gk);
   if (t === FIRE) fires.set(gk, [x, y, z, 0]);
   if (GROWS[old]) growers.delete(gk);
@@ -1367,7 +1459,7 @@ function tickWorld(dt) {
     for (const k of batch) { const p = k.split(','); startFall(+p[0], +p[1], +p[2]); }
   }
   if (fallers.length) updateFallers(dt);
-  tickSpawners(dt); tickFire(dt); tickBrew(dt); tickVillagers(dt);
+  tickSpawners(dt); tickFire(dt); tickBrew(dt); tickVillagers(dt); tickRedstone(); tickPlates(dt); tickTnt(dt); tickFishing(dt); tickEnd(dt);
   if (dirtyChunks.size) { for (const c of dirtyChunks) if (c.meshes !== null) buildChunk(c); dirtyChunks.clear(); }
 }
 function rebuildIfLoaded(cx, cz) { const c = chunks.get(cx + ',' + cz); if (c && c.meshes !== null) buildChunk(c); }
@@ -1599,7 +1691,7 @@ function snapshot(clean) {
     const [cx, cz] = k.split(',').map(Number);
     for (const [i, t] of m) ef.push(cx * CS + i % CS, Math.floor(i / (CS * CS)) + MINY, cz * CS + Math.floor(i / CS) % CS, t);
   }
-  return { game: 'blockworld', v: 3, terrain, gm, ef, p: [player.x, player.y, player.z, player.yaw, player.pitch], s: sel, hb: hotbar, bg: bag, inv, du: dur, xl: xpLvl, xp: +xpPts.toFixed(1), ar: armor, en: ench, bj: brewJob ? [+brewJob.t.toFixed(1), brewJob.out] : 0, ch: [...chests.values()].map(c => [c.x, c.y, c.z, c.s.map(s => s ? [s.id, s.n, s.d || 0] : 0)]), t: tod, hp, food, fn: [...furnaces.values()].map(f => [f.x, f.y, f.z, f.inp, f.fuel, f.out, +f.burn.toFixed(1), f.burnMax, +f.prog.toFixed(1)]),
+  return { game: 'blockworld', v: 3, terrain, gm, ef, p: [player.x, player.y, player.z, player.yaw, player.pitch], s: sel, hb: hotbar, bg: bag, inv, du: dur, xl: xpLvl, xp: +xpPts.toFixed(1), ar: armor, en: ench, dd: dragonDead ? 1 : 0, bj: brewJob ? [+brewJob.t.toFixed(1), brewJob.out] : 0, ch: [...chests.values()].map(c => [c.x, c.y, c.z, c.s.map(s => s ? [s.id, s.n, s.d || 0] : 0)]), t: tod, hp, food, fn: [...furnaces.values()].map(f => [f.x, f.y, f.z, f.inp, f.fuel, f.out, +f.burn.toFixed(1), f.burnMax, +f.prog.toFixed(1)]),
     sp: [spawn.x, spawn.y, spawn.z], dr: drops.slice(0, 100).map(d => [d.id, d.n, +d.x.toFixed(2), +d.y.toFixed(2), +d.z.toFixed(2), Math.round(d.life)]) };
 }
 const saveInfoEl = document.getElementById('saveInfo');
@@ -1802,6 +1894,12 @@ function updateSky() {
   const sv = (1 - daylight) * 0.9;
   starMat.color.setScalar(sv); stars.visible = sv > 0.03 && !under;
   stars.position.copy(cp); stars.rotation.z = a;
+  if (terrain === 'end') { // 별만 가득한 보랏빛 허공
+    daylight = 0.1;
+    uDay.value.setRGB(0.55, 0.5, 0.75); ambLight.color.setRGB(0.6, 0.55, 0.8); ambLight.intensity = 1;
+    sunMesh.visible = moonMesh.visible = false; stars.visible = true; starMat.color.setScalar(0.9);
+    if (!player.headWater) { waterFog.setRGB(0.04, 0.02, 0.08); scene.fog.color.copy(waterFog); scene.background.copy(waterFog); scene.fog.near = 40; scene.fog.far = 150; }
+  }
   if (terrain === 'nether') { // 해도 달도 없는 붉은 동굴 하늘
     daylight = 0.4;
     uDay.value.setRGB(0.55, 0.3, 0.28); ambLight.color.setRGB(0.6, 0.35, 0.3); ambLight.intensity = 1;
@@ -2528,20 +2626,22 @@ const ENCH_OPTS = [
   ['e', '효율', '더 빨리 캔다 (곡괭이·도끼·삽)', it => it.tt === 'pick' || it.tt === 'axe' || it.tt === 'shovel'],
   ['u', '내구성', '도구가 덜 닳는다', () => true],
   ['s', '날카로움', '더 강하게 벤다 (칼)', it => it.tt === 'sword'],
+  ['p', '보호', '방어 점수 +1 (방어구)', it => it.k === 'armor'],
+  ['w', '파워', '화살이 더 아프다 (활)', it => it.k === 'bow'],
 ];
-const enchTag = id => { const en = ench[id]; return en && (en.e || en.u || en.s) ? ' ✨' : ''; };
+const enchTag = id => { const en = ench[id]; return en && (en.e || en.u || en.s || en.p || en.w) ? ' ✨' : ''; };
 function renderEnch() {
   const id = hotbar[sel], it = ITEM[id];
   enchBody.innerHTML = '';
-  const ok = it && it.k === 'tool' && (gm === 'creative' || (inv[id] || 0) > 0);
-  enchHint.textContent = (gm === 'survival' ? `내 경험치 레벨: ${xpLvl} — ` : '') + (ok ? '단계가 오를수록 더 많은 레벨이 필요해요.' : '핫바에서 강화할 도구를 고르세요 (1~9).');
+  const ok = it && (it.k === 'tool' || it.k === 'armor' || it.k === 'bow') && (gm === 'creative' || (inv[id] || 0) > 0);
+  enchHint.textContent = (gm === 'survival' ? `내 경험치 레벨: ${xpLvl} — ` : '') + (ok ? '단계가 오를수록 더 많은 레벨이 필요해요.' : '핫바에서 강화할 도구·방어구·활을 고르세요 (1~9).');
   if (!ok) return;
   const t = document.createElement('div'); t.className = 'tool'; t.append(iconCv(id)); t.append(document.createTextNode(nameOf(id) + enchTag(id)));
   enchBody.append(t);
-  const en = ench[id] || { e: 0, u: 0, s: 0 };
+  const en = ench[id] || { e: 0, u: 0, s: 0, p: 0, w: 0 };
   for (const [key, name, desc, can] of ENCH_OPTS) {
     if (!can(it)) continue;
-    const lv = en[key], cost = lv + 1;
+    const lv = en[key] || 0, cost = lv + 1;
     const row = document.createElement('div'); row.className = 'row';
     row.innerHTML = `<div class="nm">${name}<small>${desc}</small></div><div class="lv">${'■'.repeat(lv)}${'□'.repeat(3 - lv)}</div>`;
     const btn = document.createElement('button');
@@ -2549,7 +2649,7 @@ function renderEnch() {
     btn.disabled = lv >= 3 || (gm === 'survival' && xpLvl < cost);
     btn.addEventListener('click', () => {
       if (gm === 'survival') { if (xpLvl < cost) return; xpLvl -= cost; xpPts = 0; refreshXp(); }
-      ench[id] = ench[id] || { e: 0, u: 0, s: 0 }; ench[id][key]++;
+      ench[id] = ench[id] || { e: 0, u: 0, s: 0, p: 0, w: 0 }; ench[id][key] = (ench[id][key] || 0) + 1;
       sfx.levelUp(); showToast(`${nameOf(id)} — ${name} ${ench[id][key]}단계`, 1400); renderEnch(); save();
     });
     row.append(btn); enchBody.append(row);
@@ -2570,7 +2670,7 @@ const chestEl = document.getElementById('chest'), chestMain = document.getElemen
 let curChest = null;
 // 던전·오두막 상자는 처음 열 때 위치로 정해지는 전리품이 들어 있다 [아이템, 최소, 최대, 확률]
 const LOOT = [[IRON, 1, 3, 0.55], [COAL, 2, 6, 0.6], [BREAD, 1, 3, 0.5], [SEEDS, 2, 5, 0.4], [TORCH, 3, 8, 0.6], [STICK, 2, 6, 0.4], [DIAMOND, 1, 2, 0.15], [LEATHER, 1, 3, 0.3],
-  [112, 1, 1, 0.1], [184, 1, 1, 0.08], [185, 1, 1, 0.06], [186, 1, 1, 0.06], [187, 1, 1, 0.08], [SAPLING, 1, 2, 0.25], [BUCKET, 1, 1, 0.1], [EMERALD, 1, 3, 0.3], [BOTTLE, 1, 3, 0.2]];
+  [112, 1, 1, 0.1], [184, 1, 1, 0.08], [185, 1, 1, 0.06], [186, 1, 1, 0.06], [187, 1, 1, 0.08], [SAPLING, 1, 2, 0.25], [BUCKET, 1, 1, 0.1], [EMERALD, 1, 3, 0.3], [BOTTLE, 1, 3, 0.2], [BLAZE_ROD, 1, 2, 0.25], [GUNPOWDER, 2, 5, 0.3], [RAW_FISH, 1, 3, 0.2]];
 function fillLoot(c) {
   const r = rng((c.x * 73856093) ^ (c.y * 19349663) ^ (c.z * 83492791));
   for (const [id, lo, hi, p] of LOOT) if (r() < p) {
@@ -3441,6 +3541,39 @@ function buildGhast() {
   return finishSprite(h);
 }
 
+function buildPigman() {
+  const P = { skin: 0xd98f85, skinD: 0xb86f66, tunic: 0x7a3f33, gold: 0xf2c230, goldD: 0xc98a14, leg: 0x4a2a24, ink: 0x2a1410 };
+  const h = makeSpriteRig('좀비 피그맨', { shoulder: 0.42, shoulderY: 1.49, headY: 2.0 });
+  const { head, torso } = h;
+  spriteBox(torso, P.tunic, 0, 1.2, 0, 0.66, 0.9, 0.4, '상의'); spriteBox(torso, P.gold, 0, 0.78, -0.21, 0.5, 0.2, 0.04, '허리 장식');
+  spriteBox(head, P.skin, 0, 0, 0, 0.58, 0.58, 0.58, '머리'); spriteBox(head, P.skinD, 0, -0.1, -0.33, 0.28, 0.2, 0.12, '주둥이');
+  for (const s of [-1, 1]) { spriteBox(head, P.ink, s * 0.06, -0.1, -0.395, 0.05, 0.05, 0.02, '콧구멍'); const ear = spriteGroup(head, '귀', s * 0.32, 0.12, 0); spriteBox(ear, P.skinD, 0, 0, 0, 0.1, 0.14, 0.1); h.ears.push(ear); const e = spriteGroup(head, '눈', s * 0.14, 0.08, -0.295); spriteBox(e, 0xb02020, 0, 0, 0, 0.1, 0.08, 0.02); h.eyes.push(e); }
+  spriteLimbs(h, { arm: P.skin, armShade: P.skinD, hand: P.skin, handShade: P.skinD, leg: P.leg, legShade: 0x38201c, shoe: 0x2a1a16, sole: 0x1a100d }, { arm: 0.16, leg: 0.18, shoe: 0.24 });
+  const arm = h.arms[1]; arm.carry = 0.8;
+  const sw = spriteGroup(arm.hand, '금 칼', 0, -0.02, -0.1);
+  spriteBox(sw, P.gold, 0, 0, -0.35, 0.07, 0.02, 0.7, '칼날'); spriteBox(sw, P.goldD, 0, 0, -0.02, 0.2, 0.04, 0.05, '날밑'); spriteBox(sw, 0x6b4a26, 0, 0, 0.08, 0.05, 0.05, 0.16, '손잡이');
+  return finishSprite(h);
+}
+function buildDragon() {
+  const P = { b: 0x16101e, bl: 0x2a1c3a, wing: 0x201830, eye: 0xd060ff };
+  const h = makeSpriteRig('엔더 드래곤', { headY: 1.7 });
+  const { head, torso } = h;
+  h.head.position.set(0, 1.9, -3.1);
+  spriteBox(torso, P.b, 0, 1.6, 0.3, 1.6, 1.3, 3.4, '몸통'); spriteBox(torso, P.bl, 0, 2.3, 0.3, 0.3, 0.2, 3.0, '등줄기');
+  for (let i = 1; i <= 3; i++) spriteBox(torso, P.bl, 0, 1.7 + i * 0.12, -1.4 - i * 0.55, 0.9 - i * 0.12, 0.8 - i * 0.1, 0.8, '목');
+  for (let i = 1; i <= 6; i++) spriteBox(torso, P.b, 0, 1.6 - i * 0.05, 2.0 + i * 0.7, 0.9 - i * 0.11, 0.8 - i * 0.1, 0.8, '꼬리');
+  spriteBox(head, P.b, 0, 0, 0, 1.0, 0.8, 1.2, '머리'); spriteBox(head, P.bl, 0, -0.18, -0.9, 0.7, 0.35, 0.7, '주둥이'); spriteBox(head, P.bl, 0, 0.5, 0.1, 0.12, 0.3, 0.3, '뿔');
+  for (const s of [-1, 1]) { const e = spriteGroup(head, '눈', s * 0.34, 0.12, -0.61); spriteBox(e, P.eye, 0, 0, 0, 0.2, 0.12, 0.02); h.eyes.push(e); spriteBox(head, P.bl, s * 0.4, 0.46, 0.0, 0.1, 0.4, 0.1, '귀뿔'); }
+  h.flap = [];
+  for (const s of [-1, 1]) {
+    const w = spriteGroup(torso, '날개', s * 0.8, 2.2, 0.0);
+    spriteBox(w, P.wing, s * 2.1, 0, 0.2, 4.0, 0.1, 2.2, '날개막'); spriteBox(w, P.bl, s * 2.1, 0.06, -0.8, 4.0, 0.14, 0.14, '앞뼈');
+    for (const x of [1.0, 2.0, 3.0]) spriteBox(w, P.bl, s * x, 0.05, 0.3, 0.1, 0.1, 2.0, '뼈대');
+    h.flap.push(w);
+  }
+  return finishSprite(h);
+}
+
 // 스트리트파이터 성격: 근접(부타 깔아뭉개기 / 제빵사 바게트) · 원거리(척추 / 원숭이 / 청사과나무)
 const MOB = {
   buta:   { n: '부타',       build: buildButa,   hw: 0.38, h: 1.8,  hp: 18, speed: 3.4, style: 'slam',   cd: 3.4, col: 0xee9ab3 },
@@ -3456,10 +3589,13 @@ const MOB = {
   villager: { n: '주민', build: buildVillager, hw: 0.3, h: 1.8, hp: 20, speed: 1.3, npc: 1, col: 0x7a5233 },
   blaze:   { n: '블레이즈', build: buildBlaze, hw: 0.3, h: 1.8, hp: 12, speed: 2.4, style: 'ranged', cd: 1.6, band: [5, 11], proj: 'fireball', fly: 1, hover: 1.5, dim: 'nether', col: 0xf2c230 },
   ghast:   { n: '가스트', build: buildGhast, hw: 1.1, h: 2.6, hp: 10, speed: 1.6, style: 'ranged', cd: 3.6, band: [14, 24], proj: 'bigfire', fly: 1, hover: 4, dim: 'nether', scale: 1.15, col: 0xf4f4f4 },
+  pigman:  { n: '좀비 피그맨', build: buildPigman, hw: 0.34, h: 1.85, hp: 20, speed: 3.4, style: 'melee', cd: 1.0, reach: 2.6, neutral: 1, dim: 'nether', col: 0xd98f85 },
+  dragon:  { n: '엔더 드래곤', build: buildDragon, hw: 2.2, h: 2.8, hp: 120, speed: 9, boss: 1, dim: 'end', scale: 1, col: 0x2a1c3a },
   skeleton: { n: '해골 궁수', build: buildSkeleton, hw: 0.3, h: 1.8, hp: 14, speed: 3.1, style: 'ranged', cd: 2.0, band: [6, 12], proj: 'arrow', col: 0xdcdccf },
 };
 const MOB_TYPES = Object.keys(MOB).filter(k => !MOB[k].animal && !MOB[k].npc && !MOB[k].dim), ANIMAL_TYPES = Object.keys(MOB).filter(k => MOB[k].animal);
 const NETHER_TYPES = Object.keys(MOB).filter(k => MOB[k].dim === 'nether');
+const isPlayerDim = () => terrain === 'hills' || terrain === 'flat';
 const pickHostile = () => { const L = terrain === 'nether' ? NETHER_TYPES : MOB_TYPES; return L[Math.random() * L.length | 0]; };
 const MOB_SCALE = 0.72;
 let mobSeq = 0;
@@ -3500,6 +3636,7 @@ function hurtAt(tp, n, kx, kz, vy, slow) {
 }
 function trySpawnMobs(dt) {
   mobSpawnT -= dt; if (mobSpawnT > 0) return;
+  if (terrain === 'end') return;
   mobSpawnT = 2;
   let animals = 0; for (const m of mobs) if (MOB[m.type].animal) animals++;
   const monsters = mobs.length - animals;
@@ -3648,14 +3785,16 @@ function updateMobs(dt) {
     const m = mobs[i], d = MOB[m.type];
     const tp = nearestOf(L, m.x, m.z);
     const dx = tp.x - m.x, dz = tp.z - m.z, dist = Math.hypot(dx, dz) || 0.001;
-    if (dist > 64 || m.y < MINY - 5) { removeMob(m); continue; }
+    if (dist > (d.boss ? 220 : 64) || (m.y < MINY - 5 && !d.boss)) { removeMob(m); continue; }
+    if (d.boss) { updateDragon(m, dt, tp, dist); animMob(m, dt, true); continue; }
     const inB = getBlock(Math.floor(m.x), Math.floor(m.y + 0.3), Math.floor(m.z));
     if ((ISL[inB] || inB === FIRE) && d.dim !== 'nether') { m.hp -= dt * 6; burst(m.x, m.y + 0.8, m.z, 0xff7a20, 2, 0.3, 2); if (m.hp <= 0) { sfx.pop(); removeMob(m); continue; } }
     if (d.animal) { updateAnimal(m, dt, dist); continue; }
     if (d.npc) { updateNpc(m, dt); continue; }
     if (daylight > 0.8 && m.y >= skyTop(Math.floor(m.x), Math.floor(m.z)) && Math.random() < dt * 0.4) { burst(m.x, m.y + 1, m.z, d.col, 14, 0.7); removeMob(m); continue; }
     m.cd -= dt; m.rec = Math.max(0, m.rec - dt);
-    const aggro = dist < 26;
+    const aggro = d.neutral ? m.angry > 0 : dist < 26;
+    if (m.angry > 0) m.angry -= dt;
     const nx = dx / dist, nz = dz / dist;
     let tvx = 0, tvz = 0, moving = false, face = null;
     if (m.wind > 0) {
@@ -3728,6 +3867,22 @@ function updateMobs(dt) {
     animMob(m, dt, moving);
   }
 }
+// 엔드에서는 드래곤을 쓰러뜨리기 전까지 하나가 지켜 준다
+let dragonDead = false, endT = 0;
+const bossEl = document.getElementById('boss'), bossFillEl = document.getElementById('bossFill');
+function tickEnd(dt) {
+  const d = mobs.find(m => m.type === 'dragon');
+  bossEl.style.display = d && terrain === 'end' ? 'block' : 'none';
+  if (d) bossFillEl.style.width = Math.max(0, d.hp / MOB.dragon.hp * 100) + '%';
+  if (terrain !== 'end' || dragonDead || isGuest()) return;
+  endT += dt; if (endT < 2 || d) return; endT = 0;
+  spawnMob('dragon', 0, 24, -34); showToast('🐉 엔더 드래곤이 나타났어요!', 2500);
+}
+function onDragonDead(m) {
+  dragonDead = true; sfx.levelUp(); save();
+  showToast('🐉 엔더 드래곤을 쓰러뜨렸어요!', 4000);
+  for (let i = 0; i < 40; i++) burst(m.x, m.y + 1.5, m.z, 0xd060ff, 6, 3, 8);
+}
 // 던전의 몹 생성기: 플레이어가 16칸 안에 있으면 주변에 몬스터를 만든다
 let spawnerT = 0;
 function tickSpawners(dt) {
@@ -3745,11 +3900,31 @@ function tickSpawners(dt) {
     for (let tr = 0; tr < 8; tr++) {
       const x = s.x + (Math.random() * 7 | 0) - 3, z = s.z + (Math.random() * 7 | 0) - 3, y = s.y;
       if (!isSolid(x, y, z) && !isSolid(x, y + 1, z) && isSolid(x, y - 1, z)) {
-        spawnMob(MOB_TYPES[Math.random() * MOB_TYPES.length | 0], x + 0.5, y + 0.01, z + 0.5);
+        const kind = pickHostile(); if (MOB[kind].fly) continue;
+        spawnMob(kind, x + 0.5, y + 0.01, z + 0.5);
         burst(s.x + 0.5, s.y + 1, s.z + 0.5, 0xff8a30, 12, 0.5, 3); break;
       }
     }
   }
+}
+// 엔더 드래곤: 섬 위를 돌다가 가끔 플레이어에게 급강하하고, 화염구를 쏜다
+function updateDragon(m, dt, tp, dist) {
+  m.pt = (m.pt || 0) - dt; m.hitcd = (m.hitcd || 0) - dt; m.cd -= dt;
+  if (!m.mode) { m.mode = 'circle'; m.ang = Math.atan2(m.z, m.x); m.pt = 7; }
+  let tx, ty, tz;
+  if (m.mode === 'circle') {
+    m.ang += dt * 0.3; tx = Math.cos(m.ang) * 28; tz = Math.sin(m.ang) * 28; ty = 22 + Math.sin(m.ang * 3) * 3;
+    if (m.pt <= 0) { m.mode = 'dive'; m.pt = 3.4; }
+    if (m.cd <= 0 && dist < 55) { fireProj(m, 'bigfire', tp); m.cd = 4.5; }
+  } else {
+    tx = tp.x; ty = tp.y + 1; tz = tp.z;
+    if (m.pt <= 0) { m.mode = 'circle'; m.ang = Math.atan2(m.z, m.x); m.pt = 9; }
+  }
+  const dx = tx - m.x, dy = ty - m.y, dz = tz - m.z, l = Math.hypot(dx, dy, dz) || 1, sp = m.mode === 'dive' ? 14 : 9, k = Math.min(1, dt * 1.6);
+  m.vx += (dx / l * sp - m.vx) * k; m.vy += (dy / l * sp - m.vy) * k; m.vz += (dz / l * sp - m.vz) * k;
+  m.x += m.vx * dt; m.y += m.vy * dt; m.z += m.vz * dt;
+  const face = Math.atan2(m.vx, m.vz); let da = face - m.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); m.yaw += da * Math.min(1, dt * 3);
+  if (m.hitcd <= 0 && Math.hypot(tp.x - m.x, tp.y + 0.9 - (m.y + 1.4), tp.z - m.z) < 3.6) { m.hitcd = 1.2; const l2 = Math.hypot(tp.x - m.x, tp.z - m.z) || 1; hurtAt(tp, 7, (tp.x - m.x) / l2 * 10, (tp.z - m.z) / l2 * 10, 7, 0); }
 }
 // 주민: 집 근처를 어슬렁거리고, 맞으면 도망간다
 function updateNpc(m, dt) {
@@ -3897,6 +4072,7 @@ function animMob(m, dt, moving) {
   const bl = m.blink > 0 ? 0.1 : 1; h.eyes.forEach(e => { e.scale.y = bl; });
   if (m.propT > 0) { m.propT -= dt; if (m.propT <= 0 && h.prop) h.prop.visible = true; }
   if (h.spin) h.spin.rotation.y += dt * 2.5;
+  if (h.flap) { const f = Math.sin(m.t * 3.2) * 0.55; h.flap[0].rotation.z = -f; h.flap[1].rotation.z = f; }
   if (h.flash) { // 크리퍼: 부풀며 하얗게 깜빡인다
     const on = m.armUp > 0.02 && Math.floor(m.t * 9) % 2 === 0;
     h.flash.forEach(f => { f.visible = on; });
@@ -3921,7 +4097,7 @@ function mobRay(o, d, maxT) {
   }
   return best;
 }
-const MOB_DROPS = { pig: [[MEAT, 1, 2]], cow: [[MEAT, 1, 3], [LEATHER, 0, 2]], sheep: [[MEAT, 1, 2], [WOOL_W, 1, 2]], chicken: [[MEAT, 1, 1], [FEATHER, 0, 2]], villager: [], blaze: [[BLAZE_ROD, 0, 2]], ghast: [[ARROW, 0, 2], [IRON, 0, 1]], creeper: [[COAL, 0, 2]], skeleton: [[STICK, 0, 2], [ARROW, 0, 2]], buta: [[MEAT, 1, 2]], chuk: [[STICK, 1, 3]], monkey: [[BANANA, 1, 2]], apple: [[APPLE, 1, 3]], baker: [[BREAD, 1, 2]] };
+const MOB_DROPS = { pig: [[MEAT, 1, 2]], cow: [[MEAT, 1, 3], [LEATHER, 0, 2]], sheep: [[MEAT, 1, 2], [WOOL_W, 1, 2]], chicken: [[MEAT, 1, 1], [FEATHER, 0, 2]], pigman: [[MEAT, 0, 2], [IRON, 0, 1]], dragon: [[EMERALD, 6, 10]], villager: [], blaze: [[BLAZE_ROD, 0, 2]], ghast: [[ARROW, 0, 2], [IRON, 0, 1]], creeper: [[COAL, 0, 2], [GUNPOWDER, 0, 2]], skeleton: [[STICK, 0, 2], [ARROW, 0, 2]], buta: [[MEAT, 1, 2]], chuk: [[STICK, 1, 3]], monkey: [[BANANA, 1, 2]], apple: [[APPLE, 1, 3]], baker: [[BREAD, 1, 2]] };
 function mobDrops(m) {
   if (gm !== 'survival') return;
   giveXp(MOB[m.type].animal ? 2 : 6);
@@ -3938,6 +4114,7 @@ function explodeAt(ex, ey, ez, R, L, maxDmg, fire) {
     const d2 = dx * dx + dy * dy + dz * dz; if (d2 > R * R) continue;
     const x = cx + dx, y = cy + dy, z = cz + dz, b = getBlock(x, y, z);
     if (!b || b === BEDROCK || b === OBSIDIAN || LIQ[b] || (d2 > 6 && Math.random() < 0.15)) continue;
+    if (b === TNT) { igniteTnt(x, y, z, 0.25 + Math.random() * 0.5); continue; } // 연쇄 폭발
     if (b === CHEST) dumpChest(x, y, z); else if (b === FURNACE || b === FURNACE_ON) dumpFurnace(x, y, z);
     setBlock(x, y, z, fire && Math.random() < 0.15 ? FIRE : 0, false, 'net');
     if (gm === 'survival' && Math.random() < 0.3 && !BLK[b].noDrop && !PART[b]) spawnDrop(BLK[b].drop || b, 1, x + 0.5, y + 0.5, z + 0.5);
@@ -3952,12 +4129,14 @@ function attackDamage() { const t = heldTool(); const en = ench[hotbar[sel]]; re
 function damageMob(m, dmg, kx, kz, killer) {
   const d = MOB[m.type];
   m.hp -= dmg; m.hurt = 0.25; sfx.hit();
+  if (d.neutral) { m.angry = 40; for (const o of mobs) if (o !== m && o.type === m.type && Math.hypot(o.x - m.x, o.z - m.z) < 18) o.angry = 40; }
   if (d.animal || d.npc) { const tp = nearestOf(allPlayers(), m.x, m.z); m.panic = 4; m.fx = tp.x; m.fz = tp.z; sfx.voice(m.type); }
   m.vx += kx; m.vz += kz; m.vy = 4.5;
   if (m.wind > 0) { m.wind = 0; m.armUp = 0; m.crouch = 0; }
   burst(m.x, m.y + d.h * 0.6, m.z, d.col, 6, 0.4, 2.5);
   if (m.hp <= 0) {
     sfx.pop(); burst(m.x, m.y + d.h * 0.5, m.z, d.col, 18, 0.7, 4);
+    if (m.type === 'dragon') { onDragonDead(m); giveXp(300); }
     if (!killer || killer === net.myId) mobDrops(m);
     else netSend(killer, { t: 'mobdrop', type: m.type, x: +m.x.toFixed(2), y: +m.y.toFixed(2), z: +m.z.toFixed(2) });
     removeMob(m);
@@ -3980,10 +4159,11 @@ function toolHitWear() { const tl = heldTool(); if (tl) useTool(tl.tt === 'sword
 /* ================= 체력 ================= */
 const hurtEl = document.getElementById('hurt');
 let regenT = 0, starveT = 0, lastFoodInt = 20;
-const armorPts = () => armor.reduce((a, id, p) => a + (id ? ARMOR_PTS[ITEM[id].tier][p] : 0), 0);
+const armorPts = () => armor.reduce((a, id, p) => a + (id ? ARMOR_PTS[ITEM[id].tier][p] + ((ench[id] && ench[id].p) || 0) : 0), 0);
 function wearArmor() { // 맞을 때마다 입은 방어구가 한 칸씩 닳는다
   for (let p = 0; p < 4; p++) {
     const id = armor[p]; if (!id) continue;
+    const en = ench[id]; if (en && en.u && Math.random() < en.u / (en.u + 1)) continue;
     const used = (dur[id] || 0) + 1;
     if (used >= ARMOR_DUR[ITEM[id].tier][p]) { armor[p] = 0; dur[id] = 0; sfx.toolBreak(); showToast(`${nameOf(id)}이(가) 부서졌어요!`, 1800); }
     else dur[id] = used;
@@ -4011,8 +4191,9 @@ function hurtPlayer(n, raw) {
   hurtEl.style.opacity = 1; setTimeout(() => hurtEl.style.opacity = 0, 120);
   if (hp <= 0) {
     let lost = 0;
-    for (const id in inv) if (inv[id] > 0) { spawnDrop(+id, inv[id], player.x, player.y + 0.8, player.z, 300); lost++; }
-    for (const id of armor) if (id) { spawnDrop(id, 1, player.x, player.y + 0.8, player.z, 300); lost++; }
+    const dp = player.y < MINY - 5 ? spawn : player; // 허공에서 쓰러지면 소지품은 부활 지점에 떨어진다
+    for (const id in inv) if (inv[id] > 0) { spawnDrop(+id, inv[id], dp.x, dp.y + 0.8, dp.z, 300); lost++; }
+    for (const id of armor) if (id) { spawnDrop(id, 1, dp.x, dp.y + 0.8, dp.z, 300); lost++; }
     inv = {}; for (const k in dur) delete dur[k]; for (const k in ench) delete ench[k]; armor = [0, 0, 0, 0]; xpLvl = 0; xpPts = 0; food = 20; refreshHotbar(); refreshXp();
     showToast(lost ? `쓰러졌어요! 소지품 ${lost}종을 떨어뜨렸어요 — 미니맵의 노란 점에서 되찾으세요!` : '쓰러졌어요! 다시 시작해요.', 4000);
     Object.assign(player, { x: spawn.x, y: spawn.y, z: spawn.z, vx: 0, vy: 0, vz: 0, slowT: 0 });
@@ -4116,6 +4297,7 @@ function updateBow(dt) {
 function fireArrow(power) {
   const sp = 12 + 26 * power, id = hotbar[sel];
   spawnProj('parrow', eyeV.x + dirV.x * 0.5, eyeV.y + dirV.y * 0.5 - 0.1, eyeV.z + dirV.z * 0.5, dirV.x * sp + player.vx * 0.3, dirV.y * sp, dirV.z * sp + player.vz * 0.3, true);
+  const arrow = projs[projs.length - 1]; if (arrow) arrow.dmg = 2 + power * 5 + 1.5 * ((ench[id] && ench[id].w) || 0);
   sfx.bow(power); swingHand();
   if (gm !== 'survival') return;
   inv[ARROW] = Math.max(0, (inv[ARROW] || 0) - 1);
@@ -4190,6 +4372,7 @@ function interact(t) {
   if (b === CHEST) { openChest(t.x, t.y, t.z); return true; }
   if (b === ENCH) { openEnch(); return true; }
   if (b === BREWING) { openBrew(); return true; }
+  if (RS(b) === 'lever') { setBlock(t.x, t.y, t.z, b === LEVER ? LEVER + 1 : LEVER); sfx.pickup(); blockSound(STONE, 'hit'); return true; }
   if (b && BLK[b].shape === 'door') { toggleDoor(t.x, t.y, t.z); return true; }
   return false;
 }
@@ -4243,6 +4426,7 @@ function findPortalCells(sx, sy, sz) {
 }
 function useLighter() {
   if (!target) return;
+  if (getBlock(target.x, target.y, target.z) === TNT) { if (isGuest()) { showToast('방장만 TNT를 터뜨릴 수 있어요', 1500); return; } igniteTnt(target.x, target.y, target.z, 2.2); return; }
   const x = target.x + target.nx, y = target.y + target.ny, z = target.z + target.nz;
   if (getBlock(x, y, z) !== 0) return;
   const f = findPortalCells(x, y, z);
@@ -4255,6 +4439,21 @@ function useLighter() {
   for (const [cx, cy, cz] of f.cells) setBlock(cx, cy, cz, PORTAL + (f.ax === 0 ? 0 : 1), false, 'net');
   sfx.portal(); showToast('🌀 차원문이 열렸어요!', 1600);
   if (gm === 'survival') { const id = hotbar[sel], used = (dur[id] || 0) + 1; if (used >= 64) { dur[id] = 0; inv[id] = Math.max(0, (inv[id] || 0) - 1); sfx.toolBreak(); } else dur[id] = used; refreshHotbar(); }
+}
+// 엔더의 눈: 흑요석 5×5 틀(가운데 3×3은 비어 있는 바닥) 안쪽을 눌러 엔드 차원문을 연다 (오버월드에서만)
+function useEye() {
+  if (!target) return;
+  if (!isPlayerDim()) { showToast('엔드 차원문은 오버월드에서만 열 수 있어요', 1600); return; }
+  const y = target.y;
+  for (let cx = target.x - 1; cx <= target.x + 1; cx++) for (let cz = target.z - 1; cz <= target.z + 1; cz++) {
+    let ok = true;
+    for (let dx = -2; dx <= 2 && ok; dx++) for (let dz = -2; dz <= 2; dz++) if ((Math.abs(dx) === 2 || Math.abs(dz) === 2) && getBlock(cx + dx, y, cz + dz) !== OBSIDIAN) { ok = false; break; }
+    if (!ok) continue;
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) setBlock(cx + dx, y, cz + dz, END_PORTAL, false, 'net');
+    if (gm === 'survival') { inv[ENDER_EYE]--; refreshHotbar(); }
+    sfx.portal(); showToast('🌌 엔드 차원문이 열렸어요!', 1800); return;
+  }
+  showToast('흑요석 5×5 틀(안쪽 3×3은 바닥)을 만들고 안쪽을 눌러 주세요', 2000);
 }
 // 틀이 부서지면 이어진 차원문이 사라진다
 function breakPortal(x, y, z) {
@@ -4295,6 +4494,7 @@ function doPlace() {
     else if (it.k === 'seeds') plantSeeds(); else if (it.k === 'armor') equipArmor(hotbar[sel]);
     else if (it.k === 'tool' && it.tt === 'hoe') useHoe();
     else if (it.k === 'potion') drinkPotion(hotbar[sel]);
+    else if (it.k === 'rod') useRod(); else if (it.k === 'eye') useEye();
     return;
   }
   if (hotbar[sel] === TORCH || hotbar[sel] === LADDER) { if (canPlace(hotbar[sel])) placeWall(hotbar[sel]); else if (gm === 'survival') showToast('블록이 없어요!'); return; }
@@ -4845,6 +5045,96 @@ mpCodeEl.addEventListener('input', () => { mpCodeEl.value = mpCodeEl.value.toUpp
 setInterval(() => { if (roomsUnsub) renderRooms(); }, 5000);
 
 /* ================= 월드 불러오기 / 옵션 UI ================= */
+/* ================= 낚시: 물을 향해 던지고, 입질이 오면 바로 당긴다 ================= */
+let fish = null;
+const bobGeo = new THREE.BoxGeometry(0.14, 0.14, 0.14), bobMat = new THREE.MeshBasicMaterial({ color: 0xe03030 });
+function dropFish() { if (fish) { scene.remove(fish.mesh); fish = null; } }
+function useRod() {
+  if (fish) { reelIn(); return; }
+  const ft = raycast(eyeV, dirV, true);
+  if (!ft || !ISW[getBlock(ft.x, ft.y, ft.z)]) { showToast('물을 향해 던지세요', 1200); return; }
+  const mesh = new THREE.Mesh(bobGeo, bobMat); mesh.position.set(ft.x + 0.5, ft.y + 0.95, ft.z + 0.5); scene.add(mesh);
+  fish = { x: ft.x + 0.5, y: ft.y + 0.95, z: ft.z + 0.5, t: 3 + Math.random() * 7, bite: 0, mesh };
+  sfx.splash(); swingHand();
+}
+function reelIn() {
+  const f = fish; dropFish(); swingHand();
+  if (!f || f.bite <= 0) { showToast('아직 입질이 없어요', 1000); return; }
+  const r = Math.random(), id = r < 0.7 ? RAW_FISH : r < 0.8 ? BOTTLE : r < 0.88 ? LEATHER : r < 0.93 ? STICK : r < 0.97 ? EMERALD : BOW;
+  giveItem(id, 1); giveXp(2); sfx.pickup(); showToast(`🎣 ${nameOf(id)}을(를) 낚았어요!`, 1600);
+  if (gm === 'survival') { const rid = hotbar[sel], used = (dur[rid] || 0) + 1; if (used >= 64) { dur[rid] = 0; inv[rid] = Math.max(0, (inv[rid] || 0) - 1); sfx.toolBreak(); } else dur[rid] = used; refreshHotbar(); }
+}
+function tickFishing(dt) {
+  if (!fish) return;
+  if (hotbar[sel] !== ROD || Math.hypot(fish.x - player.x, fish.z - player.z) > 14) { dropFish(); return; }
+  if (fish.bite > 0) { fish.bite -= dt; fish.mesh.position.y = fish.y - 0.15 + Math.sin(performance.now() / 40) * 0.03; if (fish.bite <= 0) { fish.t = 3 + Math.random() * 6; fish.bite = 0; } }
+  else { fish.t -= dt; fish.mesh.position.y = fish.y + Math.sin(performance.now() / 400) * 0.03; if (fish.t <= 0) { fish.bite = 1.4; sfx.splash(); showToast('🐟 입질이 왔어요! 지금 당기세요', 1200); } }
+}
+
+/* ================= 레드스톤: 가루 · 레버 · 압력판 · 등 · TNT ================= */
+// 가루로 이어진 한 덩어리는 레버/압력판이 켜져 있으면 모두 켜지고, 곁의 등·문·TNT가 반응한다. 방장(혼자 할 땐 나)만 계산한다.
+const redQ = new Set(), plates = new Map(), tnts = [];
+const RS = id => (BLK[id] && BLK[id].rs) || '';
+const isSrcOn = b => (RS(b) === 'lever' || RS(b) === 'plate') && BLK[b].on;
+const poweredAt = (x, y, z) => { for (let d = 0; d < 6; d++) { const b = getBlock(x + DX[d], y + DY[d], z + DZ[d]); if (isSrcOn(b) || (RS(b) === 'wire' && BLK[b].on)) return true; } return false; };
+function rsPoke(x, y, z) { redQ.add(x + ',' + y + ',' + z); for (let d = 0; d < 6; d++) redQ.add((x + DX[d]) + ',' + (y + DY[d]) + ',' + (z + DZ[d])); }
+function solveWires(x, y, z, done) {
+  const cells = [], q = [[x, y, z]]; done.add(x + ',' + y + ',' + z);
+  let on = false;
+  while (q.length && cells.length < 400) {
+    const c = q.pop(); cells.push(c);
+    for (let d = 0; d < 6; d++) {
+      const nx = c[0] + DX[d], ny = c[1] + DY[d], nz = c[2] + DZ[d], nb = getBlock(nx, ny, nz);
+      if (isSrcOn(nb)) on = true;
+      if (d < 2 || d > 3) { const k = nx + ',' + ny + ',' + nz; if (RS(nb) === 'wire' && !done.has(k)) { done.add(k); q.push([nx, ny, nz]); } } // 가루끼리는 같은 높이로만 이어진다
+    }
+  }
+  for (const [cx, cy, cz] of cells) {
+    const b = getBlock(cx, cy, cz), want = WIRE + (on ? 1 : 0);
+    if (b !== want) setBlock(cx, cy, cz, want, false, 'net');
+    for (let d = 0; d < 6; d++) updateConsumer(cx + DX[d], cy + DY[d], cz + DZ[d]);
+  }
+}
+function updateConsumer(x, y, z) {
+  const b = getBlock(x, y, z), k = RS(b), pw = poweredAt(x, y, z);
+  if (k === 'lamp') { const want = LAMP + (pw ? 1 : 0); if (b !== want) setBlock(x, y, z, want, false, 'net'); }
+  else if (k === 'tnt') { if (pw) igniteTnt(x, y, z, 1.1); }
+  else if (b && BLK[b].shape === 'door' && !!BLK[b].open !== pw) toggleDoor(x, y, z);
+}
+function igniteTnt(x, y, z, t) {
+  if (getBlock(x, y, z) !== TNT) return;
+  setBlock(x, y, z, 0, false, 'net'); tnts.push({ x, y, z, t }); sfx.hiss();
+}
+function tickRedstone() {
+  if (!redQ.size) return;
+  const batch = [...redQ]; redQ.clear();
+  if (isGuest()) return;
+  const done = new Set();
+  for (const k of batch) {
+    const [x, y, z] = k.split(',').map(Number);
+    if (RS(getBlock(x, y, z)) === 'wire' && !done.has(k)) solveWires(x, y, z, done);
+    else updateConsumer(x, y, z);
+  }
+}
+let plateT = 0;
+function tickPlates(dt) {
+  plateT += dt; if (plateT < 0.15 || !plates.size) return; plateT = 0;
+  if (isGuest()) return;
+  for (const [k, p] of plates) {
+    const b = getBlock(p[0], p[1], p[2]);
+    if (RS(b) !== 'plate') { plates.delete(k); continue; }
+    let on = Math.floor(player.x) === p[0] && Math.floor(player.z) === p[2] && player.y >= p[1] - 0.2 && player.y < p[1] + 1;
+    if (!on) for (const m of mobs) if (Math.floor(m.x) === p[0] && Math.floor(m.z) === p[2] && m.y >= p[1] - 0.2 && m.y < p[1] + 1) { on = true; break; }
+    if (on !== !!BLK[b].on) { setBlock(p[0], p[1], p[2], PLATE + (on ? 1 : 0), false, 'net'); blockSound(STONE, 'hit'); }
+  }
+}
+function tickTnt(dt) {
+  for (let i = tnts.length - 1; i >= 0; i--) {
+    const t = tnts[i]; t.t -= dt;
+    if (t.t <= 0) { tnts.splice(i, 1); if (!isGuest()) explodeAt(t.x + 0.5, t.y + 0.5, t.z + 0.5, 4, allPlayers(), 14, false); }
+  }
+}
+
 /* ================= 물약 효과 / 불타기 / 불 번짐 ================= */
 const fx = { speed: 0, jump: 0, strength: 0, fireres: 0, night: 0, regen: 0 };
 const FX_NAME = { speed: '⚡ 신속', jump: '🦘 도약', strength: '💪 힘', fireres: '🛡 화염 저항', night: '👁 야간 투시', regen: '💖 재생' };
@@ -4997,7 +5287,13 @@ function findNetherSpot(ax, az) { // 네더에서 서 있을 만한 빈 바닥
   }
   return { x: ax, y: 12, z: az }; // 못 찾으면 허공에 만든다 (바닥은 차원문 틀이 깔린다)
 }
-function arrivePortal(ax, az, yaw) {
+function arrivePortal(ax, az, yaw, mode) {
+  if (mode === 'end' || mode === 'exit') { // 엔드로 들어가거나 엔드에서 나올 때는 정해진 곳에 선다
+    const sp = mode === 'end' ? findSpawn() : spawn;
+    spawn = { x: sp.x, y: sp.y, z: sp.z };
+    Object.assign(player, { x: sp.x, y: sp.y, z: sp.z, vx: 0, vy: 0, vz: 0, yaw: yaw || 0, pitch: 0, fly: false });
+    portalCool = 4; portalT = 0; return;
+  }
   let best = null, bd = 1e9;
   for (let x = ax - 16; x <= ax + 16; x++) for (let z = az - 16; z <= az + 16; z++) for (let y = MINY + 1; y < TOPY; y++) {
     if (isPortal(getBlock(x, y, z))) { const d = (x - ax) ** 2 + (z - az) ** 2; if (d < bd) { bd = d; best = [x, y, z]; } }
@@ -5030,26 +5326,29 @@ function arrivePortal(ax, az, yaw) {
   Object.assign(player, { x: px, y: py, z: pz, vx: 0, vy: 0, vz: 0, yaw: yaw || 0, pitch: 0, fly: false });
   portalCool = 4; portalT = 0;
 }
-function travel() {
+function travel(kind) {
   if (net.online) { showToast('멀티플레이 중에는 차원문을 쓸 수 없어요', 2000); portalCool = 4; return; }
-  const toNether = terrain !== 'nether';
-  if (toNether) overworldT = terrain;
-  const target = toNether ? 'nether' : overworldT;
+  const toEnd = kind === 'end' && terrain !== 'end', fromEnd = terrain === 'end';
+  const toNether = !toEnd && !fromEnd && terrain !== 'nether';
+  if (toNether || toEnd) overworldT = terrain;
+  const target = toEnd ? 'end' : toNether ? 'nether' : overworldT;
   const carry = { hotbar: hotbar.slice(), bag: bag.slice(), inv: Object.assign({}, inv), dur: Object.assign({}, dur), ench: JSON.parse(JSON.stringify(ench)), armor: armor.slice(), xl: xpLvl, xp: xpPts, hp, food, gm, sel, yaw: player.yaw };
-  const arrive = { x: Math.floor(toNether ? player.x / 8 : player.x * 8), z: Math.floor(toNether ? player.z / 8 : player.z * 8) };
+  const arrive = { x: Math.floor(toNether ? player.x / 8 : player.x * 8), z: Math.floor(toNether ? player.z / 8 : player.z * 8), mode: toEnd ? 'end' : fromEnd ? 'exit' : '' };
   save();
-  showToast(toNether ? '🔥 네더로 들어갑니다…' : '🌍 오버월드로 돌아갑니다…', 2200);
+  showToast(toEnd ? '🌌 엔드로 들어갑니다…' : toNether ? '🔥 네더로 들어갑니다…' : '🌍 오버월드로 돌아갑니다…', 2200);
   loadWorld(target, null, carry, arrive);
 }
 function portalTick(dt) {
   if (portalCool > 0) { portalCool -= dt; portalT = 0; portalFxEl.style.opacity = 0; return; }
   const fx = Math.floor(player.x), fz = Math.floor(player.z);
-  const inP = isPortal(getBlock(fx, Math.floor(player.y + 0.3), fz)) || isPortal(getBlock(fx, Math.floor(player.y + 1.2), fz));
-  if (inP) { portalT += dt; if (portalT >= 2.2) { portalT = 0; portalFxEl.style.opacity = 0; travel(); return; } }
+  const here = getBlock(fx, Math.floor(player.y + 0.3), fz);
+  const inE = here === END_PORTAL, inP = inE || isPortal(here) || isPortal(getBlock(fx, Math.floor(player.y + 1.2), fz));
+  if (inP) { portalT += dt; if (portalT >= (inE ? 1.6 : 2.2)) { portalT = 0; portalFxEl.style.opacity = 0; travel(inE ? 'end' : 'nether'); return; } }
   else portalT = Math.max(0, portalT - dt * 2);
   portalFxEl.style.opacity = Math.min(0.85, portalT / 2.2);
 }
 function findSpawn() {
+  if (terrain === 'end') return { x: 6.5, y: endTop(6, 0) + 1.001, z: 0.5 };
   if (terrain === 'nether') { const sp = findNetherSpot(0, 0); return { x: sp.x + 0.5, y: sp.y + 0.001, z: sp.z + 0.5 }; }
   if (!isHills()) return { x: 0.5, y: 1.001, z: 0.5 };
   for (let r = 0; r < 80; r += 2) for (let dx = -r; dx <= r; dx += 2) for (let dz = -r; dz <= r; dz += 2) {
@@ -5070,12 +5369,13 @@ function addEditRaw(x, y, z, b) {
   m.set(idx(x & 15, y, z & 15), b);
   if (LIGHT_R[b]) glows.push([x, y, z, LIGHT_R[b]]);
   if (GROWS[b]) growers.set(x + ',' + y + ',' + z, [x, y, z]);
+  if (RS(b) === 'plate') plates.set(x + ',' + y + ',' + z, [x, y, z]);
 }
 function loadWorld(t, netInfo, carry, arrive) {
   terrain = t;
   for (const c of chunks.values()) disposeMesh(c);
   chunks.clear(); edits.clear(); clearMobs(); clearDrops(); clearSim(); glows.length = 0; pending = []; lastCx = 1e9;
-  hotbar = [0, 0, 0, 0, 0, 0, 0, 0, 0]; bag = new Array(27).fill(0); inv = {}; for (const k in dur) delete dur[k]; for (const k in ench) delete ench[k]; armor = [0, 0, 0, 0]; xpLvl = 0; xpPts = 0; brewJob = null; for (const k in fx) fx[k] = 0; burnT = 0; furnaces.clear(); chests.clear(); structChests.clear(); structSpawners.clear(); growers.clear(); fires.clear(); hutCache.clear(); vilCache.clear(); caveCache.clear(); sel = 0; gm = 'creative'; hp = MAXHP; food = 20; tod = 0.12;
+  hotbar = [0, 0, 0, 0, 0, 0, 0, 0, 0]; bag = new Array(27).fill(0); inv = {}; for (const k in dur) delete dur[k]; for (const k in ench) delete ench[k]; armor = [0, 0, 0, 0]; xpLvl = 0; xpPts = 0; brewJob = null; dragonDead = false; dropFish(); for (const k in fx) fx[k] = 0; burnT = 0; furnaces.clear(); chests.clear(); structChests.clear(); structSpawners.clear(); growers.clear(); fires.clear(); plates.clear(); redQ.clear(); tnts.length = 0; hutCache.clear(); vilCache.clear(); caveCache.clear(); sel = 0; gm = 'creative'; hp = MAXHP; food = 20; tod = 0.12;
   spawn = findSpawn();
   Object.assign(player, { x: spawn.x, y: spawn.y, z: spawn.z, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, fly: false });
   try {
@@ -5087,6 +5387,7 @@ function loadWorld(t, netInfo, carry, arrive) {
         m.set(idx(x & 15, y, z & 15), b);
         if (LIGHT_R[b]) glows.push([x, y, z, LIGHT_R[b]]);
         if (GROWS[b]) growers.set(x + ',' + y + ',' + z, [x, y, z]);
+        if (RS(b) === 'plate') plates.set(x + ',' + y + ',' + z, [x, y, z]);
       };
       if (d.ef) for (let i = 0; i + 3 < d.ef.length; i += 4) add(d.ef[i], d.ef[i + 1], d.ef[i + 2], d.ef[i + 3]);
       else for (const [x, y, z, b] of d.e) add(x, y, z, b);
@@ -5097,9 +5398,10 @@ function loadWorld(t, netInfo, carry, arrive) {
       if (d.inv && typeof d.inv === 'object') inv = d.inv;
       if (d.du && typeof d.du === 'object') for (const k in d.du) if (durMax(k) > 0 && d.du[k] > 0) dur[k] = +d.du[k];
       if (typeof d.xl === 'number') { xpLvl = Math.max(0, d.xl | 0); xpPts = Math.max(0, +d.xp || 0); }
+      if (d.dd) dragonDead = true;
       if (Array.isArray(d.bj) && ITEM[d.bj[1]]) brewJob = { t: +d.bj[0] || 1, out: d.bj[1] };
       if (Array.isArray(d.ar) && d.ar.length === 4) armor = d.ar.map((id, p) => ITEM[id] && ITEM[id].k === 'armor' && ITEM[id].part === p ? id : 0);
-      if (d.en && typeof d.en === 'object') for (const k in d.en) if (ITEM[k] && ITEM[k].k === 'tool' && d.en[k]) ench[k] = { e: d.en[k].e | 0, u: d.en[k].u | 0, s: d.en[k].s | 0 };
+      if (d.en && typeof d.en === 'object') for (const k in d.en) if (durMax(k) > 0 && d.en[k]) ench[k] = { e: d.en[k].e | 0, u: d.en[k].u | 0, s: d.en[k].s | 0, p: d.en[k].p | 0, w: d.en[k].w | 0 };
       if (Array.isArray(d.ch)) for (const [x, y, z, sl] of d.ch) {
         if (!Array.isArray(sl)) continue;
         const c = chestOf(x | 0, y | 0, z | 0);
@@ -5123,7 +5425,7 @@ function loadWorld(t, netInfo, carry, arrive) {
   if (carry) { // 차원문을 지나도 소지품·체력·경험치는 그대로
     hotbar = carry.hotbar; bag = carry.bag; inv = carry.inv; for (const k in carry.dur) dur[k] = carry.dur[k]; for (const k in carry.ench) ench[k] = carry.ench[k];
     armor = carry.armor; xpLvl = carry.xl; xpPts = carry.xp; hp = carry.hp; food = carry.food; gm = carry.gm; sel = carry.sel;
-    arrivePortal(arrive.x, arrive.z, carry.yaw);
+    arrivePortal(arrive.x, arrive.z, carry.yaw, arrive.mode);
   }
   ready = false; startBtn.disabled = true; loadMsg.style.display = '';
   for (const id in inv) if (inv[id] > 0) hotbarAdd(+id); // 예전 저장에서 자리가 없는 아이템도 칸에 들어가게
@@ -5236,7 +5538,10 @@ function frame(now) {
     const px = player.x, pz = player.z;
     const n = Math.ceil(dt / (1 / 90));
     for (let i = 0; i < n; i++) stepPhysics(dt / n, input);
-    if (player.y < MINY - 20) { player.y = 5; player.vy = 0; }
+    if (player.y < MINY - 20) {
+      if (terrain === 'end') { if (gm === 'survival') hurtPlayer(999, true); else Object.assign(player, { x: spawn.x, y: spawn.y, z: spawn.z, vx: 0, vy: 0, vz: 0 }); }
+      else { player.y = 5; player.vy = 0; }
+    }
     // 발소리
     if (player.onGround && !player.fly) {
       stride += Math.hypot(player.x - px, player.z - pz);
@@ -5295,7 +5600,7 @@ let startTerrain = 'flat';
 try { const m = JSON.parse(localStorage.getItem('blockworld_meta')); if (m && m.terrain === 'hills') startTerrain = 'hills'; } catch (e) {}
 loadWorld(startTerrain);
 requestAnimationFrame(frame);
-window.__bw = { villageAt, projs, findPortalCells, swingHand, get swingT() { return swingT; }, set swingT(v) { swingT = v; }, hand, armPivot, useTool, dur, chests, chestOf, openChest, fluidQ, fallers, biomeAt, dungeonAt, hutAt, surfAt, giveXp, equipArmor, ench, growers, structSpawners, structChests, get armor() { return armor; }, get xp() { return [xpLvl, xpPts]; }, net, myNickSet(n) { myNick = n; }, createRoom, joinRoom, leaveMulti, openChat, sendChat, applyMobState, mobStateList, attackMob, renderer, scene, camera, matO, uDay, get hotbar() { return hotbar; }, set sel(v) { sel = v; refreshHotbar(); }, get food() { return food; }, set food(v) { food = v; refreshHearts(); }, drops, spawnDrop, giveItem, heldTool, breakTime, RECIPES, drawMini, glows, projs, mine, mouse, player, getBlock, setBlock, chunks, mobs, spawnMob, hurtPlayer, loadWorld, snapshot, save,
+window.__bw = { fortressAt, get fish() { return fish; }, villageAt, projs, findPortalCells, swingHand, get swingT() { return swingT; }, set swingT(v) { swingT = v; }, hand, armPivot, useTool, dur, chests, chestOf, openChest, fluidQ, fallers, biomeAt, dungeonAt, hutAt, surfAt, giveXp, equipArmor, ench, growers, structSpawners, structChests, get armor() { return armor; }, get xp() { return [xpLvl, xpPts]; }, net, myNickSet(n) { myNick = n; }, createRoom, joinRoom, leaveMulti, openChat, sendChat, applyMobState, mobStateList, attackMob, renderer, scene, camera, matO, uDay, get hotbar() { return hotbar; }, set sel(v) { sel = v; refreshHotbar(); }, get food() { return food; }, set food(v) { food = v; refreshHearts(); }, drops, spawnDrop, giveItem, heldTool, breakTime, RECIPES, drawMini, glows, projs, mine, mouse, player, getBlock, setBlock, chunks, mobs, spawnMob, hurtPlayer, loadWorld, snapshot, save,
   get target() { return target; }, get gm() { return gm; }, set gm(v) { gm = v; refreshHotbar(); refreshHearts(); },
   get inv() { return inv; }, get terrain() { return terrain; }, set tod(v) { tod = v; }, get daylight() { return daylight; }, get hp() { return hp; }, get paused() { return paused; }, set paused(v) { paused = v; }, toggleFly };
 </script>
