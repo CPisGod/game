@@ -152,6 +152,21 @@
   #furGrid .cell:hover { border-color: #fff; background: #aaa; }
   #furGrid .cell canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
   #furGrid .cell .c { position: absolute; right: 2px; bottom: 0; font: 700 12px monospace; color: #fff; text-shadow: 1px 1px 0 #000; }
+  .dbar { position: absolute; left: 3px; right: 3px; bottom: 2px; height: 3px; background: #000; display: none; pointer-events: none; }
+  .dbar i { display: block; height: 100%; }
+  #chest { position: fixed; inset: 0; z-index: 15; display: none; align-items: center; justify-content: center; background: #0007; padding-bottom: 80px; }
+  #chest.show { display: flex; }
+  #chest .panel { background: #c6c6c6; border: 4px solid #333; padding: 12px 14px; max-width: min(96vw, 560px); max-height: calc(100vh - 96px); overflow: auto; color: #222; text-align: center; }
+  #chest h2 { margin: 0 0 8px; font-size: 18px; }
+  #chest h3 { margin: 10px 0 4px; font-size: 13px; color: #333; }
+  #chest .close { margin-top: 8px; padding: 6px 18px; font: 700 14px sans-serif; cursor: pointer; }
+  #chest .hint { margin: 8px 0 0; font-size: 12px; color: #444; }
+  #chestMain, #chestInv { display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; justify-content: center; padding: 6px; background: #b5b5b5; border: 3px solid #666; }
+  #chestInv { max-height: 30vh; overflow: auto; }
+  #chest .cell { position: relative; aspect-ratio: 1; min-width: 36px; max-width: 52px; background: #8b8b8b; border: 3px solid #555; cursor: pointer; box-sizing: border-box; }
+  #chest .cell:hover { border-color: #fff; background: #aaa; }
+  #chest .cell canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; pointer-events: none; }
+  #chest .cell .c { position: absolute; right: 2px; bottom: 0; font: 700 12px monospace; color: #fff; text-shadow: 1px 1px 0 #000; pointer-events: none; }
   #chatLog { position: fixed; left: 10px; bottom: 112px; width: min(46vw, 360px); z-index: 6; pointer-events: none; font: 13px/1.4 sans-serif; color: #fff; text-shadow: 1px 1px 0 #000; }
   #chatLog .cl { background: #0006; padding: 1px 6px; margin-top: 2px; word-break: break-all; }
   #chatLog .cl.sys { color: #ffe97a; }
@@ -251,6 +266,15 @@
   <button class="close" id="furClose">닫기 (E)</button>
 </div></div>
 
+<div id="chest"><div class="panel">
+  <h2>📦 상자</h2>
+  <div id="chestMain"></div>
+  <h3>내 소지품 (누르면 상자로 / 오른쪽 클릭은 1개)</h3>
+  <div id="chestInv"></div>
+  <p class="hint" id="chestHint"></p>
+  <button class="close" id="chestClose">닫기 (E)</button>
+</div></div>
+
 <div id="touch">
   <div id="joy"><i></i></div>
   <div class="tbtn" id="bJump">점프</div>
@@ -343,6 +367,16 @@ const BLK = {
   29: { n: '화로', t: [31, 33, 31], h: 2.0, s: 'stone', tool: 'pick', need: 0, emit: 1, use: 1, drop: FURNACE, hide: 1 },
 };
 BLK[25].drop = undefined; // 철 광석은 그대로 캐고, 화로에 구워 철을 얻는다
+// 횃불 80(바닥) / 81~84(벽: 기대는 쪽 +x -x +z -z), 상자 85, 자갈 86, 흐르는 물 90(떨어지는 물) 91~97(퍼지는 단계 1~7)
+const TORCH = 80, CHEST = 85, GRAVEL = 86, FLOW0 = 90, BUCKET = 151, WBUCKET = 152;
+BLK[TORCH] = { n: '횃불', t: [36, 36, 36], h: 0.05, s: 'wood', shape: 'torch', noCol: 1, light: 7 };
+for (let d = 0; d < 4; d++) BLK[TORCH + 1 + d] = { n: '횃불', t: [36, 36, 36], h: 0.05, s: 'wood', shape: 'torch', noCol: 1, light: 7, dir: d + 1, drop: TORCH, hide: 1 };
+BLK[CHEST] = { n: '상자', t: [37, 38, 37], h: 1.0, s: 'wood', tool: 'axe', use: 1 };
+BLK[GRAVEL] = { n: '자갈', t: [39, 39, 39], h: 0.55, s: 'soft', tool: 'shovel', gravity: 1 };
+BLK[SAND].gravity = 1;
+BLK[GLOW].light = 9;
+for (let l = 0; l < 8; l++) BLK[FLOW0 + l] = { n: '물', t: [14, 14, 14], h: 0, s: 'water', trans: 1, water: 1, flow: 1, lvl: l, hide: 1 };
+BLK[WATER].water = 1;
 // 반블록 / 계단: 재료마다 반블록(아래·위) 2종 + 계단 4방향. 문은 아래/위 × 4방향 × 열림/닫힘.
 // 슬랩 아래 30+i, 슬랩 위 35+i, 계단 40+i*4+방향, 문 아래 60+방향*2+열림, 문 위 70+방향*2+열림
 const SMATS = [PLANKS, COBBLE, BRICK, SANDSTONE, STONE];
@@ -361,14 +395,17 @@ for (let d = 0; d < 4; d++) for (let o = 0; o < 2; o++) {
 const TIERS = ['나무', '돌', '철', '다이아'], TTYPES = ['곡괭이', '도끼', '삽', '칼'], TCLS = ['pick', 'axe', 'shovel', 'sword'];
 const TIER_COL = [0xb08a52, 0x8e8e8e, 0xe2e7ea, 0x4be3e3];
 const TOOL_SPEED = [2, 3.5, 6, 9], SWORD_DMG = [5, 6, 8, 10];
+const TOOL_DUR = [60, 132, 250, 1560]; // 도구 내구도: 블록 하나 부수면 1, 칼은 블록 2 / 몹 때리면 1, 나머지 도구는 몹 2
+const dur = {};                        // 아이디 → 지금 쓰고 있는 그 도구가 닳은 정도
 const ITEM = {
   100: { n: '막대', k: 'mat' }, 101: { n: '석탄', k: 'mat' }, 102: { n: '철', k: 'mat' }, 103: { n: '다이아몬드', k: 'mat' },
   140: { n: '청사과', k: 'food', f: 4 }, 141: { n: '빵', k: 'food', f: 6 }, 142: { n: '생고기', k: 'food', f: 3 }, 143: { n: '바나나', k: 'food', f: 3 },
   144: { n: '익힌 고기', k: 'food', f: 10 }, 150: { n: '나무 문', k: 'door' },
+  151: { n: '양동이', k: 'bucket' }, 152: { n: '물 양동이', k: 'wbucket' },
 };
 for (let t = 0; t < 4; t++) for (let i = 0; i < 4; i++) ITEM[110 + t * 4 + i] = { n: TIERS[i] + ' ' + TTYPES[t], k: 'tool', tt: TCLS[t], tier: i };
 const nameOf = id => (BLK[id] || ITEM[id] || { n: '?' }).n;
-const ITEM_ORDER = [100, 101, 102, 103, 140, 141, 142, 144, 143, 150, ...Object.keys(ITEM).map(Number).filter(i => i >= 110 && i < 140)];
+const ITEM_ORDER = [100, 101, 102, 103, 140, 141, 142, 144, 143, 150, 151, 152, ...Object.keys(ITEM).map(Number).filter(i => i >= 110 && i < 140)];
 // 제작법: 모양 있는 것(rows+key) / 모양 없는 것(list). 2x2 칸(인벤토리)과 3x3 칸(작업대)에서 만든다.
 const RECIPES = [];
 const shaped = (out, n, rows, key) => RECIPES.push({ out, n, rows, key, w: rows[0].length, h: rows.length });
@@ -382,6 +419,9 @@ shaped(BED, 1, ['LLL', 'PPP'], { L: LEAVES, P: PLANKS });
 shapeless(BRICK, 2, [COBBLE, COBBLE, DIRT]);
 shapeless(SANDSTONE, 2, [SAND, SAND]);
 shaped(DOOR, 3, ['PP', 'PP', 'PP'], { P: PLANKS });
+shaped(TORCH, 4, ['C', 'S'], { C: COAL, S: STICK });
+shaped(CHEST, 1, ['PPP', 'P P', 'PPP'], { P: PLANKS });
+shaped(BUCKET, 1, ['I I', ' I '], { I: IRON });
 SMATS.forEach((m, i) => { shaped(40 + i * 4, 4, ['M  ', 'MM ', 'MMM'], { M: m }); shaped(30 + i, 6, ['MMM'], { M: m }); });
 [PLANKS, COBBLE, IRON, DIAMOND].forEach((mat, i) => {
   shaped(110 + i, 1, ['MMM', ' S ', ' S '], { M: mat, S: STICK });
@@ -394,7 +434,13 @@ const SMELT = { [IRON_ORE]: IRON, [SAND]: GLASS, [COBBLE]: STONE, [MEAT]: COOKED
 const FUEL = { [COAL]: 40, [LOG]: 12, [PLANKS]: 6, [STICK]: 3, [CTABLE]: 6, [BED]: 6 };
 const SMELT_T = 5;
 const TRANS = new Uint8Array(256), EMIT = new Uint8Array(256), PART = new Uint8Array(256);
-for (const id in BLK) { TRANS[id] = BLK[id].trans ? 1 : 0; EMIT[id] = BLK[id].emit ? 1 : 0; PART[id] = BLK[id].shape ? 1 : 0; }
+const ISW = new Uint8Array(256), NOCOL = new Uint8Array(256), GRAV = new Uint8Array(256), LIGHT_R = new Uint8Array(256);
+for (const id in BLK) {
+  TRANS[id] = BLK[id].trans ? 1 : 0; EMIT[id] = BLK[id].emit ? 1 : 0; PART[id] = BLK[id].shape ? 1 : 0;
+  ISW[id] = BLK[id].water ? 1 : 0; NOCOL[id] = BLK[id].noCol ? 1 : 0; GRAV[id] = BLK[id].gravity ? 1 : 0; LIGHT_R[id] = BLK[id].light || 0;
+}
+const isFullBlock = b => b !== 0 && !TRANS[b] && !PART[b];
+const WALL_OFF = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]]; // 벽 횃불이 기대는 쪽
 // 부분 블록의 충돌/선택 상자들 [x0,y0,z0,x1,y1,z1] (칸 안쪽 좌표)
 const BOXES = new Map();
 function boxesOf(id) {
@@ -404,6 +450,13 @@ function boxesOf(id) {
   if (B.shape === 'slabB') r = [[0, 0, 0, 1, 0.5, 1]];
   else if (B.shape === 'slabT') r = [[0, 0.5, 0, 1, 1, 1]];
   else if (B.shape === 'stair') r = [[0, 0, 0, 1, 0.5, 1], [[0.5, 0.5, 0, 1, 1, 1], [0, 0.5, 0, 0.5, 1, 1], [0, 0.5, 0.5, 1, 1, 1], [0, 0.5, 0, 1, 1, 0.5]][B.dir]];
+  else if (B.shape === 'torch') {
+    if (!B.dir) r = [[0.4375, 0, 0.4375, 0.5625, 0.625, 0.5625]];
+    else {
+      const o = WALL_OFF[B.dir - 1], cx = 0.5 + o[0] * 0.28, cz = 0.5 + o[2] * 0.28;
+      r = [[cx - 0.0625, 0.22, cz - 0.0625, cx + 0.0625, 0.845, cz + 0.0625]];
+    }
+  }
   else { // 문: 닫힘은 B.dir 쪽 모서리에, 열리면 경첩을 축으로 90° 돌아간 쪽
     const pos = B.open ? (B.dir + 3) % 4 : B.dir;
     r = [[[0, 0, 0, 1, 1, T], [1 - T, 0, 0, 1, 1, 1], [0, 0, 1 - T, 1, 1, 1], [0, 0, 0, T, 1, 1]][pos]];
@@ -412,8 +465,8 @@ function boxesOf(id) {
   return r;
 }
 const FULL_OF = id => BLK[id].mat; // 반블록 두 개 = 통블록
-const INV_ORDER = [1, 2, 3, 20, 21, 4, 5, 11, 6, 7, 12, 8, 22, 14, 9, 15, 16, 17, 18, 19, 23, 24, 25, 26, 13, CTABLE, FURNACE, 30, 31, 32, 33, 34, 40, 44, 48, 52, 56];
-const NT = 36, TS = 16;
+const INV_ORDER = [1, 2, 3, 20, 21, 4, 5, 11, 6, 7, 12, 8, 22, 14, 9, 15, 16, 17, 18, 19, 23, 24, 25, 26, 13, CTABLE, FURNACE, 30, 31, 32, 33, 34, 40, 44, 48, 52, 56, TORCH, CHEST, GRAVEL];
+const NT = 40, TS = 16;
 
 /* ================= 해시 / 노이즈 ================= */
 function hash2(x, z, salt = 0) {
@@ -523,6 +576,17 @@ tile(35, (x, y, r) => { const n = (r() - 0.5) * 12; const edge = x === 0 || x ==
   if (x === 12 && y >= 6 && y <= 8) return [214 + n, 190 + n, 90]; // 손잡이
   if ((x >= 3 && x <= 12) && (y === 3 || y === 11 || y === 12)) return [136 + n, 98 + n, 52 + n]; // 패널선
   return [166 + n, 122 + n, 66 + n]; });
+tile(36, (x, y, r) => { const n = (r() - 0.5) * 14; // 횃불: 가운데 두 줄만 칠하고 나머지는 투명
+  if (x !== 7 && x !== 8) return [0, 0, 0, 0];
+  if (y <= 1) return [255 + n * 0.1, 235 + n, 130, 1];
+  if (y <= 3) return [255, 150 + n, 40, 1];
+  return [118 + n, 84 + n, 46 + n, 1]; });
+tile(37, (x, y, r) => { const n = (r() - 0.5) * 12; const edge = x === 0 || y === 0 || x === 15 || y === 15 || x === 1 || x === 14 || y === 1 || y === 14; const k = edge ? -34 : 0; return [172 + n + k, 120 + n + k, 56 + n + k]; });
+tile(38, (x, y, r) => { const n = (r() - 0.5) * 12; const edge = x === 0 || x === 15 || y === 15 || y === 0;
+  if (x >= 7 && x <= 8 && y >= 5 && y <= 8) return [210 + n, 210 + n, 216 + n]; // 걸쇠
+  if (y === 5) return [92 + n, 60 + n, 26 + n];                                   // 뚜껑 선
+  const k = edge ? -34 : (y < 5 ? 8 : 0); return [166 + n + k, 114 + n + k, 52 + n + k]; });
+tile(39, (x, y, r) => { const cell = hash2(x >> 1, y >> 1, 9); const n = (cell - 0.5) * 70 + (r() - 0.5) * 22; return [128 + n, 124 + n, 122 + n]; });
 
 // 블록별 평균 색 (파티클용)
 const blockColor = {};
@@ -659,6 +723,7 @@ function genChunk(cx, cz, data) {
         b = STONE;
         const r = hash3(wx, y, wz, 77);
         if (r < 0.014) b = COAL_ORE; else if (r < 0.0205 && y < -6) b = IRON_ORE; else if (r < 0.021 && y < -16) b = DIA_ORE;
+        else if (y < s - 5 && y > MINY + 2 && hash3(wx >> 2, y >> 2, wz >> 2, 61) < 0.035) b = GRAVEL; // 땅속 자갈 덩어리
       }
       data[idx(lx, y, lz)] = b;
     }
@@ -707,35 +772,174 @@ function getBlock(x, y, z) {
   if (y > TOPY) return 0;
   return getChunk(x >> 4, z >> 4).data[idx(x & 15, y, z & 15)];
 }
-const isSolid = (x, y, z) => { const b = getBlock(x, y, z); return b !== 0 && b !== WATER; };
+const isSolid = (x, y, z) => { const b = getBlock(x, y, z); return b !== 0 && !ISW[b] && !NOCOL[b]; };
 
 let saveTimer = 0;
-function setBlock(x, y, z, t, remote) {
+const dirtyChunks = new Set();
+function markDirty(cx, cz) { const c = chunks.get(cx + ',' + cz); if (c && c.meshes !== null) dirtyChunks.add(c); }
+// remote: 다른 사람이 보낸 편집 / sim: 물 흐름·떨어지는 블록처럼 게임이 스스로 만든 편집 (네트워크로 보내지 않고 메시는 모아서 다시 만든다)
+function setBlock(x, y, z, t, remote, sim) {
   if (y <= MINY || y > TOPY) return false;
   const cx = x >> 4, cz = z >> 4, lx = x & 15, lz = z & 15;
   const c = getChunk(cx, cz), i = idx(lx, y, lz);
   const old = c.data[i];
   c.data[i] = t; c.hm = null;
   if (t && y > c.maxY) c.maxY = y;
-  if (old === GLOW || t === GLOW) glowChange(x, y, z, t === GLOW);
+  if (LIGHT_R[old] !== LIGHT_R[t]) glowChange(x, y, z, LIGHT_R[t]);
   const k = cx + ',' + cz;
   let e = edits.get(k);
   if (!e) edits.set(k, e = new Map());
   e.set(i, t);
-  if (!remote || c.meshes !== null) buildChunk(c);
-  if (lx === 0) rebuildIfLoaded(cx - 1, cz);
-  if (lx === CS - 1) rebuildIfLoaded(cx + 1, cz);
-  if (lz === 0) rebuildIfLoaded(cx, cz - 1);
-  if (lz === CS - 1) rebuildIfLoaded(cx, cz + 1);
+  if (sim) {
+    markDirty(cx, cz);
+    if (lx === 0) markDirty(cx - 1, cz);
+    if (lx === CS - 1) markDirty(cx + 1, cz);
+    if (lz === 0) markDirty(cx, cz - 1);
+    if (lz === CS - 1) markDirty(cx, cz + 1);
+  } else {
+    if (!remote || c.meshes !== null) buildChunk(c);
+    if (lx === 0) rebuildIfLoaded(cx - 1, cz);
+    if (lx === CS - 1) rebuildIfLoaded(cx + 1, cz);
+    if (lz === 0) rebuildIfLoaded(cx, cz - 1);
+    if (lz === CS - 1) rebuildIfLoaded(cx, cz + 1);
+  }
   clearTimeout(saveTimer); saveTimer = setTimeout(save, 800);
-  if (!remote) netEdit(x, y, z, t);
+  if (!remote && !sim) netEdit(x, y, z, t);
+  if (t !== old) blockChanged(x, y, z, t, remote, sim);
   return true;
 }
-function glowChange(x, y, z, on) {
+// r: 빛 반경 (0이면 빛 없음)
+function glowChange(x, y, z, r) {
   const i = glows.findIndex(g => g[0] === x && g[1] === y && g[2] === z);
-  if (on && i < 0) glows.push([x, y, z]); else if (!on && i >= 0) glows.splice(i, 1);
+  if (i >= 0) glows.splice(i, 1);
+  if (r) glows.push([x, y, z, r]);
   const cx = x >> 4, cz = z >> 4;
   for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) if (dx || dz) rebuildIfLoaded(cx + dx, cz + dz);
+}
+
+/* ================= 월드 시뮬레이션: 물 흐름 / 떨어지는 블록 / 횃불 받침 ================= */
+const fluidQ = new Set(), fallQ = new Set(), fallers = [];
+const HX = [1, -1, 0, 0], HZ = [0, 0, 1, -1];
+let fluidT = 0, fallT = 0;
+function torchSupported(x, y, z, id) {
+  if (id === TORCH) return isFullBlock(getBlock(x, y - 1, z));
+  const o = WALL_OFF[id - TORCH - 1];
+  return isFullBlock(getBlock(x + o[0], y, z + o[2]));
+}
+function blockChanged(x, y, z, t, remote, sim) {
+  pokeFluid(x, y, z);
+  if (GRAV[t]) fallQ.add(x + ',' + y + ',' + z);
+  if (GRAV[getBlock(x, y + 1, z)]) fallQ.add(x + ',' + (y + 1) + ',' + z);
+  if (!isFullBlock(t)) { // 받침이 사라지면 기대 있던 횃불이 떨어진다
+    for (let d = 0; d < 6; d++) {
+      const nx = x + DX[d], ny = y + DY[d], nz = z + DZ[d], nb = getBlock(nx, ny, nz);
+      if (nb >= TORCH && nb <= TORCH + 4 && !torchSupported(nx, ny, nz, nb)) {
+        setBlock(nx, ny, nz, 0, remote, sim);
+        if (!remote && !(sim && isGuest())) spawnDrop(TORCH, 1, nx + 0.5, ny + 0.5, nz + 0.5);
+      }
+    }
+  }
+}
+function pokeFluid(x, y, z) {
+  let near = ISW[getBlock(x, y, z)] || ISW[getBlock(x, y + 1, z)] || ISW[getBlock(x, y - 1, z)];
+  for (let k = 0; k < 4 && !near; k++) near = ISW[getBlock(x + HX[k], y, z + HZ[k])];
+  if (!near) return;
+  fluidQ.add(x + ',' + y + ',' + z);
+  for (let d = 0; d < 6; d++) fluidQ.add((x + DX[d]) + ',' + (y + DY[d]) + ',' + (z + DZ[d]));
+}
+// 물 한 칸이 있어야 할 모습: 위에 물이 있으면 떨어지는 물, 옆에 물(근원/퍼지는 물)이 있으면 한 단계 더 얇게, 근원 둘 사이는 근원이 된다
+function fluidCell(x, y, z) {
+  if (y <= MINY || y > TOPY) return;
+  const c = chunks.get((x >> 4) + ',' + (z >> 4));
+  if (!c || c.meshes === null) return;
+  const cur = c.data[idx(x & 15, y, z & 15)];
+  if (cur === WATER || (cur !== 0 && !ISW[cur])) return;
+  const above = getBlock(x, y + 1, z), below = getBlock(x, y - 1, z);
+  let want = 0;
+  if (ISW[above]) want = FLOW0;
+  else {
+    let L = 99, src = 0;
+    for (let k = 0; k < 4; k++) {
+      const n = getBlock(x + HX[k], y, z + HZ[k]);
+      if (!ISW[n]) continue;
+      let p = 99;
+      if (n === WATER) { p = 1; src++; }
+      else {
+        const nb = getBlock(x + HX[k], y - 1, z + HZ[k]); // 아래가 비어 있으면 옆으로 퍼지지 않고 아래로 흐른다
+        if ((nb !== 0 && !ISW[nb] && !NOCOL[nb]) || nb === WATER) { const lv = n - FLOW0; p = lv < 7 ? lv + 1 : 99; if (lv === 0) p = 1; }
+      }
+      if (p < L) L = p;
+    }
+    if (L <= 7) want = FLOW0 + L;
+    if (want && src >= 2 && (below === WATER || (below !== 0 && !ISW[below] && !NOCOL[below]))) want = WATER;
+  }
+  if (want !== cur) setBlock(x, y, z, want, false, true);
+}
+const fallMats = new Map(), fallGeo = new THREE.BoxGeometry(0.98, 0.98, 0.98);
+function fallMat(id) {
+  let m = fallMats.get(id);
+  if (!m) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 16;
+    cv.getContext('2d').drawImage(atlas, BLK[id].t[1] * TS, 0, TS, TS, 0, 0, 16, 16);
+    const t = new THREE.CanvasTexture(cv); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.colorSpace = THREE.SRGBColorSpace;
+    m = new THREE.MeshBasicMaterial({ map: t, color: 0xdddddd }); fallMats.set(id, m);
+  }
+  return m;
+}
+const fallFree = b => b === 0 || ISW[b] === 1 || NOCOL[b] === 1;
+function startFall(x, y, z) {
+  const b = getBlock(x, y, z);
+  if (!GRAV[b] || y - 1 <= MINY || !fallFree(getBlock(x, y - 1, z))) return;
+  setBlock(x, y, z, 0, false, true);
+  const mesh = new THREE.Mesh(fallGeo, fallMat(b)); mesh.position.set(x + 0.5, y + 0.5, z + 0.5); scene.add(mesh);
+  fallers.push({ x, y, z, fy: y, v: 0, id: b, mesh });
+}
+function landFaller(f, cy) {
+  const cur = getBlock(f.x, cy, f.z);
+  if (fallFree(cur)) { setBlock(f.x, cy, f.z, f.id, false, true); blockSound(f.id, 'place'); }
+  else if (!isGuest()) spawnDrop(BLK[f.id].drop || f.id, 1, f.x + 0.5, cy + 0.5, f.z + 0.5);
+}
+function updateFallers(dt) {
+  for (let i = fallers.length - 1; i >= 0; i--) {
+    const f = fallers[i];
+    f.v = Math.min(30, f.v + 32 * dt);
+    let d = f.v * dt, landed = false;
+    while (d > 1e-6) {
+      const row = Math.floor(f.fy - 1e-6);
+      if (row <= MINY || isSolid(f.x, row, f.z)) { f.fy = row + 1; landed = true; break; }
+      const step = Math.min(d, f.fy - row); f.fy -= step; d -= step;
+    }
+    if (landed) { landFaller(f, Math.round(f.fy)); scene.remove(f.mesh); fallers.splice(i, 1); }
+    else f.mesh.position.set(f.x + 0.5, f.fy + 0.5, f.z + 0.5);
+  }
+}
+function settleFallers() { // 저장하기 전에 떨어지는 중인 블록을 바닥에 내려놓는다
+  for (const f of fallers) {
+    let row = Math.floor(f.fy - 1e-6);
+    while (row > MINY && !isSolid(f.x, row, f.z)) row--;
+    landFaller(f, row + 1); scene.remove(f.mesh);
+  }
+  fallers.length = 0;
+}
+function clearSim() { fluidQ.clear(); fallQ.clear(); dirtyChunks.clear(); for (const f of fallers) scene.remove(f.mesh); fallers.length = 0; }
+function tickWorld(dt) {
+  fluidT += dt; fallT += dt;
+  if (fluidQ.size && fluidT >= 0.2) {
+    fluidT = 0;
+    const batch = [];
+    for (const k of fluidQ) { batch.push(k); if (batch.length >= 300) break; }
+    for (const k of batch) fluidQ.delete(k);
+    for (const k of batch) { const p = k.split(','); fluidCell(+p[0], +p[1], +p[2]); }
+  }
+  if (fallQ.size && fallT >= 0.12) {
+    fallT = 0;
+    const batch = [];
+    for (const k of fallQ) { batch.push(k); if (batch.length >= 40) break; }
+    for (const k of batch) fallQ.delete(k);
+    for (const k of batch) { const p = k.split(','); startFall(+p[0], +p[1], +p[2]); }
+  }
+  if (fallers.length) updateFallers(dt);
+  if (dirtyChunks.size) { for (const c of dirtyChunks) if (c.meshes !== null) buildChunk(c); dirtyChunks.clear(); }
 }
 function rebuildIfLoaded(cx, cz) { const c = chunks.get(cx + ',' + cz); if (c && c.meshes !== null) buildChunk(c); }
 
@@ -752,12 +956,12 @@ const FV = [
 ];
 const FUV = [[0, 0], [0, 1], [1, 1], [1, 0]];
 const newG = (e = false) => ({ p: [], u: [], c: [], i: [], e });
-function addFace(g, x, y, z, d, tileNo, sky = 1, blk = 0) {
+function addFace(g, x, y, z, d, tileNo, sky = 1, blk = 0, hh = 1) {
   const base = g.p.length / 3, s = SHADE[d];
   const u0 = (tileNo * TS + 0.5) / (NT * TS), u1 = (tileNo * TS + TS - 0.5) / (NT * TS);
   for (let v = 0; v < 4; v++) {
     const f = FV[d][v];
-    g.p.push(x + f[0], y + f[1], z + f[2]);
+    g.p.push(x + f[0], y + f[1] * hh, z + f[2]);
     g.u.push(FUV[v][0] ? u1 : u0, FUV[v][1] ? 1 - 0.5 / TS : 0.5 / TS);
     if (g.e) g.c.push(s, s, s); else g.c.push(s, sky, blk);
   }
@@ -770,7 +974,7 @@ function chunkHM(c) {
     for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
       for (let y = Math.min(c.maxY, TOPY); y >= MINY; y--) {
         const b = c.data[idx(lx, y, lz)];
-        if (b && !TRANS[b] && b !== LEAVES && !(PART[b] && BLK[b].shape === 'door')) { hm[lz * CS + lx] = y; break; }
+        if (b && !TRANS[b] && b !== LEAVES && !(PART[b] && (BLK[b].shape === 'door' || NOCOL[b]))) { hm[lz * CS + lx] = y; break; }
       }
     }
     c.hm = hm;
@@ -798,7 +1002,14 @@ function makeMesh(g, mat, order) {
 }
 // 부분 블록(반블록/계단/문)의 상자 하나를 메시에 추가. 텍스처는 상자 크기만큼 잘라서 입힌다.
 const FACE_UV = [(x, y, z) => [z, y], (x, y, z) => [1 - z, y], (x, y, z) => [x, z], (x, y, z) => [x, 1 - z], (x, y, z) => [1 - x, y], (x, y, z) => [x, y]];
-function addBoxFaces(g, wx, wy, wz, bx, tileOf, skyA, blkA, nbr) {
+// 횃불은 상자 크기와 상관없이 타일 가운데 두 줄(막대+불꽃)만 잘라서 입힌다
+function torchUV(d, px, py, pz, bx) {
+  if (d === 2) return [0.5, 0.97];
+  if (d === 3) return [0.5, 0.2];
+  const f = d < 2 ? (pz - bx[2]) / (bx[5] - bx[2]) : (px - bx[0]) / (bx[3] - bx[0]);
+  return [0.47 + f * 0.05, (py - bx[1]) / (bx[4] - bx[1])];
+}
+function addBoxFaces(g, wx, wy, wz, bx, tileOf, skyA, blkA, nbr, uvf) {
   const U0 = 0.5 / (NT * TS);
   for (let d = 0; d < 6; d++) {
     const edge = d === 0 ? bx[3] >= 1 : d === 1 ? bx[0] <= 0 : d === 2 ? bx[4] >= 1 : d === 3 ? bx[1] <= 0 : d === 4 ? bx[5] >= 1 : bx[2] <= 0;
@@ -808,9 +1019,9 @@ function addBoxFaces(g, wx, wy, wz, bx, tileOf, skyA, blkA, nbr) {
       const f = FV[d][v];
       const px = bx[0] + f[0] * (bx[3] - bx[0]), py = bx[1] + f[1] * (bx[4] - bx[1]), pz = bx[2] + f[2] * (bx[5] - bx[2]);
       g.p.push(wx + px, wy + py, wz + pz);
-      const [u, w] = FACE_UV[d](px, py, pz);
+      const [u, w] = uvf ? uvf(d, px, py, pz, bx) : FACE_UV[d](px, py, pz);
       g.u.push((t0 + 0.5 + u * (TS - 1)) / (NT * TS), 0.5 / TS + w * (1 - 1 / TS));
-      g.c.push(sh, skyA[d], blkA[d]);
+      if (g.e) g.c.push(1, 1, 1); else g.c.push(sh, skyA[d], blkA[d]);
     }
     g.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
   }
@@ -832,18 +1043,35 @@ function buildChunk(c) {
         const top = nx >= 0 && nx < CS && nz >= 0 && nz < CS ? hm[nz * CS + nx] : skyTop(x0 + nx, z0 + nz);
         sky.push(ny > top ? 1 : 0.16);
         let bl = 0;
-        for (const q of gl) { const l = 1 - Math.hypot(q[0] + 0.5 - (x0 + nx + 0.5), q[1] + 0.5 - (ny + 0.5), q[2] + 0.5 - (z0 + nz + 0.5)) / 9; if (l > bl) bl = l; }
+        for (const q of gl) { const l = 1 - Math.hypot(q[0] + 0.5 - (x0 + nx + 0.5), q[1] + 0.5 - (ny + 0.5), q[2] + 0.5 - (z0 + nz + 0.5)) / (q[3] || 9); if (l > bl) bl = l; }
         blk.push(Math.max(0, bl));
       }
       for (const bx of boxesOf(b)) {
-        let tileOf;
+        let tileOf, uvf = null, tg = O;
         if (B.shape === 'door') { const thin = bx[3] - bx[0] < 0.5 ? 0 : 2; tileOf = d => (d >> 1) === thin ? B.t[1] : 4; } // 넓은 면은 문 무늬, 가장자리는 판자
+        else if (B.shape === 'torch') { tileOf = () => B.t[1]; uvf = torchUV; tg = E; }
         else tileOf = d => d === 2 ? B.t[0] : d === 3 ? B.t[2] : B.t[1];
-        addBoxFaces(O, x0 + lx, y, z0 + lz, bx, tileOf, sky, blk, d => inC(DX[d], DY[d], DZ[d]));
+        addBoxFaces(tg, x0 + lx, y, z0 + lz, bx, tileOf, sky, blk, d => inC(DX[d], DY[d], DZ[d]), uvf);
       }
       continue;
     }
-    const g = b === WATER ? W : TRANS[b] ? T : EMIT[b] ? E : O, ft = BLK[b].t;
+    if (ISW[b]) { // 물: 퍼지는 물은 단계가 높을수록 낮게
+      const hh = b === WATER || b === FLOW0 ? 1 : 1 - (b - FLOW0) / 8, ft = BLK[b].t;
+      for (let d = 0; d < 6; d++) {
+        const nx = lx + DX[d], ny = y + DY[d], nz = lz + DZ[d];
+        const n = (nx >= 0 && nx < CS && nz >= 0 && nz < CS && ny >= MINY && ny <= TOPY)
+          ? data[idx(nx, ny, nz)] : getBlock(x0 + nx, ny, z0 + nz);
+        if (!(n === 0 || (TRANS[n] && !ISW[n]) || PART[n])) continue;
+        const inC = nx >= 0 && nx < CS && nz >= 0 && nz < CS;
+        const top = inC ? hm[nz * CS + nx] : skyTop(x0 + nx, z0 + nz);
+        const sky = ny > top ? 1 : 0.16;
+        let blk = 0;
+        for (const q of gl) { const l = 1 - Math.hypot(q[0] + 0.5 - (x0 + nx + 0.5), q[1] + 0.5 - (ny + 0.5), q[2] + 0.5 - (z0 + nz + 0.5)) / (q[3] || 9); if (l > blk) blk = l; }
+        addFace(W, x0 + lx, y, z0 + lz, d, ft[1], sky, Math.max(0, blk), hh);
+      }
+      continue;
+    }
+    const g = TRANS[b] ? T : EMIT[b] ? E : O, ft = BLK[b].t;
     for (let d = 0; d < 6; d++) {
       const nx = lx + DX[d], ny = y + DY[d], nz = lz + DZ[d];
       const n = (nx >= 0 && nx < CS && nz >= 0 && nz < CS && ny >= MINY && ny <= TOPY)
@@ -853,7 +1081,7 @@ function buildChunk(c) {
         const top = inC ? hm[nz * CS + nx] : skyTop(x0 + nx, z0 + nz);
         const sky = ny > top ? 1 : 0.16;
         let blk = 0;
-        for (const q of gl) { const l = 1 - Math.hypot(q[0] + 0.5 - (x0 + nx + 0.5), q[1] + 0.5 - (ny + 0.5), q[2] + 0.5 - (z0 + nz + 0.5)) / 9; if (l > blk) blk = l; }
+        for (const q of gl) { const l = 1 - Math.hypot(q[0] + 0.5 - (x0 + nx + 0.5), q[1] + 0.5 - (ny + 0.5), q[2] + 0.5 - (z0 + nz + 0.5)) / (q[3] || 9); if (l > blk) blk = l; }
         addFace(g, x0 + lx, y, z0 + lz, d, d === 2 ? ft[0] : d === 3 ? ft[2] : ft[1], sky, Math.max(0, blk));
       }
     }
@@ -912,7 +1140,7 @@ function snapshot(clean) {
     const [cx, cz] = k.split(',').map(Number);
     for (const [i, t] of m) ef.push(cx * CS + i % CS, Math.floor(i / (CS * CS)) + MINY, cz * CS + Math.floor(i / CS) % CS, t);
   }
-  return { game: 'blockworld', v: 3, terrain, gm, ef, p: [player.x, player.y, player.z, player.yaw, player.pitch], s: sel, hb: hotbar, bg: bag, inv, t: tod, hp, food, fn: [...furnaces.values()].map(f => [f.x, f.y, f.z, f.inp, f.fuel, f.out, +f.burn.toFixed(1), f.burnMax, +f.prog.toFixed(1)]),
+  return { game: 'blockworld', v: 3, terrain, gm, ef, p: [player.x, player.y, player.z, player.yaw, player.pitch], s: sel, hb: hotbar, bg: bag, inv, du: dur, ch: [...chests.values()].map(c => [c.x, c.y, c.z, c.s.map(s => s ? [s.id, s.n, s.d || 0] : 0)]), t: tod, hp, food, fn: [...furnaces.values()].map(f => [f.x, f.y, f.z, f.inp, f.fuel, f.out, +f.burn.toFixed(1), f.burnMax, +f.prog.toFixed(1)]),
     sp: [spawn.x, spawn.y, spawn.z], dr: drops.slice(0, 100).map(d => [d.id, d.n, +d.x.toFixed(2), +d.y.toFixed(2), +d.z.toFixed(2), Math.round(d.life)]) };
 }
 const saveInfoEl = document.getElementById('saveInfo');
@@ -936,7 +1164,7 @@ function save() {
     saveInfoEl.style.color = '#f66';
   }
 }
-addEventListener('beforeunload', save);
+addEventListener('beforeunload', () => { settleFallers(); save(); });
 
 /* ================= 소리 (WebAudio 합성) ================= */
 let AC = null, master = null, noiseBuf = null, soundOn = true;
@@ -1007,6 +1235,7 @@ const sfx = {
   eat() { for (let i = 0; i < 3; i++) setTimeout(() => noise(1200, 1, 0.07, 0.35), i * 110); },
   wake() { [523, 659, 784].forEach((f, i) => setTimeout(() => tone(f, f, 0.18, 0.2, 'sine'), i * 140)); },
   pop() { noise(900, 0.8, 0.2, 0.45); tone(400, 120, 0.15, 0.25, 'sine'); },
+  toolBreak() { noise(2400, 1.2, 0.18, 0.5); tone(700, 180, 0.22, 0.3, 'square'); },
 };
 
 /* ================= 파티클 ================= */
@@ -1130,7 +1359,7 @@ function rayBoxes(o, d, x, y, z, id) {
   }
   return best;
 }
-function raycast(o, d) {
+function raycast(o, d, fluid = false) { // fluid: 물도 맞는 것으로 친다 (양동이용)
   let x = Math.floor(o.x), y = Math.floor(o.y), z = Math.floor(o.z);
   const sx = Math.sign(d.x), sy = Math.sign(d.y), sz = Math.sign(d.z);
   const tdx = sx ? Math.abs(1 / d.x) : Infinity, tdy = sy ? Math.abs(1 / d.y) : Infinity, tdz = sz ? Math.abs(1 / d.z) : Infinity;
@@ -1140,7 +1369,7 @@ function raycast(o, d) {
   let nx = 0, ny = 0, nz = 0, t = 0;
   for (let n = 0; n < 40; n++) {
     const b = getBlock(x, y, z);
-    if (b && b !== WATER) {
+    if (b && (fluid || !ISW[b])) {
       if (!PART[b]) return { x, y, z, nx, ny, nz, t, hy: o.y + d.y * t - y };
       const h = rayBoxes(o, d, x, y, z, b);
       if (h) return h;
@@ -1164,7 +1393,7 @@ function collidesBox(px, py, pz, hw, h) {
   let hit = false; ciTop = -1e9; ciBot = 1e9;
   for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
     const b = getBlock(x, y, z);
-    if (!b || b === WATER) continue;
+    if (!b || ISW[b] || NOCOL[b]) continue;
     if (!PART[b]) { hit = true; if (y + 1 > ciTop) ciTop = y + 1; if (y < ciBot) ciBot = y; continue; }
     for (const q of boxesOf(b)) {
       if (px - hw + EPS < x + q[3] && px + hw - EPS > x + q[0] && py + EPS < y + q[4] && py + h - EPS > y + q[1] && pz - hw + EPS < z + q[5] && pz + hw - EPS > z + q[2]) {
@@ -1188,8 +1417,8 @@ function boxOverlapsMob(bx, by, bz) {
 }
 function stepPhysics(dt, input) {
   const fx = Math.floor(player.x), fz = Math.floor(player.z);
-  const feetW = getBlock(fx, Math.floor(player.y + 0.3), fz) === WATER;
-  const headW = getBlock(fx, Math.floor(player.y + EYE), fz) === WATER;
+  const feetW = ISW[getBlock(fx, Math.floor(player.y + 0.3), fz)] === 1;
+  const headW = ISW[getBlock(fx, Math.floor(player.y + EYE), fz)] === 1;
   if (feetW && !player.inWater && player.vy < -4) sfx.splash();
   player.inWater = feetW; player.headWater = headW;
   const fly = player.fly;
@@ -1260,6 +1489,11 @@ function drawItemIcon(g, id) {
     case BREAD: px(0xb97a2c, 2, 6, 12, 6); px(0xd89a42, 3, 5, 10, 2); px(0xf0c070, 4, 6, 3, 1); px(0x8a5a1c, 5, 9, 1, 3); px(0x8a5a1c, 9, 9, 1, 3); break;
     case DOOR: g.drawImage(atlas, 34 * TS + 3, 0, 10, 8, 3, 0, 10, 8); g.drawImage(atlas, 35 * TS + 3, 8, 10, 8, 3, 8, 10, 8); break;
     case COOKED: px(0x7a3f1c, 3, 4, 9, 8); px(0xa8602c, 4, 5, 6, 4); px(0x5a2a10, 5, 9, 5, 2); px(0xf2eedd, 11, 9, 4, 2); px(0xf2eedd, 13, 8, 2, 4); break;
+    case BUCKET: case WBUCKET:
+      px(0x9a9a9a, 3, 5, 10, 1); px(0xd0d0d0, 4, 6, 8, 6); px(0x9a9a9a, 5, 12, 6, 1); px(0xb8b8b8, 4, 6, 1, 6); px(0x777777, 11, 6, 1, 6);
+      px(0xb8b8b8, 3, 3, 1, 2); px(0xb8b8b8, 12, 3, 1, 2); px(0xb8b8b8, 4, 2, 8, 1);
+      if (id === WBUCKET) { px(0x2f66d8, 4, 6, 8, 2); px(0x5d93f0, 5, 6, 3, 1); }
+      break;
     case MEAT: px(0xc2553a, 3, 4, 9, 8); px(0xe07a5a, 4, 5, 6, 4); px(0xf2eedd, 11, 9, 4, 2); px(0xf2eedd, 13, 8, 2, 4); break;
     case BANANA: for (let i = 0; i < 9; i++) { px(0xf2d33a, 3 + i, 4 + Math.round(Math.sin(i / 8 * Math.PI) * -1 + 5 - i * 0.2 + 3), 2, 2); } px(0x8a6a10, 2, 8, 2, 2); px(0xfff08a, 5, 8, 3, 1); break;
     default: px(0xff00ff, 4, 4, 8, 8);
@@ -1283,9 +1517,10 @@ hotbar.forEach((b, i) => {
   const cv = document.createElement('canvas'); cv.width = cv.height = 16;
   const n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1;
   const c = document.createElement('span'); c.className = 'c';
-  s.append(cv, n, c);
+  const bar = document.createElement('span'); bar.className = 'dbar'; bar.append(document.createElement('i'));
+  s.append(cv, n, c, bar);
   s.addEventListener('pointerdown', e => { e.stopPropagation(); select(i); });
-  hotbarEl.append(s); slots.push({ s, cv, c, id: 0 });
+  hotbarEl.append(s); slots.push({ s, cv, c, bar, id: 0 });
 });
 const toast = document.getElementById('toast');
 let toastT = 0;
@@ -1303,7 +1538,15 @@ function refreshHotbar() {
     const cnt = inv[id] || 0;
     sl.c.textContent = gm === 'survival' && id ? cnt : '';
     sl.s.classList.toggle('dim', gm === 'survival' && !!id && cnt <= 0);
+    setDurBar(sl.bar, id);
   });
+}
+// 닳은 도구에만 내구도 막대를 보여 준다 (초록 → 노랑 → 빨강)
+function setDurBar(bar, id) {
+  const it = ITEM[id], used = gm === 'survival' && it && it.k === 'tool' ? dur[id] || 0 : 0;
+  if (used <= 0) { bar.style.display = 'none'; return; }
+  const f = Math.max(0, 1 - used / TOOL_DUR[it.tier]), i = bar.firstChild;
+  bar.style.display = 'block'; i.style.width = (f * 100) + '%'; i.style.background = f > 0.5 ? '#4c4' : f > 0.25 ? '#ec3' : '#e44';
 }
 function select(i, quiet) {
   sel = (i + hotbar.length) % hotbar.length;
@@ -1460,6 +1703,7 @@ function isl(kind, i, id, cnt, extra) {
   if (id) {
     d.dataset.id = id; d.append(iconCv(id)); d.title = nameOf(id);
     if (cnt > 1) { const k = document.createElement('span'); k.className = 'c'; k.textContent = cnt; d.append(k); }
+    if (ITEM[id] && ITEM[id].k === 'tool') { const bar = document.createElement('span'); bar.className = 'dbar'; bar.append(document.createElement('i')); d.append(bar); setDurBar(bar, id); }
   }
   return d;
 }
@@ -1744,6 +1988,83 @@ function openFurnace(x, y, z) {
   invOpen = true; paused = true; invEl.classList.remove('show'); furEl.classList.add('show');
   if (!isTouch && document.pointerLockElement) document.exitPointerLock();
   renderFur();
+}
+
+/* ---- 상자: 27칸, 한 칸에 64개까지 ---- */
+const CHEST_N = 27;
+const chests = new Map(); // 'x,y,z' → { x, y, z, s: [{id, n, d}|null × 27] }
+const chestEl = document.getElementById('chest'), chestMain = document.getElementById('chestMain'), chestInv = document.getElementById('chestInv'), chestHint = document.getElementById('chestHint');
+let curChest = null;
+function chestOf(x, y, z) {
+  const k = furKey(x, y, z); let c = chests.get(k);
+  if (!c) chests.set(k, c = { x, y, z, s: new Array(CHEST_N).fill(null) });
+  return c;
+}
+function dumpChest(x, y, z) {
+  const k = furKey(x, y, z), c = chests.get(k);
+  if (!c) return;
+  for (const s of c.s) if (s) spawnDrop(s.id, s.n, x + 0.5, y + 0.5, z + 0.5);
+  chests.delete(k);
+}
+function chestDeposit(id, amt) {
+  const c = curChest; let left = amt;
+  for (const s of c.s) if (s && s.id === id && s.n < 64 && left > 0) { const m = Math.min(64 - s.n, left); s.n += m; left -= m; }
+  for (let i = 0; i < CHEST_N && left > 0; i++) if (!c.s[i]) { const m = Math.min(64, left); c.s[i] = { id, n: m, d: 0 }; left -= m; }
+  return amt - left;
+}
+function chestTake(i, one) {
+  const c = curChest, s = c.s[i]; if (!s) return;
+  const n = one ? 1 : s.n;
+  if (gm === 'survival') {
+    if (s.d && ITEM[s.id] && ITEM[s.id].k === 'tool' && !(inv[s.id] > 0)) dur[s.id] = s.d; // 닳은 정도도 같이 돌아온다
+    giveItem(s.id, n);
+  }
+  s.n -= n; if (s.n <= 0) c.s[i] = null;
+  renderChest();
+}
+function chestPut(id, one) {
+  const have = gm === 'survival' ? inv[id] || 0 : 64;
+  const amt = one ? Math.min(1, have) : have;
+  if (amt <= 0) return;
+  const done = chestDeposit(id, amt);
+  if (!done) { showToast('상자가 가득 찼어요', 1200); return; }
+  if (gm === 'survival') {
+    inv[id] -= done;
+    if (inv[id] <= 0 && dur[id] > 0) { const s = curChest.s.find(q => q && q.id === id); if (s) s.d = dur[id]; dur[id] = 0; }
+    refreshHotbar();
+  }
+  renderChest();
+}
+function chestCell(c, onClick, onRight) {
+  const d = document.createElement('div'); d.className = 'cell';
+  if (c) {
+    d.append(iconCv(c.id)); d.title = nameOf(c.id);
+    if (c.n > 1) { const k = document.createElement('span'); k.className = 'c'; k.textContent = c.n; d.append(k); }
+  }
+  d.addEventListener('click', onClick);
+  d.addEventListener('contextmenu', e => { e.preventDefault(); onRight(); });
+  return d;
+}
+function renderChest() {
+  const c = curChest; if (!c) return;
+  chestMain.innerHTML = '';
+  c.s.forEach((s, i) => chestMain.append(chestCell(s, () => chestTake(i, false), () => chestTake(i, true))));
+  chestInv.innerHTML = '';
+  let shown = 0;
+  for (const id of ALL_ORDER) {
+    const cnt = gm === 'survival' ? inv[id] || 0 : 1;
+    if (cnt <= 0) continue;
+    chestInv.append(chestCell({ id, n: gm === 'survival' ? cnt : 0 }, () => chestPut(id, false), () => chestPut(id, true)));
+    shown++;
+  }
+  chestHint.textContent = shown ? '상자 칸을 누르면 꺼내요 (오른쪽 클릭은 1개).' : '넣을 소지품이 없어요.';
+}
+function openChest(x, y, z) {
+  if (paused && !invOpen) return;
+  curChest = chestOf(x, y, z); curFur = null;
+  invOpen = true; paused = true; invEl.classList.remove('show'); furEl.classList.remove('show'); chestEl.classList.add('show');
+  if (!isTouch && document.pointerLockElement) document.exitPointerLock();
+  renderChest();
 }
 
 const canPlace = id => (!!BLK[id] || ITEM[id] && ITEM[id].k === 'door') && id !== BEDROCK && (gm === 'creative' || (inv[id] || 0) > 0);
@@ -2415,7 +2736,7 @@ function removeMob(m) {
 }
 function clearMobs() { while (mobs.length) removeMob(mobs[0]); for (const p of projs) scene.remove(p.mesh); projs.length = 0; }
 function surfaceY(x, z) {
-  for (let y = TOPY; y >= MINY; y--) { const b = getBlock(x, y, z); if (b === WATER) return -999; if (b && b !== LEAVES) return y + 1; }
+  for (let y = TOPY; y >= MINY; y--) { const b = getBlock(x, y, z); if (ISW[b]) return -999; if (b && b !== LEAVES && !NOCOL[b]) return y + 1; }
   return -999;
 }
 let mobSpawnT = 1;
@@ -2468,7 +2789,7 @@ function trySpawnMobs(dt) {
     y = -999;
     const y0 = Math.floor(pp.y) + 4;
     for (let yy = y0; yy >= y0 - 12; yy--) {
-      if (!isSolid(x, yy, z) && !isSolid(x, yy + 1, z) && getBlock(x, yy, z) !== WATER && isSolid(x, yy - 1, z) && yy < skyTop(x, z)) { y = yy; break; }
+      if (!isSolid(x, yy, z) && !isSolid(x, yy + 1, z) && !ISW[getBlock(x, yy, z)] && isSolid(x, yy - 1, z) && yy < skyTop(x, z)) { y = yy; break; }
     }
     if (y < MINY) return;
   } else {
@@ -2482,7 +2803,7 @@ function trySpawnMobs(dt) {
 function moveMob(m, dt) {
   const d = MOB[m.type];
   m.vy = Math.max(m.vy - 24 * dt, -30);
-  const wet = getBlock(Math.floor(m.x), Math.floor(m.y + 0.3), Math.floor(m.z)) === WATER;
+  const wet = ISW[getBlock(Math.floor(m.x), Math.floor(m.y + 0.3), Math.floor(m.z))] === 1;
   if (wet) m.vy = Math.min(m.vy + 40 * dt, 2);
   m.bx = false;
   const nx = m.x + m.vx * dt; if (collidesBox(nx, m.y, m.z, d.hw, d.h)) m.bx = true; else m.x = nx;
@@ -2787,10 +3108,13 @@ function attackMob(m) {
   if (isGuest()) { // 손님은 방장에게 공격을 알린다 (몹은 방장이 계산)
     sfx.hit(); m.hurt = 0.25; burst(m.x, m.y + d.h * 0.6, m.z, d.col, 6, 0.4, 2.5);
     netSend('p0', { t: 'hit', id: m.id, dmg: attackDamage(), kx: +(dx / l * 7).toFixed(2), kz: +(dz / l * 7).toFixed(2) });
+    toolHitWear();
     return;
   }
   damageMob(m, attackDamage(), dx / l * 7, dz / l * 7, net.myId);
+  toolHitWear();
 }
+function toolHitWear() { const tl = heldTool(); if (tl) useTool(tl.tt === 'sword' ? 1 : 2); }
 
 /* ================= 체력 ================= */
 const hurtEl = document.getElementById('hurt');
@@ -2802,7 +3126,7 @@ function hurtPlayer(n) {
   if (hp <= 0) {
     let lost = 0;
     for (const id in inv) if (inv[id] > 0) { spawnDrop(+id, inv[id], player.x, player.y + 0.8, player.z, 300); lost++; }
-    inv = {}; food = 20; refreshHotbar();
+    inv = {}; for (const k in dur) delete dur[k]; food = 20; refreshHotbar();
     showToast(lost ? `쓰러졌어요! 소지품 ${lost}종을 떨어뜨렸어요 — 미니맵의 노란 점에서 되찾으세요!` : '쓰러졌어요! 다시 시작해요.', 4000);
     Object.assign(player, { x: spawn.x, y: spawn.y, z: spawn.z, vx: 0, vy: 0, vz: 0, slowT: 0 });
     hp = MAXHP; refreshHearts();
@@ -2848,9 +3172,22 @@ function breakBlock(t) {
     const oy = B.up ? t.y - 1 : t.y + 1, o = getBlock(t.x, oy, t.z);
     if (o && BLK[o].shape === 'door') setBlock(t.x, oy, t.z, 0);
   } else if (b === FURNACE || b === FURNACE_ON) dumpFurnace(t.x, t.y, t.z);
+  else if (b === CHEST) dumpChest(t.x, t.y, t.z);
   const above = getBlock(t.x, t.y + 1, t.z); // 받침이 사라지면 문도 떨어진다
   if (above && BLK[above].shape === 'door' && !BLK[above].up) { setBlock(t.x, t.y + 1, t.z, 0); setBlock(t.x, t.y + 2, t.z, 0); if (gm === 'survival') spawnDrop(DOOR, 1, t.x + 0.5, t.y + 1.5, t.z + 0.5); }
   if (gm === 'survival' && canDropBlock(b)) spawnDrop(B.drop || b, 1, t.x + 0.5, t.y + 0.5, t.z + 0.5);
+  if (B.h >= 0.1) { const tl = heldTool(); if (tl) useTool(tl.tt === 'sword' ? 2 : 1); }
+}
+// 도구 내구도: 쓸 때마다 닳고, 다 닳으면 부서진다 (서바이벌만)
+function useTool(n) {
+  if (gm !== 'survival') return;
+  const t = heldTool(); if (!t) return;
+  const id = hotbar[sel], used = (dur[id] || 0) + n;
+  if (used >= TOOL_DUR[t.tier]) {
+    dur[id] = 0; inv[id] = Math.max(0, (inv[id] || 0) - 1);
+    sfx.toolBreak(); showToast(`${nameOf(id)}이(가) 부서졌어요!`, 1800);
+  } else dur[id] = used;
+  refreshHotbar();
 }
 function mineStep(dt, held) {
   attackCd -= dt; mine.cd -= dt; placeCd -= dt; eatCd -= dt;
@@ -2913,8 +3250,49 @@ function interact(t) {
   if (b === BED && daylight < 0.4) { sleep(t); return true; }
   if (b === CTABLE) { openInv(3); return true; }
   if (b === FURNACE || b === FURNACE_ON) { openFurnace(t.x, t.y, t.z); return true; }
+  if (b === CHEST) { openChest(t.x, t.y, t.z); return true; }
   if (b && BLK[b].shape === 'door') { toggleDoor(t.x, t.y, t.z); return true; }
   return false;
+}
+// 양동이: 빈 양동이로 물 근원을 뜨고, 물 양동이로 물 근원을 붓는다
+function swapHeld(from, to) {
+  if (gm !== 'survival') return;
+  inv[from] = Math.max(0, (inv[from] || 0) - 1); inv[to] = (inv[to] || 0) + 1;
+  if (inv[from] <= 0 && !layoutHas(to)) hotbar[sel] = to;
+  hotbarAdd(to); refreshHotbar();
+}
+function useBucket() {
+  const ft = raycast(eyeV, dirV, true);
+  if (!ft) return;
+  const b = getBlock(ft.x, ft.y, ft.z);
+  if (!ISW[b]) return;
+  if (b !== WATER) { showToast('물이 솟는 근원을 떠야 해요', 1200); return; }
+  setBlock(ft.x, ft.y, ft.z, 0);
+  noise(1100, 0.6, 0.3, 0.4, 'lowpass');
+  swapHeld(BUCKET, WBUCKET);
+}
+function pourBucket() {
+  const ft = raycast(eyeV, dirV, true);
+  if (!ft) return;
+  const hit = getBlock(ft.x, ft.y, ft.z);
+  const x = ISW[hit] ? ft.x : ft.x + ft.nx, y = ISW[hit] ? ft.y : ft.y + ft.ny, z = ISW[hit] ? ft.z : ft.z + ft.nz;
+  const cur = getBlock(x, y, z);
+  if ((cur !== 0 && !ISW[cur]) || cur === WATER) return;
+  setBlock(x, y, z, WATER);
+  noise(900, 0.6, 0.4, 0.4, 'lowpass');
+  swapHeld(WBUCKET, BUCKET);
+}
+// 횃불: 윗면에는 세워서, 옆면에는 벽에 기대어 놓는다
+function placeTorch() {
+  if (!target) return;
+  const tb = getBlock(target.x, target.y, target.z);
+  if (!isFullBlock(tb) || target.ny === -1) { return; }
+  const x = target.x + target.nx, y = target.y + target.ny, z = target.z + target.nz;
+  if (getBlock(x, y, z) !== 0) return;
+  const put = target.ny === 1 ? TORCH : target.nx === -1 ? TORCH + 1 : target.nx === 1 ? TORCH + 2 : target.nz === -1 ? TORCH + 3 : TORCH + 4;
+  if (!setBlock(x, y, z, put)) return;
+  blockSound(TORCH, 'place');
+  if (gm === 'survival') { inv[TORCH]--; refreshHotbar(); }
 }
 // 우클릭: 상호작용 / 음식 = 먹기 / 문 / 블록 = 설치
 function doPlace() {
@@ -2922,7 +3300,12 @@ function doPlace() {
   const sneak = keys.ShiftLeft || keys.ShiftRight;
   if (target && !(sneak && !player.fly && BLK[hotbar[sel]]) && interact(target)) return;
   const it = ITEM[hotbar[sel]];
-  if (it) { if (it.k === 'food') eat(hotbar[sel]); else if (it.k === 'door') placeDoor(); return; }
+  if (it) {
+    if (it.k === 'food') eat(hotbar[sel]); else if (it.k === 'door') placeDoor();
+    else if (it.k === 'bucket') useBucket(); else if (it.k === 'wbucket') pourBucket();
+    return;
+  }
+  if (hotbar[sel] === TORCH) { if (canPlace(TORCH)) placeTorch(); else if (gm === 'survival') showToast('횃불이 없어요!'); return; }
   placeBlock();
 }
 function placeDoor() {
@@ -2931,7 +3314,7 @@ function placeDoor() {
   if (!canPlace(id)) { if (gm === 'survival') showToast('문이 없어요!'); return; }
   const x = target.x + target.nx, y = target.y + target.ny, z = target.z + target.nz;
   if (y + 1 > TOPY) return;
-  for (const yy of [y, y + 1]) { const c = getBlock(x, yy, z); if (c !== 0 && c !== WATER) return; if (boxOverlapsPlayer(x, yy, z) || boxOverlapsMob(x, yy, z) || boxOverlapsPeer(x, yy, z)) return; }
+  for (const yy of [y, y + 1]) { const c = getBlock(x, yy, z); if (c !== 0 && !ISW[c]) return; if (boxOverlapsPlayer(x, yy, z) || boxOverlapsMob(x, yy, z) || boxOverlapsPeer(x, yy, z)) return; }
   if (!isSolid(x, y - 1, z)) { showToast('문은 단단한 바닥 위에 세워요', 1200); return; }
   const d = [3, 1, 0, 2][facingDir()]; // 문짝이 플레이어 쪽 모서리에 오게
   setBlock(x, y, z, 60 + d * 2); setBlock(x, y + 1, z, 70 + d * 2);
@@ -2952,7 +3335,7 @@ function placeBlock() {
   }
   const x = target.x + target.nx, y = target.y + target.ny, z = target.z + target.nz;
   const cur = getBlock(x, y, z);
-  if (cur !== 0 && cur !== WATER) return;
+  if (cur !== 0 && !ISW[cur]) return;
   let put = id;
   if (B.shape === 'slabB' && (target.ny === -1 || (target.ny === 0 && target.hy > 0.5))) put = id + 5;
   else if (B.shape === 'stair') put = id + facingDir();
@@ -2990,10 +3373,12 @@ function openInv(n = 2) {
   invOpen = true; paused = true; furEl.classList.remove('show'); curFur = null; buildInv(); invEl.classList.add('show');
   if (!isTouch && document.pointerLockElement) document.exitPointerLock();
 }
-function hideInvUI() { returnGrid(); curFur = null; invOpen = false; invEl.classList.remove('show'); furEl.classList.remove('show'); refreshHotbar(); save(); }
+function hideInvUI() { returnGrid(); curFur = null; curChest = null; invOpen = false; invEl.classList.remove('show'); furEl.classList.remove('show'); chestEl.classList.remove('show'); refreshHotbar(); save(); }
 function closeInv() { hideInvUI(); startPlay(); }
 document.getElementById('invClose').addEventListener('click', closeInv);
 document.getElementById('furClose').addEventListener('click', closeInv);
+document.getElementById('chestClose').addEventListener('click', closeInv);
+chestEl.addEventListener('pointerdown', e => { if (e.target === chestEl) closeInv(); });
 invEl.addEventListener('pointerdown', e => { if (e.target === invEl) closeInv(); });
 furEl.addEventListener('pointerdown', e => { if (e.target === furEl) closeInv(); });
 
@@ -3019,7 +3404,7 @@ addEventListener('keydown', e => {
     if (n >= 1 && n <= 9) {
       if (!paused) select(n - 1);
       else if (invOpen) { // 인벤토리가 열려 있어도 숫자키로 핫바 칸을 고른다 (아이템 위에 마우스를 올리고 누르면 그 칸에 지정)
-        if (!curFur) digitAssign(n - 1); else select(n - 1, true);
+        if (!curFur && !curChest) digitAssign(n - 1); else select(n - 1, true);
       }
     }
   }
@@ -3468,13 +3853,13 @@ function addEditRaw(x, y, z, b) {
   const k = (x >> 4) + ',' + (z >> 4);
   let m = edits.get(k); if (!m) edits.set(k, m = new Map());
   m.set(idx(x & 15, y, z & 15), b);
-  if (b === GLOW) glows.push([x, y, z]);
+  if (LIGHT_R[b]) glows.push([x, y, z, LIGHT_R[b]]);
 }
 function loadWorld(t, netInfo) {
   terrain = t;
   for (const c of chunks.values()) disposeMesh(c);
-  chunks.clear(); edits.clear(); clearMobs(); clearDrops(); glows.length = 0; pending = []; lastCx = 1e9;
-  hotbar = [0, 0, 0, 0, 0, 0, 0, 0, 0]; bag = new Array(27).fill(0); inv = {}; furnaces.clear(); sel = 0; gm = 'creative'; hp = MAXHP; food = 20; tod = 0.12;
+  chunks.clear(); edits.clear(); clearMobs(); clearDrops(); clearSim(); glows.length = 0; pending = []; lastCx = 1e9;
+  hotbar = [0, 0, 0, 0, 0, 0, 0, 0, 0]; bag = new Array(27).fill(0); inv = {}; for (const k in dur) delete dur[k]; furnaces.clear(); chests.clear(); sel = 0; gm = 'creative'; hp = MAXHP; food = 20; tod = 0.12;
   spawn = findSpawn();
   Object.assign(player, { x: spawn.x, y: spawn.y, z: spawn.z, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, fly: false });
   try {
@@ -3484,7 +3869,7 @@ function loadWorld(t, netInfo) {
         const k = (x >> 4) + ',' + (z >> 4);
         let m = edits.get(k); if (!m) edits.set(k, m = new Map());
         m.set(idx(x & 15, y, z & 15), b);
-        if (b === GLOW) glows.push([x, y, z]);
+        if (LIGHT_R[b]) glows.push([x, y, z, LIGHT_R[b]]);
       };
       if (d.ef) for (let i = 0; i + 3 < d.ef.length; i += 4) add(d.ef[i], d.ef[i + 1], d.ef[i + 2], d.ef[i + 3]);
       else for (const [x, y, z, b] of d.e) add(x, y, z, b);
@@ -3493,6 +3878,12 @@ function loadWorld(t, netInfo) {
       if (Array.isArray(d.fn)) for (const [x, y, z, a, b2, c2, burn, bmax, prog] of d.fn) { const f = furOf(x | 0, y | 0, z | 0); f.inp = a; f.fuel = b2; f.out = c2; f.burn = +burn || 0; f.burnMax = +bmax || 1; f.prog = +prog || 0; }
       if (Array.isArray(d.bg) && d.bg.length % 9 === 0 && d.bg.every(id => !id || BLK[id] || ITEM[id])) bag = d.bg;
       if (d.inv && typeof d.inv === 'object') inv = d.inv;
+      if (d.du && typeof d.du === 'object') for (const k in d.du) if (ITEM[k] && ITEM[k].k === 'tool' && d.du[k] > 0) dur[k] = +d.du[k];
+      if (Array.isArray(d.ch)) for (const [x, y, z, sl] of d.ch) {
+        if (!Array.isArray(sl)) continue;
+        const c = chestOf(x | 0, y | 0, z | 0);
+        sl.slice(0, CHEST_N).forEach((s, i) => { if (Array.isArray(s) && (BLK[s[0]] || ITEM[s[0]]) && s[1] > 0) c.s[i] = { id: s[0], n: Math.min(64, s[1] | 0), d: s[2] || 0 }; });
+      }
       if (d.gm === 'survival') gm = 'survival';
       if (typeof d.t === 'number') tod = d.t;
       if (typeof d.hp === 'number') hp = Math.max(1, d.hp);
@@ -3567,7 +3958,7 @@ function drawMini() {
     let prev = null;
     for (let i = 0; i < 64; i++) {
       colTop(px + i - 32, pz + j - 32);
-      const col = mtB === WATER ? 0x2a5fd0 : (topColor[mtB] || 0);
+      const col = ISW[mtB] ? 0x2a5fd0 : (topColor[mtB] || 0);
       const f = 1 + (prev === null ? 0 : Math.max(-3, Math.min(3, mtY - prev))) * 0.07; prev = mtY;
       const o = (j * 64 + i) * 4;
       d[o] = Math.min(255, ((col >> 16) & 255) * f); d[o + 1] = Math.min(255, ((col >> 8) & 255) * f); d[o + 2] = Math.min(255, (col & 255) * f); d[o + 3] = 255;
@@ -3630,7 +4021,7 @@ function frame(now) {
     updateDrops(dt);
     autoSaveT += dt; if (autoSaveT > 20) { autoSaveT = 0; save(); }
   }
-  if (ready && (!paused || invOpen)) tickFurnaces(dt);
+  if (ready && (!paused || invOpen)) { tickFurnaces(dt); tickWorld(dt); }
   if (isGuest() && ready) updateRemoteMobs(dt);
   if (net.online) netFrame(dt);
   if (ready && collides(player.x, player.y, player.z)) { for (let i = 0; i < 4 && collides(player.x, player.y, player.z); i++) player.y += 1; } // 다른 사람이 놓은 블록에 끼었을 때
@@ -3674,7 +4065,7 @@ let startTerrain = 'flat';
 try { const m = JSON.parse(localStorage.getItem('blockworld_meta')); if (m && m.terrain === 'hills') startTerrain = 'hills'; } catch (e) {}
 loadWorld(startTerrain);
 requestAnimationFrame(frame);
-window.__bw = { net, myNickSet(n) { myNick = n; }, createRoom, joinRoom, leaveMulti, openChat, sendChat, applyMobState, mobStateList, attackMob, renderer, scene, camera, matO, uDay, get hotbar() { return hotbar; }, set sel(v) { sel = v; refreshHotbar(); }, get food() { return food; }, set food(v) { food = v; refreshHearts(); }, drops, spawnDrop, giveItem, heldTool, breakTime, RECIPES, drawMini, glows, projs, mine, mouse, player, getBlock, setBlock, chunks, mobs, spawnMob, hurtPlayer, loadWorld, snapshot, save,
+window.__bw = { useTool, dur, chests, chestOf, openChest, fluidQ, fallers, net, myNickSet(n) { myNick = n; }, createRoom, joinRoom, leaveMulti, openChat, sendChat, applyMobState, mobStateList, attackMob, renderer, scene, camera, matO, uDay, get hotbar() { return hotbar; }, set sel(v) { sel = v; refreshHotbar(); }, get food() { return food; }, set food(v) { food = v; refreshHearts(); }, drops, spawnDrop, giveItem, heldTool, breakTime, RECIPES, drawMini, glows, projs, mine, mouse, player, getBlock, setBlock, chunks, mobs, spawnMob, hurtPlayer, loadWorld, snapshot, save,
   get target() { return target; }, get gm() { return gm; }, set gm(v) { gm = v; refreshHotbar(); refreshHearts(); },
   get inv() { return inv; }, get terrain() { return terrain; }, set tod(v) { tod = v; }, get daylight() { return daylight; }, get hp() { return hp; }, get paused() { return paused; }, set paused(v) { paused = v; }, toggleFly };
 </script>
