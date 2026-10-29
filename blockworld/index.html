@@ -96,6 +96,42 @@
     #invGrid { grid-template-columns: repeat(auto-fill, 42px); } #invGrid .cell, #furGrid .cell { width: 42px; height: 42px; }
     #inv h2, #fur h2 { font-size: 15px; margin-bottom: 4px; } #book { max-height: 40vh; } #inv .hint { display: none; }
   }
+  #inv { --s: min(44px, calc((100vw - 70px) / 9)); }
+  #inv .panel.mc { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: flex-start; background: #c6c6c6; border: 3px solid #000; box-shadow: inset 3px 3px 0 #fff, inset -3px -3px 0 #555; padding: 14px; max-width: min(98vw, 780px); text-align: left; }
+  .mcmain { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .mcTop { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; width: calc(var(--s) * 9); }
+  #playerBox { display: flex; gap: 6px; align-items: flex-end; }
+  #playerBox .armor { display: flex; flex-direction: column; gap: 2px; }
+  #playerBox.off3 { display: none; }
+  #steve { width: calc(var(--s) * 2.3); height: calc(var(--s) * 3.07); image-rendering: pixelated; background: #000; border: 2px solid; border-color: #373737 #fff #fff #373737; }
+  .craftBox { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .craftBox .ct { font: 700 15px sans-serif; color: #404040; align-self: flex-start; }
+  #craft { display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 0; margin: 0; }
+  #craft .arrow { font-size: 24px; color: #777; }
+  #bookBtn { position: absolute; left: calc(var(--s) * -1.6); top: 20px; width: calc(var(--s) * 0.9); height: calc(var(--s) * 0.9); font-size: 20px; line-height: 1; background: #8b8b8b; border: 2px solid; border-color: #fff #373737 #373737 #fff; cursor: pointer; padding: 0; }
+  #bookBtn.on { background: #6a9a4a; }
+  .is { position: relative; width: var(--s); height: var(--s); background: #8b8b8b; border: 2px solid; border-color: #373737 #fff #fff #373737; box-sizing: border-box; cursor: pointer; touch-action: none; display: flex; align-items: center; justify-content: center; font-size: 22px; user-select: none; }
+  .is.off { opacity: .45; cursor: default; filter: grayscale(1); }
+  .is:not(.off):hover { background: #a8a8a8; }
+  .is.sel { outline: 3px solid #fff; outline-offset: -3px; z-index: 1; }
+  .is.csel { outline: 2px solid #ff0; outline-offset: -2px; }
+  .is.dragging canvas { opacity: .3; }
+  .is.drop { background: #c8d8ff; }
+  .is canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; pointer-events: none; }
+  .is .c { position: absolute; right: 1px; bottom: 0; font: 700 12px monospace; color: #fff; text-shadow: 1px 1px 0 #000; pointer-events: none; }
+  .is.res { width: calc(var(--s) * 1.3); height: calc(var(--s) * 1.3); }
+  .is.res.ok { background: #9d9; box-shadow: 0 0 8px #3f3; }
+  #bag, #hotrow { display: grid; grid-template-columns: repeat(9, var(--s)); gap: 0; }
+  #hotrow { margin-top: 4px; }
+  #bag.pal { max-height: calc(var(--s) * 3.2); overflow-y: auto; overflow-x: hidden; }
+  #bag.pal .is { touch-action: pan-y; }
+  #bag { max-height: calc(var(--s) * 6.2); overflow-y: auto; }
+  #ghost { position: fixed; z-index: 10000; pointer-events: none; display: none; width: var(--s, 44px); height: var(--s, 44px); transform: translate(-50%, -50%); }
+  #ghost canvas { width: 100%; height: 100%; image-rendering: pixelated; filter: drop-shadow(2px 2px 2px #000); }
+  #ghost .c { position: absolute; right: 0; bottom: 0; font: 700 12px monospace; color: #fff; text-shadow: 1px 1px 0 #000; }
+  #bookWrap { display: none; }
+  #bookWrap.show { display: block; }
+  @media (max-width: 760px) { #bookWrap.show { width: 100%; } #book { flex: none; width: 100%; max-height: 30vh; } }
   #fur { position: fixed; inset: 0; z-index: 15; display: none; align-items: center; justify-content: center; background: #0007; padding-bottom: 80px; }
   #fur.show { display: flex; }
   #fur .panel { background: #c6c6c6; border: 4px solid #333; padding: 12px 14px; max-width: min(96vw, 480px); max-height: calc(100vh - 96px); overflow: auto; color: #222; text-align: center; }
@@ -185,19 +221,28 @@
 <input id="chatIn" maxlength="80" placeholder="채팅 (Enter 전송)" autocomplete="off">
 <div id="hearts"></div>
 <div id="hotbar"></div>
-<div id="inv"><div class="panel">
-  <h2 id="invTitle">🎒 인벤토리</h2>
-  <div class="invbody">
-    <div class="invleft">
-      <div id="craft"></div>
-      <div id="modeBar"></div>
-      <div id="invGrid"></div>
-      <p class="hint" id="invHint"></p>
+<div id="inv"><div class="panel mc">
+  <div id="bookWrap"><div id="book"></div></div>
+  <div class="mcmain">
+    <div class="mcTop">
+      <div id="playerBox">
+        <div class="armor"><div class="is off" title="투구 (준비 중)">⛑</div><div class="is off" title="갑옷 (준비 중)">🦺</div><div class="is off" title="바지 (준비 중)">👖</div><div class="is off" title="신발 (준비 중)">🥾</div></div>
+        <canvas id="steve" width="24" height="32"></canvas>
+        <div class="is off offhand" title="보조 손 (준비 중)">🛡</div>
+      </div>
+      <div class="craftBox">
+        <div class="ct" id="invTitle">조합</div>
+        <div id="craft"></div>
+        <button id="bookBtn" title="레시피북">📗</button>
+      </div>
     </div>
-    <div id="book"></div>
+    <div id="bag"></div>
+    <div id="hotrow"></div>
+    <p class="hint" id="invHint"></p>
+    <button class="close" id="invClose">닫기 (E)</button>
   </div>
-  <button class="close" id="invClose">닫기 (E)</button>
 </div></div>
+<div id="ghost"></div>
 <div id="fur"><div class="panel">
   <h2>🔥 화로</h2>
   <div id="furMain"></div>
@@ -844,7 +889,7 @@ function updateChunks(px, pz, budget) {
 /* ================= 상태: 플레이어 / 인벤토리 ================= */
 const player = { slowT: 0, x: 0.5, y: 1.001, z: 0.5, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, onGround: false, fly: false, inWater: false, headWater: false };
 let sel = 0, gm = 'creative', hp = 20, food = 20, tod = 0.12, spawn = { x: 0.5, y: 1.001, z: 0.5 };
-let hotbar = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+let hotbar = [0, 0, 0, 0, 0, 0, 0, 0, 0], bag = new Array(27).fill(0);
 let inv = {};
 const MAXHP = 20;
 const saveKey = t => 'blockworld_v2_' + t;
@@ -867,7 +912,7 @@ function snapshot(clean) {
     const [cx, cz] = k.split(',').map(Number);
     for (const [i, t] of m) ef.push(cx * CS + i % CS, Math.floor(i / (CS * CS)) + MINY, cz * CS + Math.floor(i / CS) % CS, t);
   }
-  return { game: 'blockworld', v: 3, terrain, gm, ef, p: [player.x, player.y, player.z, player.yaw, player.pitch], s: sel, hb: hotbar, inv, t: tod, hp, food, fn: [...furnaces.values()].map(f => [f.x, f.y, f.z, f.inp, f.fuel, f.out, +f.burn.toFixed(1), f.burnMax, +f.prog.toFixed(1)]),
+  return { game: 'blockworld', v: 3, terrain, gm, ef, p: [player.x, player.y, player.z, player.yaw, player.pitch], s: sel, hb: hotbar, bg: bag, inv, t: tod, hp, food, fn: [...furnaces.values()].map(f => [f.x, f.y, f.z, f.inp, f.fuel, f.out, +f.burn.toFixed(1), f.burnMax, +f.prog.toFixed(1)]),
     sp: [spawn.x, spawn.y, spawn.z], dr: drops.slice(0, 100).map(d => [d.id, d.n, +d.x.toFixed(2), +d.y.toFixed(2), +d.z.toFixed(2), Math.round(d.life)]) };
 }
 const saveInfoEl = document.getElementById('saveInfo');
@@ -1275,23 +1320,35 @@ function refreshHearts() {
   for (let i = 0; i < 10; i++) h += `<span class="${food >= i * 2 + 1 ? 'f' : 'e'}">🍗</span>`;
   heartsEl.innerHTML = h + '</span>';
 }
-const invEl = document.getElementById('inv'), invGrid = document.getElementById('invGrid'), invHint = document.getElementById('invHint'), craftEl = document.getElementById('craft');
-const bookEl = document.getElementById('book'), invTitle = document.getElementById('invTitle'), modeBar = document.getElementById('modeBar');
+const invEl = document.getElementById('inv'), invHint = document.getElementById('invHint'), craftEl = document.getElementById('craft');
+const bookEl = document.getElementById('book'), invTitle = document.getElementById('invTitle');
+const bagEl = document.getElementById('bag'), hotRowEl = document.getElementById('hotrow'), bookWrap = document.getElementById('bookWrap'), bookBtn = document.getElementById('bookBtn');
+const playerBox = document.getElementById('playerBox'), ghostEl = document.getElementById('ghost');
 const furEl = document.getElementById('fur'), furMain = document.getElementById('furMain'), furGrid = document.getElementById('furGrid'), furHint = document.getElementById('furHint');
 let invOpen = false;
-let craftN = 2, clickMode = 'craft', grid = [], gridSel = 0, hoverId = 0, curFur = null, furArm = 'in';
+let craftN = 2, grid = [], gridSel = 0, hoverSrc = null, curFur = null, furArm = 'in', bookOpen = true, drag = null;
+try { bookOpen = localStorage.getItem('blockworld_book') !== '0' && innerWidth > 760; } catch (e) {}
 const ALL_ORDER = [...INV_ORDER, ...ITEM_ORDER];
 const have = id => gm === 'creative' ? 99 : (inv[id] || 0);
 const iconCv = (id, cls) => { const cv = document.createElement('canvas'); cv.width = cv.height = 16; drawIcon(cv, id); if (cls) cv.className = cls; return cv; };
 
-/* ---- 핫바: 아이템을 얻는 순서대로 빈 칸에 들어간다 ---- */
+/* ---- 슬롯 배치: 핫바 9칸 + 가방(9칸씩 늘어남). 같은 아이템은 한 칸에 합쳐서 보인다 ---- */
+const layoutHas = id => hotbar.includes(id) || bag.includes(id);
 function hotbarAdd(id) {
-  if (!id || hotbar.includes(id)) return;
-  const e = hotbar.indexOf(0);
-  if (e >= 0) hotbar[e] = id;
+  if (!id || layoutHas(id)) return;
+  let e = hotbar.indexOf(0);
+  if (e >= 0) { hotbar[e] = id; return; }
+  e = bag.indexOf(0);
+  if (e < 0) { for (let k = 0; k < 9; k++) bag.push(0); e = bag.length - 9; }
+  bag[e] = id;
 }
 function giveItem(id, n = 1) { inv[id] = (inv[id] || 0) + n; hotbarAdd(id); refreshHotbar(); }
-// 인벤토리에서 아이템을 눌렀을 때(핫바 모드): 이미 있으면 그 칸 선택, 없으면 선택 칸(비었으면) 또는 첫 빈 칸
+function pruneSlots() {
+  if (gm !== 'survival') return;
+  for (let i = 0; i < hotbar.length; i++) if (hotbar[i] && (inv[hotbar[i]] || 0) <= 0) hotbar[i] = 0;
+  for (let i = 0; i < bag.length; i++) if (bag[i] && (inv[bag[i]] || 0) <= 0) bag[i] = 0;
+}
+// 크리에이티브 팔레트에서 핫바로
 function assignHotbar(id) {
   const at = hotbar.indexOf(id);
   if (at >= 0) { sel = at; }
@@ -1299,6 +1356,7 @@ function assignHotbar(id) {
   else { const e = hotbar.indexOf(0); if (e >= 0) { hotbar[e] = id; sel = e; } else hotbar[sel] = id; }
   refreshHotbar(); showToast(nameOf(id)); save();
 }
+const slotArr = kind => kind === 'hot' ? hotbar : bag;
 
 /* ---- 조합: 2x2(인벤토리) / 3x3(작업대) ---- */
 function putCell(i, id) {
@@ -1372,16 +1430,17 @@ function doCraft() {
   giveItem(R.out, R.n); sfx.craft(); showToast(`${nameOf(R.out)} ×${R.n} 제작!`);
   buildInv(); save();
 }
+// 눌러서 조합칸에 1개 넣기 (드래그가 어려울 때)
 function paletteToGrid(id) {
   const ok = i => grid[i] === null || grid[i].id === id;
   let i = ok(gridSel) ? gridSel : grid.findIndex((_, k) => ok(k));
   if (i < 0) { showToast('조합칸이 가득 찼어요', 1000); return; }
   if (!putCell(i, id)) return;
-  // 다음 빈 칸으로 이동
   let nx = -1; for (let k = 1; k <= grid.length; k++) { const j = (i + k) % grid.length; if (grid[j] === null) { nx = j; break; } }
   gridSel = nx >= 0 ? nx : i;
   buildInv();
 }
+// 화로 UI에서 쓰는 단순 칸
 function slotEl(c, sel, onClick, onX) {
   const d = document.createElement('div'); d.className = 'cc' + (sel ? ' sel' : '');
   if (c) {
@@ -1393,21 +1452,145 @@ function slotEl(c, sel, onClick, onX) {
   d.addEventListener('click', onClick);
   return d;
 }
+
+/* ---- 인벤토리 칸 만들기 / 드래그 앤 드롭 ---- */
+function isl(kind, i, id, cnt, extra) {
+  const d = document.createElement('div'); d.className = 'is' + (extra ? ' ' + extra : '');
+  d.dataset.kind = kind; d.dataset.i = i;
+  if (id) {
+    d.dataset.id = id; d.append(iconCv(id)); d.title = nameOf(id);
+    if (cnt > 1) { const k = document.createElement('span'); k.className = 'c'; k.textContent = cnt; d.append(k); }
+  }
+  return d;
+}
+function srcInfo(el) {
+  const kind = el.dataset.kind, i = +el.dataset.i;
+  let id = 0;
+  if (kind === 'hot') id = hotbar[i]; else if (kind === 'bag') id = bag[i]; else if (kind === 'cell') id = grid[i] ? grid[i].id : 0;
+  else if (kind === 'pal') id = +el.dataset.id || 0; else if (kind === 'res') { const R = matchRecipe(); id = R ? R.out : 0; }
+  return { kind, i, id };
+}
+function tapSlot(s) {
+  if (s.kind === 'res') { doCraft(); return; }
+  if (s.kind === 'cell') { takeCell(s.i); buildInv(); return; }
+  if (s.kind === 'pal') { assignHotbar(s.id); buildInv(); return; }
+  if (s.kind === 'hot') select(s.i, true);
+  if (s.id) paletteToGrid(s.id); else buildInv();
+}
+// 이동: 규칙은 마크와 비슷하게 (칸↔칸은 자리 바꾸기, 조합칸에는 1개씩, 조합칸에서 빼면 가방으로)
+function dropSlot(s, t) {
+  const creative = gm === 'creative';
+  if (s.kind === 'res') { doCraft(); return; }
+  if (!t) { // 칸 밖에 놓기
+    if (s.kind === 'cell') takeCell(s.i);
+    else if (creative && s.kind === 'hot') hotbar[s.i] = 0;
+    return;
+  }
+  const d = { kind: t.dataset.kind, i: +t.dataset.i };
+  if (d.kind === 'res' || d.kind === 'pal') { if (s.kind === 'cell') takeCell(s.i); else if (creative && s.kind === 'hot' && d.kind === 'pal') hotbar[s.i] = 0; return; }
+  if (s.kind === 'pal') { if (d.kind === 'hot') hotbar[d.i] = s.id; else if (d.kind === 'cell') putCell(d.i, s.id); return; }
+  if ((s.kind === 'hot' || s.kind === 'bag') && (d.kind === 'hot' || d.kind === 'bag')) {
+    if (s.kind === d.kind && s.i === d.i) return;
+    const A = slotArr(s.kind), B = slotArr(d.kind), tmp = A[s.i]; A[s.i] = B[d.i]; B[d.i] = tmp; return;
+  }
+  if ((s.kind === 'hot' || s.kind === 'bag') && d.kind === 'cell') { if (!putCell(d.i, s.id)) showToast('다른 아이템이 들어 있어요', 1000); return; }
+  if (s.kind === 'cell' && (d.kind === 'hot' || d.kind === 'bag')) {
+    const c = grid[s.i]; if (!c) return;
+    const A = slotArr(d.kind);
+    takeCell(s.i); // 가방으로 돌려보낸 뒤, 놓은 칸으로 자리를 옮긴다 (원래 있던 아이템은 빈자리로)
+    if (creative) { if (d.kind === 'hot') hotbar[d.i] = c.id; return; }
+    for (const arr of [hotbar, bag]) {
+      const k = arr.indexOf(c.id);
+      if (k >= 0) { if (!(arr === A && k === d.i)) { const t = A[d.i]; A[d.i] = c.id; arr[k] = t; } break; }
+    }
+    return;
+  }
+  if (s.kind === 'cell' && d.kind === 'cell') {
+    if (s.i === d.i) return;
+    const a = grid[s.i], b = grid[d.i];
+    if (a && b && a.id === b.id) { b.n = Math.min(64, b.n + a.n); grid[s.i] = null; } else { grid[d.i] = a; grid[s.i] = b; }
+  }
+}
+function ghostShow(id, cnt) {
+  ghostEl.innerHTML = ''; ghostEl.append(iconCv(id));
+  if (cnt > 1) { const k = document.createElement('span'); k.className = 'c'; k.textContent = cnt; ghostEl.append(k); }
+  ghostEl.style.display = 'block';
+}
+function endDrag() { ghostEl.style.display = 'none'; document.querySelectorAll('.is.dragging,.is.drop').forEach(e => e.classList.remove('dragging', 'drop')); drag = null; }
+invEl.addEventListener('pointerdown', e => {
+  if (e.button > 0) return;
+  const el = e.target.closest('.is');
+  if (!el || !el.dataset.kind || el.classList.contains('off')) return;
+  const s = srcInfo(el);
+  if (!s.id) { if (s.kind === 'cell') { gridSel = s.i; buildInv(); } return; }
+  drag = { s, el, x0: e.clientX, y0: e.clientY, active: false, pid: e.pointerId };
+});
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (!drag.active) {
+    if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 7) return;
+    drag.active = true; drag.el.classList.add('dragging');
+    const cnt = drag.s.kind === 'cell' ? grid[drag.s.i].n : (gm === 'survival' ? inv[drag.s.id] || 0 : 0);
+    ghostShow(drag.s.id, cnt);
+  }
+  ghostEl.style.left = e.clientX + 'px'; ghostEl.style.top = e.clientY + 'px';
+  document.querySelectorAll('.is.drop').forEach(x => x.classList.remove('drop'));
+  const t = document.elementFromPoint(e.clientX, e.clientY), slot = t && t.closest && t.closest('.is');
+  if (slot && !slot.classList.contains('off')) slot.classList.add('drop');
+});
+addEventListener('pointerup', e => {
+  if (!drag) return;
+  const d = drag; endDrag();
+  if (!d.active) { tapSlot(d.s); return; }
+  const t = document.elementFromPoint(e.clientX, e.clientY);
+  const slot = t && t.closest ? t.closest('.is') : null;
+  const inPanel = t && t.closest && t.closest('#inv .panel');
+  dropSlot(d.s, slot && !slot.classList.contains('off') ? slot : null, inPanel);
+  refreshHotbar(); buildInv(); save();
+});
+addEventListener('pointercancel', () => { if (drag) { endDrag(); buildInv(); } });
+
+function drawSteve() {
+  const c = document.getElementById('steve'), g = c.getContext('2d');
+  const r = (col, x, y, w, h) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+  g.clearRect(0, 0, 24, 32); r('#1a1a1a', 0, 0, 24, 32);
+  r('#c68e6b', 8, 2, 8, 8); r('#4a3320', 8, 2, 8, 2); r('#4a3320', 8, 4, 1, 2); r('#4a3320', 15, 4, 1, 2);
+  r('#fff', 9, 6, 2, 1); r('#fff', 13, 6, 2, 1); r('#3a4fc4', 10, 6, 1, 1); r('#3a4fc4', 13, 6, 1, 1); r('#8a5a40', 11, 8, 2, 1);
+  r('#2fa5a0', 8, 10, 8, 10); r('#2fa5a0', 4, 10, 4, 10); r('#2fa5a0', 16, 10, 4, 10); r('#c68e6b', 4, 17, 4, 3); r('#c68e6b', 16, 17, 4, 3);
+  r('#3b2a8a', 8, 20, 4, 9); r('#3b2a8a', 12, 20, 4, 9); r('#666', 8, 29, 4, 2); r('#666', 12, 29, 4, 2);
+}
+function buildInv() {
+  pruneSlots();
+  const creative = gm === 'creative';
+  // 가방 영역: 서바이벌은 가방 칸, 크리에이티브는 모든 아이템 팔레트
+  bagEl.innerHTML = ''; bagEl.classList.toggle('pal', creative);
+  if (creative) for (const id of ALL_ORDER) bagEl.append(isl('pal', id, id, 0));
+  else {
+    while (bag.length < 27) bag.push(0);
+    bag.forEach((id, i) => bagEl.append(isl('bag', i, id, id ? inv[id] || 0 : 0)));
+  }
+  hotRowEl.innerHTML = '';
+  hotbar.forEach((id, i) => { const d = isl('hot', i, id, id ? inv[id] || 0 : 0); if (i === sel) d.classList.add('sel'); hotRowEl.append(d); });
+  for (const d of invEl.querySelectorAll('#bag .is, #hotrow .is')) {
+    d.addEventListener('mouseenter', () => { hoverSrc = srcInfo(d); });
+    d.addEventListener('mouseleave', () => { hoverSrc = null; });
+  }
+  invHint.textContent = creative ? '아이템을 핫바로 끌어다 놓으세요 (누르면 선택한 칸에 들어가요). 핫바 칸을 팔레트로 끌면 지워져요.'
+    : '아이템을 끌어서 칸끼리 옮기거나(자리 바꾸기) 조합칸에 넣을 수 있어요. 조합칸에는 1개씩 들어가요.';
+  renderCraft(); renderBook();
+  bookWrap.classList.toggle('show', bookOpen); bookBtn.classList.toggle('on', bookOpen);
+}
 function renderCraft() {
   const n = craftN;
   craftEl.innerHTML = '';
-  const g = document.createElement('div'); g.className = 'cgrid'; g.style.gridTemplateColumns = `repeat(${n}, max-content)`;
-  for (let i = 0; i < n * n; i++) g.append(slotEl(grid[i], i === gridSel, () => { gridSel = i; renderCraft(); }, () => { takeCell(i); buildInv(); }));
+  const g = document.createElement('div'); g.style.display = 'grid'; g.style.gridTemplateColumns = `repeat(${n}, var(--s))`;
+  for (let i = 0; i < n * n; i++) { const c = grid[i]; const d = isl('cell', i, c ? c.id : 0, c ? c.n : 0); if (i === gridSel) d.classList.add('csel'); g.append(d); }
   const arrow = document.createElement('div'); arrow.className = 'arrow'; arrow.textContent = '➜';
   const R = matchRecipe();
-  const res = document.createElement('div'); res.className = 'cres' + (R ? ' ok' : '');
-  if (R) {
-    res.append(iconCv(R.out));
-    const k = document.createElement('span'); k.className = 'c'; k.textContent = R.n > 1 ? R.n : ''; res.append(k);
-    res.title = nameOf(R.out) + ' 만들기';
-    res.addEventListener('click', doCraft);
-  }
+  const res = isl('res', 0, R ? R.out : 0, R ? R.n : 0, 'res' + (R ? ' ok' : ''));
   craftEl.append(g, arrow, res);
+  invTitle.textContent = n === 3 ? '작업대' : '조합';
+  playerBox.style.display = n === 3 ? 'none' : '';
 }
 function renderBook() {
   bookEl.innerHTML = '';
@@ -1433,29 +1616,17 @@ function renderBook() {
     bookEl.append(row);
   }
 }
-function buildInv() {
-  invGrid.innerHTML = '';
-  let shown = 0;
-  for (const id of ALL_ORDER) {
-    const cnt = inv[id] || 0;
-    if (gm === 'survival' && (cnt <= 0 || id === WATER)) continue;
-    const cell = document.createElement('div'); cell.className = 'cell'; cell.title = nameOf(id);
-    cell.append(iconCv(id));
-    if (gm === 'survival') { const c = document.createElement('span'); c.className = 'c'; c.textContent = cnt; cell.append(c); }
-    cell.addEventListener('click', () => { if (clickMode === 'hotbar') assignHotbar(id); else paletteToGrid(id); });
-    cell.addEventListener('mouseenter', () => { hoverId = id; });
-    cell.addEventListener('mouseleave', () => { if (hoverId === id) hoverId = 0; });
-    invGrid.append(cell); shown++;
+bookBtn.addEventListener('click', () => { bookOpen = !bookOpen; try { localStorage.setItem('blockworld_book', bookOpen ? '1' : '0'); } catch (e) {} buildInv(); });
+// 숫자키: 칸 위에 마우스를 올리고 누르면 그 아이템을 핫바 n번 칸에 (마크와 같은 방식)
+function digitAssign(k) {
+  const h = hoverSrc;
+  if (h && h.id) {
+    if (h.kind === 'pal') hotbar[k] = h.id;
+    else if (h.kind === 'bag') { const t = hotbar[k]; hotbar[k] = h.id; bag[h.i] = t; }
+    else if (h.kind === 'hot' && h.i !== k) { const t = hotbar[k]; hotbar[k] = h.id; hotbar[h.i] = t; }
+    showToast(nameOf(h.id) + ' → ' + (k + 1) + '번 칸');
   }
-  modeBar.innerHTML = '';
-  for (const [m, label] of [['craft', '🔨 조합칸에 넣기'], ['hotbar', '🎒 핫바에 넣기']]) {
-    const b = document.createElement('button'); b.className = 'mode' + (clickMode === m ? ' on' : ''); b.textContent = label;
-    b.addEventListener('click', () => { clickMode = m; buildInv(); });
-    modeBar.append(b);
-  }
-  invHint.textContent = (gm === 'survival' && !shown ? '블록을 부수거나 몹을 잡으면 여기에 모여요! ' : '')
-    + (clickMode === 'craft' ? '아이템을 누르면 선택한 조합칸에 1개씩 들어가요.' : '아이템을 누르면 핫바에 들어가요. (숫자키 1~9: 핫바 칸 선택 / 아이템에 마우스를 올리고 누르면 그 칸에 지정)');
-  renderCraft(); renderBook();
+  select(k, true); buildInv();
 }
 
 /* ---- 화로 ---- */
@@ -2815,8 +2986,7 @@ function openInv(n = 2) {
   if (paused && !invOpen) return;
   returnGrid();
   craftN = n === 3 ? 3 : 2; grid = new Array(craftN * craftN).fill(null); gridSel = 0;
-  clickMode = gm === 'creative' ? 'hotbar' : 'craft';
-  invTitle.textContent = craftN === 3 ? '🔨 작업대 (3×3 조합)' : '🎒 인벤토리 (2×2 조합)';
+  drawSteve();
   invOpen = true; paused = true; furEl.classList.remove('show'); curFur = null; buildInv(); invEl.classList.add('show');
   if (!isTouch && document.pointerLockElement) document.exitPointerLock();
 }
@@ -2849,8 +3019,7 @@ addEventListener('keydown', e => {
     if (n >= 1 && n <= 9) {
       if (!paused) select(n - 1);
       else if (invOpen) { // 인벤토리가 열려 있어도 숫자키로 핫바 칸을 고른다 (아이템 위에 마우스를 올리고 누르면 그 칸에 지정)
-        if (hoverId && !curFur) { const at = hotbar.indexOf(hoverId); if (at >= 0 && at !== n - 1) hotbar[at] = hotbar[n - 1]; hotbar[n - 1] = hoverId; showToast(nameOf(hoverId) + ' → ' + n + '번 칸'); }
-        select(n - 1, true);
+        if (!curFur) digitAssign(n - 1); else select(n - 1, true);
       }
     }
   }
@@ -3305,7 +3474,7 @@ function loadWorld(t, netInfo) {
   terrain = t;
   for (const c of chunks.values()) disposeMesh(c);
   chunks.clear(); edits.clear(); clearMobs(); clearDrops(); glows.length = 0; pending = []; lastCx = 1e9;
-  hotbar = [0, 0, 0, 0, 0, 0, 0, 0, 0]; inv = {}; furnaces.clear(); sel = 0; gm = 'creative'; hp = MAXHP; food = 20; tod = 0.12;
+  hotbar = [0, 0, 0, 0, 0, 0, 0, 0, 0]; bag = new Array(27).fill(0); inv = {}; furnaces.clear(); sel = 0; gm = 'creative'; hp = MAXHP; food = 20; tod = 0.12;
   spawn = findSpawn();
   Object.assign(player, { x: spawn.x, y: spawn.y, z: spawn.z, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, fly: false });
   try {
@@ -3322,6 +3491,7 @@ function loadWorld(t, netInfo) {
       if (Array.isArray(d.p)) [player.x, player.y, player.z, player.yaw, player.pitch] = d.p;
       if (Array.isArray(d.hb) && d.hb.length === 9 && d.hb.every(id => !id || BLK[id] || ITEM[id])) hotbar = d.hb;
       if (Array.isArray(d.fn)) for (const [x, y, z, a, b2, c2, burn, bmax, prog] of d.fn) { const f = furOf(x | 0, y | 0, z | 0); f.inp = a; f.fuel = b2; f.out = c2; f.burn = +burn || 0; f.burnMax = +bmax || 1; f.prog = +prog || 0; }
+      if (Array.isArray(d.bg) && d.bg.length % 9 === 0 && d.bg.every(id => !id || BLK[id] || ITEM[id])) bag = d.bg;
       if (d.inv && typeof d.inv === 'object') inv = d.inv;
       if (d.gm === 'survival') gm = 'survival';
       if (typeof d.t === 'number') tod = d.t;
@@ -3339,6 +3509,7 @@ function loadWorld(t, netInfo) {
     Object.assign(player, { x: spawn.x, y: spawn.y, z: spawn.z });
   }
   ready = false; startBtn.disabled = true; loadMsg.style.display = '';
+  for (const id in inv) if (inv[id] > 0) hotbarAdd(+id); // 예전 저장에서 자리가 없는 아이템도 칸에 들어가게
   refreshHotbar(); refreshHearts(); refreshOptsUI(); select(sel, true);
   document.getElementById('bDown').style.display = 'none';
   if (!netInfo) { try { localStorage.setItem('blockworld_meta', JSON.stringify({ terrain })); } catch (e) {} }
