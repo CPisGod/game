@@ -3,220 +3,237 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GAME</title>
+<title>윤재네 게임 해장국</title>
+<script>try { if (localStorage.menuTheme === 'arcade') location.replace('arcade-menu.html'); } catch (e) {}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Brush+Script&family=Nanum+Myeongjo:wght@400;700;800&family=Song+Myung&display=swap">
 <style>
+  /* 벽에 걸린 한지 메뉴판 한 장. 등급(특선/별미/보통) 순으로 게임을 나열한다. */
   :root {
-    --bg: #07060f;
-    --panel: #0d0b1c;
-    --cyan: #00f0ff;
-    --pink: #ff2bd6;
-    --yellow: #fcee0a;
-    --text: #d8f6ff;
-    --dim: #6b6f9a;
+    --wall: #2a1d14;
+    --paper: #eee2c3;
+    --ink: #2a1a10;
+    --red: #b3261e;
+    --hl: rgba(244, 201, 93, .55);
+    --leader: rgba(42, 26, 16, .5);
+    --f-brush: "Nanum Brush Script", "Noto Serif KR", cursive;
+    --f-item: "Song Myung", "Nanum Myeongjo", "Noto Serif KR", serif;
+    --f-sec: "Nanum Myeongjo", "Noto Serif KR", serif;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; min-height: 100vh;
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px 14px;
-    font-family: "Share Tech Mono", "Courier New", "Noto Sans KR", monospace;
-    color: var(--text);
+    padding: 22px max(14px, env(safe-area-inset-right, 0px)) 48px max(14px, env(safe-area-inset-left, 0px));
+    color: var(--ink);
     background:
-      radial-gradient(ellipse at 20% 0%, rgba(255,43,214,.18), transparent 55%),
-      radial-gradient(ellipse at 90% 100%, rgba(0,240,255,.16), transparent 55%),
-      var(--bg);
-    overflow-x: hidden;
-  }
-  /* 그리드 바닥 + 스캔라인 */
-  body::before {
-    content: ""; position: fixed; inset: 0; pointer-events: none;
-    background-image:
-      linear-gradient(rgba(0,240,255,.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,240,255,.06) 1px, transparent 1px);
-    background-size: 40px 40px;
-    mask-image: linear-gradient(transparent, #000 90%);
-  }
-  body::after {
-    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 5;
-    background: repeating-linear-gradient(transparent 0 2px, rgba(0,0,0,.18) 2px 3px);
+      repeating-linear-gradient(90deg, transparent 0 118px, rgba(0,0,0,.2) 118px 120px),
+      linear-gradient(#2e2016, #1f150e);
+    background-attachment: fixed;
   }
 
-  .shell { position: relative; width: min(980px, 100%); }
-
-  .top {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-    margin-bottom: 14px;
+  .board {
+    position: relative; max-width: 820px; margin: 0 auto;
+    padding: 26px 30px 22px;
+    background: var(--paper);
+    box-shadow: 0 18px 40px rgba(0,0,0,.65), inset 0 2px 0 rgba(255,255,255,.2);
   }
+  /* 이중 테두리 + 한지 결 */
+  .board::before {
+    content: ""; position: absolute; inset: 10px; pointer-events: none;
+    border: 3px double var(--red);
+  }
+  .board::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    mix-blend-mode: multiply; opacity: .35;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .35  0 0 0 0 .2  0 0 0 .5 0'/></filter><rect width='220' height='220' filter='url(%23n)'/></svg>");
+  }
+  .board > * { position: relative; z-index: 1; }
+
+  /* 머리글 */
+  .head { text-align: center; padding: 8px 0 10px; }
+  .han { font: 700 13px var(--f-sec); letter-spacing: .7em; padding-left: .7em; color: var(--red); }
   h1 {
-    margin: 0; font-size: clamp(28px, 6vw, 48px); font-weight: 900; letter-spacing: 2px;
-    color: var(--cyan);
-    text-shadow: 2px 0 var(--pink), -2px 0 var(--cyan), 0 0 18px rgba(0,240,255,.7);
-    animation: glitch 4s infinite;
-    position: relative; left: 10px;
+    margin: 0; font: 400 clamp(46px, 11vw, 66px)/1.05 var(--f-brush);
+    letter-spacing: .02em; text-wrap: balance;
   }
-  @keyframes glitch {
-    0%, 92%, 100% { transform: none; }
-    93% { transform: translate(-3px, 1px) skewX(6deg); }
-    95% { transform: translate(3px, -1px) skewX(-6deg); }
-    97% { transform: translate(-1px, 0); }
-  }
-  .stats { display: flex; gap: 10px; font-size: 14px; }
-  .chip {
-    padding: 6px 12px; border: 1px solid var(--cyan); color: var(--cyan);
-    background: rgba(0,240,255,.07);
-    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
-    letter-spacing: 1px;
-  }
-  .chip b { color: var(--yellow); font-weight: 400; }
+  h1 em { font-style: normal; color: var(--red); }
+  .sub { margin: 6px 0 0; font: 400 15px var(--f-sec); letter-spacing: .12em; }
+  .rule { position: relative; margin-top: 10px; border-top: 2px solid var(--red); }
+  .rule::after { content: ""; position: absolute; left: 0; right: 0; top: 3px; border-top: 1px solid var(--red); }
 
-  .main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 720px) { .main { grid-template-columns: 1fr; } }
+  /* 오늘의 추천 도장 */
+  .stamp {
+    position: absolute; z-index: 2; right: 34px; top: 94px;
+    width: 92px; height: 92px; display: grid; place-items: center; text-align: center;
+    border: 3px solid var(--red); border-radius: 50%; color: var(--red);
+    font: 400 22px/1 var(--f-brush); text-decoration: none;
+    transform: rotate(12deg); opacity: .92; transition: transform .2s;
+  }
+  .stamp::before { content: ""; position: absolute; inset: 4px; border: 1.5px solid var(--red); border-radius: 50%; }
+  .stamp b { display: block; margin-bottom: 2px; font: 800 11px var(--f-sec); letter-spacing: .1em; }
+  .stamp:hover, .stamp:focus-visible { transform: rotate(6deg) scale(1.08); outline: none; }
 
-  .frame {
-    position: relative; padding: 14px;
-    background: var(--panel);
-    border: 1px solid var(--cyan);
-    box-shadow: 0 0 22px rgba(0,240,255,.25), inset 0 0 22px rgba(0,240,255,.08);
-    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  /* 등급 구역 */
+  .sec { margin: 14px 0 6px; }
+  .sec h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; font: 800 24px var(--f-sec); }
+  .sec h2 .tag {
+    flex: none; width: 34px; height: 34px; display: grid; place-items: center;
+    background: var(--red); color: var(--paper); border-radius: 3px; font: 800 18px var(--f-sec);
+  }
+  .sec h2 small { font: 400 13px var(--f-item); opacity: .7; }
+  .sec h2 .stars { margin-left: auto; color: var(--red); font-size: 18px; letter-spacing: .1em; }
+  .grp { columns: 2 260px; column-gap: 44px; }
+
+  .sec.top {
+    margin: 14px 0 12px; padding: 8px 14px 10px;
+    border: 2px solid var(--red);
+    background: linear-gradient(90deg, transparent, rgba(255,215,106,.18), transparent);
+  }
+  .sec.top h2 { font-size: 28px; }
+  .sec.top .grp { columns: 1; }
+  .sec.top .it { font-size: 27px; padding-block: 5px; }
+  .sec.top .p { font-size: 31px; }
+  .sec.mid .it { font-size: 23px; }
+  .sec.low .it { font-size: 19px; }
+
+  /* 메뉴 한 줄 */
+  .it {
+    break-inside: avoid; display: flex; align-items: baseline; gap: 6px;
+    padding: 3px 2px; color: var(--ink); text-decoration: none;
+    font: 400 21px/1.3 var(--f-item);
+  }
+  .it:focus-visible { outline: 2px solid var(--red); outline-offset: 1px; }
+  .it .ic { flex: none; width: 1.5em; text-align: center; font-size: .78em; filter: grayscale(1) sepia(.9) saturate(1.6) contrast(.9); }
+  .it .n { min-width: 0; text-wrap: balance; transition: background .15s; }
+  .it:hover .n, .it:focus-visible .n, .it.picked .n { background: linear-gradient(transparent 58%, var(--hl) 58%); }
+  .it .lead { flex: 1; min-width: 8px; border-bottom: 2px dotted var(--leader); transform: translateY(-5px); }
+  .it .p { flex: none; font: 400 26px/1 var(--f-brush); color: var(--red); }
+  .it .b {
+    flex: none; padding: 1px 5px; border-radius: 2px; transform: rotate(-4deg);
+    font: 800 11px var(--f-sec); color: var(--paper); background: var(--red);
+  }
+  .it .b.o { color: var(--red); background: none; border: 1.5px solid var(--red); }
+
+  .order { min-height: 40px; margin: 14px 0 0; text-align: center; font: 400 28px var(--f-brush); color: var(--red); }
+  .foot {
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 18px;
+    margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--red); font: 400 14px var(--f-item);
   }
 
-  /* 게임 리스트 */
-  .list { display: flex; flex-direction: column; gap: 6px; }
-  .list a {
-    display: flex; align-items: center; gap: 12px;
-    padding: 13px 14px; text-decoration: none; color: var(--text);
-    font-size: clamp(16px, 3.6vw, 20px); font-weight: 700;
-    border: 1px solid transparent;
-    border-bottom-color: rgba(0,240,255,.2);
-    transition: background .12s, border-color .12s, transform .12s;
+  @media (max-width: 560px) {
+    .board { padding: 20px 18px 18px; }
+    .stamp { position: relative; top: auto; right: auto; width: 76px; height: 76px; margin: 8px auto 0; font-size: 18px; transform: none; }
+    .sec.top .it { font-size: 24px; }
+    .sec.top .p { font-size: 28px; }
   }
-  .list .no { color: var(--yellow); min-width: 30px; font-weight: 400; }
-  .list .arrow { margin-left: auto; opacity: 0; color: var(--pink); }
-  .list a.on, .list a:hover, .list a:focus-visible {
-    outline: none;
-    background: linear-gradient(90deg, rgba(255,43,214,.28), rgba(0,240,255,.18));
-    border-color: var(--pink);
-    box-shadow: 0 0 14px rgba(255,43,214,.5);
-    text-shadow: 0 0 8px var(--cyan);
-    transform: translateX(4px);
-  }
-  .list a.on .arrow { opacity: 1; animation: blink 1s steps(2) infinite; }
-  @keyframes blink { 50% { opacity: .2; } }
-
-  /* 미리보기 */
-  .side { display: flex; flex-direction: column; gap: 16px; }
-  .preview {
-    position: relative; flex: 1; min-height: 240px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-    text-align: center; overflow: hidden;
-  }
-  .preview::before {
-    content: ""; position: absolute; inset: 0;
-    background:
-      linear-gradient(transparent 60%, rgba(255,43,214,.25)),
-      repeating-linear-gradient(90deg, transparent 0 24px, rgba(0,240,255,.07) 24px 25px);
-  }
-  .preview > * { position: relative; }
-  .icon {
-    font-size: clamp(64px, 14vw, 96px); line-height: 1;
-    filter: drop-shadow(0 0 14px var(--pink)) drop-shadow(0 0 28px var(--cyan));
-    animation: float 2.4s ease-in-out infinite;
-  }
-  @keyframes float { 50% { transform: translateY(-8px); } }
-  .ptitle { font-size: clamp(17px, 3.5vw, 22px); font-weight: 700; color: var(--cyan); text-shadow: 0 0 10px rgba(0,240,255,.8); padding: 0 8px; }
-  .play {
-    display: inline-block; padding: 10px 26px; text-decoration: none;
-    color: #07060f; background: var(--yellow); font-weight: 900; letter-spacing: 3px;
-    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
-    box-shadow: 0 0 18px rgba(252,238,10,.7);
-    animation: pulse 1.2s ease-in-out infinite;
-  }
-  @keyframes pulse { 50% { box-shadow: 0 0 30px rgba(252,238,10,1); } }
-
-  .credit {
-    display: flex; align-items: center; justify-content: center; gap: 14px;
-    padding: 14px; font-size: clamp(20px, 4vw, 26px); font-weight: 700;
-    color: var(--cyan); text-shadow: 0 0 10px rgba(0,240,255,.8);
-    border-color: var(--pink);
-    box-shadow: 0 0 22px rgba(255,43,214,.3), inset 0 0 22px rgba(255,43,214,.08);
-  }
-  .credit .coin { font-size: 30px; }
-
-  .foot { margin-top: 14px; text-align: center; font-size: 12px; color: var(--dim); letter-spacing: 1px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-  <div class="shell">
-    <div class="top">
-      <h1>GAME</h1>
-      <div class="stats">
-        <span class="chip">TIME: <b id="time">00</b></span>
-        <span class="chip">PAGE: <b>1/1</b></span>
-      </div>
-    </div>
+  <main class="board">
+    <header class="head">
+      <div class="han">元祖 · 二十四時</div>
+      <h1>윤재네 <em>게임</em> 해장국</h1>
+      <p class="sub">24시간 영업 · 선불 없음 · 리필 무제한</p>
+      <div class="rule"></div>
+    </header>
 
-    <div class="main">
-      <nav class="frame list" id="list">
-        <a href="streetfighter/" data-icon="👊" data-name="금산고 한남들의 싸움"><span class="no">01</span>금산고 한남들의 싸움<span class="arrow">▶</span></a>
-        <a href="ttt/" data-icon="❌⭕" data-name="AI와의 틱택토 게임"><span class="no">02</span>AI와의 틱택토 게임<span class="arrow">▶</span></a>
-        <a href="mango/" data-icon="🥭" data-name="망고 파칭코"><span class="no">03</span>망고 파칭코<span class="arrow">▶</span></a>
-        <a href="doo/" data-icon="🐹" data-name="두더지 윤재 잡기 게임"><span class="no">04</span>두더지 윤재 잡기 게임<span class="arrow">▶</span></a>
-        <a href="knife/" data-icon="🔪" data-name="윤재 얼굴에 칼 꽂기 게임"><span class="no">05</span>윤재 얼굴에 칼 꽂기 게임<span class="arrow">▶</span></a>
-        <a href="tetris/" data-icon="🧱" data-name="윤재 몸을 쌓는 테트리스"><span class="no">06</span>윤재 몸을 쌓는 테트리스<span class="arrow">▶</span></a>
-        <a href="subway/" data-icon="🐷" data-name="스쿨 서퍼 3D (부타)"><span class="no">07</span>스쿨 서퍼 3D (부타)<span class="arrow">▶</span></a>
-        <a href="fruitninja/" data-icon="🗡️" data-name="얼굴 닌자 (후르츠 닌자)"><span class="no">08</span>얼굴 닌자 (후르츠 닌자)<span class="arrow">▶</span></a>
-        <a href="baseball/" data-icon="⚾" data-name="야구 게임"><span class="no">09</span>야구 게임<span class="arrow">▶</span></a>
-        <a href="butadiet/" data-icon="🐷" data-name="부타 다이어트 시키기"><span class="no">10</span>부타 다이어트 시키기<span class="arrow">▶</span></a>
-        <a href="circus/" data-icon="🐵" data-name="원숭이 서커스"><span class="no">11</span>원숭이 서커스<span class="arrow">▶</span></a>
-        <a href="chuk/" data-icon="🦴" data-name="척추의 뼈해장국 가게"><span class="no">12</span>척추의 뼈해장국 가게<span class="arrow">▶</span></a>
-        <a href="omok/" data-icon="⚫⚪" data-name="온라인 오목 (2인 대결)"><span class="no">13</span>온라인 오목 (2인 대결)<span class="arrow">▶</span></a>
-        <a href="apple/" data-icon="🍎🍏" data-name="사과 뒤집기 대결 (2인)"><span class="no">14</span>사과 뒤집기 대결 (2인)<span class="arrow">▶</span></a>
-        <a href="carparking/" data-icon="🚗" data-name="국산차 파킹"><span class="no">15</span>국산차 파킹<span class="arrow">▶</span></a>
-        <a href="kart/" data-icon="🏎️" data-name="카트 레이서 (멀티)"><span class="no">16</span>카트 레이서 (멀티)<span class="arrow">▶</span></a>
-        <a href="blockworld/" data-icon="⛏️" data-name="블록 월드 (마크 인디브)"><span class="no">17</span>블록 월드 (마크 인디브)<span class="arrow">▶</span></a>
-      </nav>
+    <a class="stamp" id="stamp" href="#"><span><b>오늘의</b>추천<br>국밥</span></a>
 
-      <div class="side">
-        <div class="frame preview">
-          <div class="icon" id="icon"></div>
-          <div class="ptitle" id="ptitle"></div>
-          <a class="play" id="play" href="#">▶ PLAY</a>
-        </div>
-        <div class="frame credit"><span class="coin">🪙</span>CREDIT(S): 01</div>
-      </div>
-    </div>
+    <nav id="menu" aria-label="게임 메뉴"></nav>
 
-    <p class="foot">↑ ↓ 로 고르고 ENTER 로 시작</p>
-  </div>
+    <p class="order" id="order" aria-live="polite">이름을 눌러 주문하세요</p>
+    <footer class="foot">
+      <span>※ 모든 메뉴 무료 · 2인 대전은 짝꿍과 함께</span>
+      <span>↑ ↓ 로 고르고 ENTER 로 주문</span>
+    </footer>
+  </main>
 
 <script>
-  const items = [...document.querySelectorAll('#list a')];
-  const icon = document.getElementById('icon');
-  const ptitle = document.getElementById('ptitle');
-  const play = document.getElementById('play');
-  let cur = 0;
+  // [폴더, 아이콘, 이름, 등급(3 특선 / 2 별미 / 1 보통), 딱지, 딱지가 2인용 표시인지]
+  const GAMES = [
+    ['streetfighter', '👊',  '금산고 한남들의 싸움', 3, '인기'],
+    ['kart',          '🏎️', '카트 레이서',          3, '멀티', true],
+    ['blockworld',    '⛏️', '블록 월드',            3, '신메뉴'],
 
-  function select(i) {
-    cur = (i + items.length) % items.length;
-    items.forEach((a, n) => a.classList.toggle('on', n === cur));
-    const a = items[cur];
-    icon.textContent = a.dataset.icon;
-    ptitle.textContent = a.dataset.name;
-    play.href = a.getAttribute('href');
+    ['chuk',          '🦴',  '척추의 뼈해장국 가게', 2, '시그니처'],
+    ['mango',         '🥭',  '망고 파칭코',          2],
+    ['tetris',        '🧱',  '윤재 몸 테트리스',     2],
+    ['subway',        '🐷',  '스쿨 서퍼 3D',         2],
+    ['omok',          '⚫', '온라인 오목',          2, '2인', true],
+
+    ['knife',         '🔪',  '윤재 얼굴에 칼 꽂기',  1],
+    ['fruitninja',    '🗡️', '얼굴 닌자',            1],
+    ['doo',           '🐹',  '두더지 윤재 잡기',     1],
+    ['baseball',      '⚾',  '야구 게임',            1],
+    ['butadiet',      '🐷',  '부타 다이어트',        1],
+    ['circus',        '🐵',  '원숭이 서커스',        1],
+    ['carparking',    '🚗',  '국산차 파킹',          1],
+    ['ttt',           '❌', 'AI와 틱택토',          1],
+    ['apple',         '🍎', '사과 뒤집기 대결',     1, '2인', true],
+  ];
+  const TIERS = [
+    { n: 3, cls: 'top', han: '特', name: '특선', sub: '이 집의 자랑', stars: '★★★' },
+    { n: 2, cls: 'mid', han: '上', name: '별미', sub: '단골이 찾는 메뉴', stars: '★★' },
+    { n: 1, cls: 'low', han: '並', name: '보통', sub: '가볍게 한 그릇', stars: '★' },
+  ];
+
+  // 오늘의 추천: 날짜로 고정해서 하루 동안은 같은 게임이 나온다.
+  const d = new Date();
+  const today = GAMES[(d.getFullYear() * 372 + d.getMonth() * 31 + d.getDate()) % GAMES.length][0];
+
+  const item = ([id, icon, name, , tag, outline]) => {
+    const badge = id === today ? '<span class="b">오늘의 추천</span>'
+      : tag ? `<span class="b${outline ? ' o' : ''}">${tag}</span>` : '';
+    return `<a class="it" href="${id}/"><span class="ic">${icon}</span><span class="n">${name}</span>${badge}<span class="lead"></span><span class="p">무료</span></a>`;
+  };
+
+  document.getElementById('menu').innerHTML = TIERS.map(t => `
+    <section class="sec ${t.cls}">
+      <h2><span class="tag" aria-hidden="true">${t.han}</span>${t.name}<small>${t.sub}</small><i class="stars" aria-label="${t.stars.length}성" style="font-style:normal">${t.stars}</i></h2>
+      <div class="grp">${GAMES.filter(g => g[3] === t.n).map(item).join('')}</div>
+    </section>`).join('');
+
+  const links = [...document.querySelectorAll('.it')];
+  const order = document.getElementById('order');
+  const stamp = document.getElementById('stamp');
+  const todayGame = GAMES.find(g => g[0] === today);
+  stamp.href = today + '/';
+  stamp.setAttribute('aria-label', '오늘의 추천 국밥: ' + todayGame[2]);
+
+  // 주문 멘트를 잠깐 보여준 뒤 이동한다.
+  function orderTo(a, e) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    e.preventDefault();
+    const g = GAMES.find(g => a.getAttribute('href') === g[0] + '/');
+    order.textContent = `"${g[2]} 하나요~ 주문 들어갑니다!"`;
+    links.forEach(l => l.classList.toggle('picked', l === a));
+    setTimeout(() => { location.href = a.href; }, 450);
   }
-  items.forEach((a, n) => a.addEventListener('mouseenter', () => select(n)));
-  document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowDown') { select(cur + 1); e.preventDefault(); }
-    else if (e.key === 'ArrowUp') { select(cur - 1); e.preventDefault(); }
-    else if (e.key === 'Enter') { location.href = items[cur].getAttribute('href'); }
-  });
-  select(0);
+  links.forEach(a => a.addEventListener('click', e => orderTo(a, e)));
+  stamp.addEventListener('click', e => orderTo(links.find(l => l.getAttribute('href') === today + '/'), e));
 
-  const t0 = Date.now();
-  const timeEl = document.getElementById('time');
-  setInterval(() => {
-    timeEl.textContent = String(Math.floor((Date.now() - t0) / 1000) % 100).padStart(2, '0');
-  }, 500);
+  // 방향키로 메뉴 이동 (Enter 는 포커스된 링크의 기본 동작)
+  document.addEventListener('keydown', e => {
+    const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    const cur = links.indexOf(document.activeElement);
+    const i = cur < 0 ? (step > 0 ? -1 : 0) : cur;
+    links[(i + step + links.length) % links.length].focus();
+  });
+
+  // 숨은 기능: 제목을 1.2초 안에 3번 누르면 메뉴 테마가 바뀐다. 선택은 기억된다.
+  (function () {
+    let n = 0, t;
+    document.querySelector('h1').addEventListener('click', () => {
+      clearTimeout(t); t = setTimeout(() => { n = 0; }, 1200);
+      if (++n < 3) return;
+      try { localStorage.menuTheme = 'arcade'; } catch (e) {}
+      location.href = 'arcade-menu.html';
+    });
+  })();
 </script>
 </body>
 </html>
