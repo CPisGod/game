@@ -2467,6 +2467,77 @@ function updateDrops(dt) {
   }
 }
 
+/* ================= 1인칭 팔 / 손에 든 물건 (화면 오른쪽 아래) ================= */
+const hand = new THREE.Group(); camera.add(hand);
+const armPivot = new THREE.Group(); hand.add(armPivot);
+const held = new THREE.Group(); held.position.set(0, 0.02, -0.4); armPivot.add(held);
+const handMats = [];
+const hmat = o => { // 벽에 가려지지 않는 단순 재질. 밝기는 handShade로 조절
+  const m = new THREE.MeshBasicMaterial(Object.assign({ depthTest: false, depthWrite: false, fog: false }, o));
+  m.userData.base = new THREE.Color(o.color === undefined ? 0xffffff : o.color); handMats.push(m); return m;
+};
+{
+  const sideM = hmat({ color: 0xc68e6b }), topM = hmat({ color: 0xdba885 }), botM = hmat({ color: 0x9d6d50 }), endM = hmat({ color: 0xb87f5e });
+  const slS = hmat({ color: 0x2a9690 }), slT = hmat({ color: 0x36b0a9 }), slB = hmat({ color: 0x1f716d });
+  const skin = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.4), [sideM, sideM, topM, botM, endM, endM]); skin.position.z = -0.2;
+  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.36), [slS, slS, slT, slB, slS, slS]); sleeve.position.z = 0.18;
+  armPivot.add(skin, sleeve);
+}
+const tileTexCache = new Map();
+function tileTex(t) {
+  let tx = tileTexCache.get(t);
+  if (!tx) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 16;
+    cv.getContext('2d').drawImage(atlas, t * TS, 0, TS, TS, 0, 0, 16, 16);
+    tx = new THREE.CanvasTexture(cv); tx.magFilter = tx.minFilter = THREE.NearestFilter; tx.generateMipmaps = false; tx.colorSpace = THREE.SRGBColorSpace;
+    tileTexCache.set(t, tx);
+  }
+  return tx;
+}
+const heldCache = new Map();
+function heldModel(id) {
+  let g = heldCache.get(id);
+  if (g) return g;
+  g = new THREE.Group();
+  const B = BLK[id];
+  if (B && !B.shape && !B.trans) { // 통블록: 작은 정육면체
+    const mats = [B.t[1], B.t[1], B.t[0], B.t[2], B.t[1], B.t[1]].map(t => hmat({ map: tileTex(t) }));
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.26), mats); c.rotation.set(0.3, 0.75, 0); c.position.set(0, 0.07, -0.02); g.add(c);
+  } else { // 아이템 / 횃불 / 식물 / 반블록 등은 아이콘 판
+    const cv = document.createElement('canvas'); cv.width = cv.height = 16; drawIcon(cv, id);
+    const t = new THREE.CanvasTexture(cv); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.colorSpace = THREE.SRGBColorSpace;
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), hmat({ map: t, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide }));
+    p.rotation.set(-0.15, 0.3, -0.35); p.position.set(0, 0.16, -0.02); g.add(p);
+  }
+  g.traverse(o => { o.renderOrder = 1001; o.frustumCulled = false; });
+  heldCache.set(id, g); return g;
+}
+armPivot.traverse(o => { o.renderOrder = 1000; o.frustumCulled = false; });
+let swingT = 0, handDip = 0, handId = -1, handBob = 0, handShade = 1;
+const swingHand = () => { if (swingT <= 0) swingT = 0.001; };
+function updateHand(dt) {
+  hand.visible = ready;
+  const id = hotbar[sel] || 0;
+  if (id !== handId) { handDip += dt * 9; if (handDip >= 1) { handDip = 1; held.clear(); if (id) held.add(heldModel(id)); handId = id; } }
+  else handDip = Math.max(0, handDip - dt * 9);
+  const busy = (mouse[0] || touchIn.brk) && !paused && (target || mobHit);
+  if (busy) swingHand();
+  if (swingT > 0) { swingT += dt * 3.6; if (swingT >= 1) swingT = busy ? 0.001 : 0; }
+  const hv = player.onGround ? Math.min(1, Math.hypot(player.vx, player.vz) / 4.4) : 0;
+  handBob += dt * hv * 9;
+  const k = Math.sin(swingT * Math.PI), k2 = Math.sin(Math.sqrt(swingT) * Math.PI);
+  const eating = eatCd > 0.05 && held.children.length && ITEM[id] && ITEM[id].k === 'food';
+  armPivot.position.set(0.27 - k2 * 0.08 + Math.cos(handBob) * 0.012 * hv, -0.3 - handDip * 0.5 + Math.abs(Math.sin(handBob)) * 0.02 * hv - k * 0.05 + (eating ? 0.16 : 0), -0.5 - k2 * 0.1 + (eating ? 0.1 : 0));
+  armPivot.rotation.set(0.25 - k * 0.85 + (eating ? 0.5 + Math.sin(performance.now() / 55) * 0.06 : 0), 0.5 + k2 * 0.3, -0.12 - k * 0.15);
+  // 밝기: 햇빛(낮/밤), 지붕 아래, 횃불 곁
+  const fx = Math.floor(player.x), fz = Math.floor(player.z);
+  let lit = player.y + 1.6 >= skyTop(fx, fz) ? Math.max(0.3, daylight) : 0.3;
+  if (nearGlow(fx, Math.floor(player.y + 1), fz, 7)) lit = Math.max(lit, 0.95);
+  handShade += (lit - handShade) * Math.min(1, dt * 4);
+  const s = 0.38 + 0.62 * handShade;
+  for (const m of handMats) m.color.copy(m.userData.base).multiplyScalar(s);
+}
+
 /* ================= 몹 (서브웨이 3D 캐릭터 이식) ================= */
 const mobs = [], projs = [];
 const geoCache = new Map();
@@ -3801,6 +3872,7 @@ function placeWall(id) {
 // 우클릭: 상호작용 / 음식 = 먹기 / 문 / 블록 = 설치
 function doPlace() {
   placeCd = 0.25;
+  if (target) swingHand();
   const sneak = keys.ShiftLeft || keys.ShiftRight;
   if (target && !(sneak && !player.fly && BLK[hotbar[sel]]) && interact(target)) return;
   const it = ITEM[hotbar[sel]];
@@ -4579,6 +4651,7 @@ function frame(now) {
     if ((mouse[2] || touchIn.plc) && placeCd <= 0) doPlace();
   }
   updateSky();
+  updateHand(dt);
 
   miniT -= dt;
   if (miniT <= 0 && miniOn && ready && !paused) { miniT = 0.5; drawMini(); }
@@ -4595,7 +4668,7 @@ let startTerrain = 'flat';
 try { const m = JSON.parse(localStorage.getItem('blockworld_meta')); if (m && m.terrain === 'hills') startTerrain = 'hills'; } catch (e) {}
 loadWorld(startTerrain);
 requestAnimationFrame(frame);
-window.__bw = { useTool, dur, chests, chestOf, openChest, fluidQ, fallers, biomeAt, dungeonAt, hutAt, surfAt, giveXp, equipArmor, ench, growers, structSpawners, structChests, get armor() { return armor; }, get xp() { return [xpLvl, xpPts]; }, net, myNickSet(n) { myNick = n; }, createRoom, joinRoom, leaveMulti, openChat, sendChat, applyMobState, mobStateList, attackMob, renderer, scene, camera, matO, uDay, get hotbar() { return hotbar; }, set sel(v) { sel = v; refreshHotbar(); }, get food() { return food; }, set food(v) { food = v; refreshHearts(); }, drops, spawnDrop, giveItem, heldTool, breakTime, RECIPES, drawMini, glows, projs, mine, mouse, player, getBlock, setBlock, chunks, mobs, spawnMob, hurtPlayer, loadWorld, snapshot, save,
+window.__bw = { swingHand, get swingT() { return swingT; }, set swingT(v) { swingT = v; }, hand, armPivot, useTool, dur, chests, chestOf, openChest, fluidQ, fallers, biomeAt, dungeonAt, hutAt, surfAt, giveXp, equipArmor, ench, growers, structSpawners, structChests, get armor() { return armor; }, get xp() { return [xpLvl, xpPts]; }, net, myNickSet(n) { myNick = n; }, createRoom, joinRoom, leaveMulti, openChat, sendChat, applyMobState, mobStateList, attackMob, renderer, scene, camera, matO, uDay, get hotbar() { return hotbar; }, set sel(v) { sel = v; refreshHotbar(); }, get food() { return food; }, set food(v) { food = v; refreshHearts(); }, drops, spawnDrop, giveItem, heldTool, breakTime, RECIPES, drawMini, glows, projs, mine, mouse, player, getBlock, setBlock, chunks, mobs, spawnMob, hurtPlayer, loadWorld, snapshot, save,
   get target() { return target; }, get gm() { return gm; }, set gm(v) { gm = v; refreshHotbar(); refreshHearts(); },
   get inv() { return inv; }, get terrain() { return terrain; }, set tod(v) { tod = v; }, get daylight() { return daylight; }, get hp() { return hp; }, get paused() { return paused; }, set paused(v) { paused = v; }, toggleFly };
 </script>
