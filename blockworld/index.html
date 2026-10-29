@@ -60,9 +60,11 @@
   #mini { position: fixed; left: 10px; top: 66px; width: 128px; height: 128px; border: 2px solid #000; image-rendering: pixelated; z-index: 6; opacity: .93; pointer-events: none; background: #000; }
   body.touch #mini { top: 66px; width: 96px; height: 96px; }
   #hearts .e { color: #444; opacity: .45; }
-  #inv .panel { max-width: min(98vw, 780px); max-height: 86vh; }
-  .invbody { display: flex; gap: 12px; align-items: flex-start; justify-content: center; flex-wrap: wrap; text-align: left; }
-  .invleft { flex: 1 1 320px; min-width: 0; }
+  #inv .panel { max-width: min(98vw, 780px); max-height: calc(100vh - 96px); }
+  body.touch #inv, body.touch #fur { padding-top: 44px; }
+  body.touch #inv .panel, body.touch #fur .panel { max-height: calc(100vh - 140px); }
+  .invbody { display: flex; gap: 12px; align-items: flex-start; justify-content: center; flex-wrap: wrap; text-align: left; width: min(92vw, 740px); }
+  .invleft { flex: 1 1 300px; min-width: 0; }
   #craft { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px; padding: 8px; background: #b5b5b5; border: 3px solid #666; }
   .cgrid { display: grid; gap: 3px; }
   .cc { position: relative; width: 50px; height: 50px; background: #8b8b8b; border: 3px solid #555; cursor: pointer; }
@@ -89,9 +91,14 @@
   .rrow .mini canvas { width: 16px; height: 16px; image-rendering: pixelated; }
   .rrow .mini i { width: 16px; height: 16px; display: block; }
   .rrow small { color: #a33; font-size: 10px; }
+  @media (max-height: 480px) {
+    .cc { width: 38px; height: 38px; } .cres { width: 46px; height: 46px; } #craft { padding: 4px; margin-bottom: 4px; gap: 8px; }
+    #invGrid { grid-template-columns: repeat(auto-fill, 42px); } #invGrid .cell, #furGrid .cell { width: 42px; height: 42px; }
+    #inv h2, #fur h2 { font-size: 15px; margin-bottom: 4px; } #book { max-height: 40vh; } #inv .hint { display: none; }
+  }
   #fur { position: fixed; inset: 0; z-index: 15; display: none; align-items: center; justify-content: center; background: #0007; padding-bottom: 80px; }
   #fur.show { display: flex; }
-  #fur .panel { background: #c6c6c6; border: 4px solid #333; padding: 12px 14px; max-width: min(96vw, 480px); max-height: 82vh; overflow: auto; color: #222; text-align: center; }
+  #fur .panel { background: #c6c6c6; border: 4px solid #333; padding: 12px 14px; max-width: min(96vw, 480px); max-height: calc(100vh - 96px); overflow: auto; color: #222; text-align: center; }
   #fur h2 { margin: 0 0 8px; font-size: 18px; }
   #fur .close { margin-top: 8px; padding: 6px 18px; font: 700 14px sans-serif; cursor: pointer; }
   #fur .hint { margin: 8px 0 0; font-size: 12px; color: #444; }
@@ -145,7 +152,8 @@
   #bInv { right: 12px; top: 54px; width: 44px; height: 44px; font-size: 20px; }
   body.touch #hotbar { bottom: 6px; gap: 3px; padding: 3px; }
   body.touch .slot { width: min(40px, calc((100vw - 48px) / 9 - 6px)); height: min(40px, calc((100vw - 48px) / 9 - 6px)); border-width: 2px; }
-  body.touch #hearts { bottom: 56px; font-size: 14px; }
+  body.touch #hearts { bottom: 56px; font-size: 13px; width: max-content; white-space: nowrap; letter-spacing: 0; }
+  body.touch #bChat { right: 62px; top: 54px; }
   body.touch #toast { bottom: 76px; }
   body.touch #joy { bottom: 64px; }
   body.touch #bJump { bottom: 190px; }
@@ -212,7 +220,7 @@
   <h1>⛏️ 블록 월드</h1>
   <p>
     <b>WASD</b> 이동 · <b>마우스</b> 시점 · <b>Space</b> 점프(크리에이티브: <b>두 번</b> 눌러 비행, <b>Shift</b> 하강)<br>
-    <b>좌클릭</b> 부수기/공격 · <b>우클릭</b> 설치 · <b>1~9 / 휠</b> 블록 선택 · <b>E</b> 인벤토리/제작 · <b>M</b> 미니맵 · <b>ESC</b> 일시정지<br>우클릭: 음식 먹기 · 밤에 침대 = 잠자기<br>
+    <b>좌클릭</b> 부수기/공격 · <b>우클릭</b> 설치 · <b>1~9 / 휠</b> 블록 선택 · <b>E</b> 인벤토리/제작 · <b>M</b> 미니맵 · <b>ESC</b> 일시정지<br>우클릭: 음식 먹기 · 문 열기/닫기 · 작업대(3×3 조합) · 화로(고기·광석 굽기) · 밤에 침대 = 잠자기<br>
     <span id="touchHelp" style="display:none">📱 왼쪽 조이스틱 이동 · 화면 드래그 시점 · 점프 버튼 두 번 = 비행</span>
   </p>
   <div class="opts">
@@ -717,7 +725,7 @@ function chunkHM(c) {
     for (let lz = 0; lz < CS; lz++) for (let lx = 0; lx < CS; lx++) {
       for (let y = Math.min(c.maxY, TOPY); y >= MINY; y--) {
         const b = c.data[idx(lx, y, lz)];
-        if (b && !TRANS[b] && b !== LEAVES) { hm[lz * CS + lx] = y; break; }
+        if (b && !TRANS[b] && b !== LEAVES && !(PART[b] && BLK[b].shape === 'door')) { hm[lz * CS + lx] = y; break; }
       }
     }
     c.hm = hm;
@@ -1388,7 +1396,7 @@ function slotEl(c, sel, onClick, onX) {
 function renderCraft() {
   const n = craftN;
   craftEl.innerHTML = '';
-  const g = document.createElement('div'); g.className = 'cgrid'; g.style.gridTemplateColumns = `repeat(${n}, 50px)`;
+  const g = document.createElement('div'); g.className = 'cgrid'; g.style.gridTemplateColumns = `repeat(${n}, max-content)`;
   for (let i = 0; i < n * n; i++) g.append(slotEl(grid[i], i === gridSel, () => { gridSel = i; renderCraft(); }, () => { takeCell(i); buildInv(); }));
   const arrow = document.createElement('div'); arrow.className = 'arrow'; arrow.textContent = '➜';
   const R = matchRecipe();
