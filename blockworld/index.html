@@ -1384,6 +1384,12 @@ function buildChuk() {
     }
     h.secondary.push({ node:ribbon, axis:'x', amplitude:.08, speed:4.1, phase:i*.9, base:0 });
   });
+  // 오른손에 던질 뼈다귀를 쥐고 있다 (던지는 순간 사라졌다가 다시 나타난다)
+  h.arms[1].carry = .6;
+  const bone = spriteGroup(h.arms[1].hand, '던질 뼈다귀', .02, -.04, -.12);
+  spriteBox(bone, P.light, 0, 0, -.08, .06, .06, .42, '뼈 몸통');
+  for (const z of [-.29, .13]) for (const x of [-.04, .04]) spriteBox(bone, P.base, x, 0, z, .075, .085, .075, '뼈 마디');
+  h.prop = bone;
   return finishSprite(h);
 }
 
@@ -1443,6 +1449,7 @@ function buildMonkey() {
   spriteBox(banana,0xb88b07,.25,-.40,.005,.035,.19,.155,'바나나 바깥 면');
   spriteBox(arm.hand,P.face,-.005,-.02,-.142,.14,.075,.065,'바나나를 쥔 손가락');
   h.secondary.push({node:banana,axis:'z',amplitude:.045,speed:3.2,phase:.4,base:-.06});
+  h.prop = banana;
   return finishSprite(h);
 }
 
@@ -1718,7 +1725,8 @@ function spawnProj(kind, ox, oy, oz, vx, vy, vz) {
 }
 function fireProj(m, kind, tp) {
   const P = PROJ[kind], d = MOB[m.type];
-  const ox = m.x + Math.sin(m.yaw) * 0.4, oy = m.y + d.h * 0.8, oz = m.z + Math.cos(m.yaw) * 0.4;
+  let ox = m.x + Math.sin(m.yaw) * 0.4, oy = m.y + d.h * 0.8, oz = m.z + Math.cos(m.yaw) * 0.4;
+  if (isSolid(Math.floor(ox), Math.floor(oy), Math.floor(oz))) { ox = m.x; oz = m.z; } // 벽에 붙어 있으면 몸 중심에서 발사
   const tx = tp.x - ox, ty = tp.y + 1.1 - oy, tz = tp.z - oz;
   const dist = Math.hypot(tx, tz) || 1, t = dist / P.speed;
   const vy = (ty + 0.5 * P.g * t * t) / t, vx = tx / dist * P.speed, vz = tz / dist * P.speed;
@@ -1769,7 +1777,10 @@ function updateMobs(dt) {
       m.armUp = 1 - m.wind / m.windMax; m.crouch = d.style === 'slam' ? m.armUp : 0;
       if (m.wind <= 0) {
         m.crouch = 0; m.armUp = 0;
-        if (d.style === 'ranged') { fireProj(m, d.proj, tp); m.cd = d.cd * (0.85 + Math.random() * 0.3); m.rec = 0.35; }
+        if (d.style === 'ranged') {
+          fireProj(m, d.proj, tp); m.cd = d.cd * (0.85 + Math.random() * 0.3); m.rec = 0.35;
+          if (m.rig.prop) { m.rig.prop.visible = false; m.propT = Math.min(1.1, m.cd * 0.6); }
+        }
         else if (d.style === 'melee') {
           m.rec = 0.35; m.cd = d.cd; noise(900, 0.8, 0.12, 0.35);
           if (dist < d.reach + 0.5 && Math.abs(tp.y - m.y) < 1.8) hurtAt(tp, 3, nx * 7, nz * 7, 4.5, 0);
@@ -1896,6 +1907,7 @@ function animMob(m, dt, moving) {
   m.nextBlink -= dt; if (m.nextBlink < 0) { m.blink = 0.14; m.nextBlink = 1.8 + Math.random() * 2.4; }
   m.blink = Math.max(0, m.blink - dt);
   const bl = m.blink > 0 ? 0.1 : 1; h.eyes.forEach(e => { e.scale.y = bl; });
+  if (m.propT > 0) { m.propT -= dt; if (m.propT <= 0 && h.prop) h.prop.visible = true; }
   m.hurt = Math.max(0, m.hurt - dt);
   m.g.position.set(m.x, m.y, m.z); m.g.rotation.y = m.yaw + Math.PI;
   m.g.scale.setScalar(1 + m.hurt * 0.4);
@@ -2717,6 +2729,7 @@ function frame(now) {
   if (isGuest() && ready) updateRemoteMobs(dt);
   if (net.online) netFrame(dt);
   if (ready && collides(player.x, player.y, player.z)) { for (let i = 0; i < 4 && collides(player.x, player.y, player.z); i++) player.y += 1; } // 다른 사람이 놓은 블록에 끼었을 때
+  if (ready && !paused) updateProjs(dt);
   updateParts(dt);
   camera.position.set(player.x, player.y + EYE, player.z);
   camera.rotation.set(player.pitch, player.yaw, 0);
