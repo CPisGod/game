@@ -171,6 +171,19 @@
   #chest .cell { position: relative; aspect-ratio: 1; min-width: 36px; max-width: 52px; background: #8b8b8b; border: 3px solid #555; cursor: pointer; box-sizing: border-box; }
   #chest .cell:hover { border-color: #fff; background: #aaa; }
   #chest .cell canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; pointer-events: none; }
+  #ench { position: fixed; inset: 0; z-index: 15; display: none; align-items: center; justify-content: center; background: #0007; padding-bottom: 80px; }
+  #ench.show { display: flex; }
+  #ench .panel { background: #c6c6c6; border: 4px solid #333; padding: 12px 16px; width: min(94vw, 440px); max-height: calc(100vh - 96px); overflow: auto; color: #222; text-align: center; }
+  #ench h2 { margin: 0 0 8px; font-size: 18px; }
+  #ench .close { margin-top: 10px; padding: 6px 18px; font: 700 14px sans-serif; cursor: pointer; }
+  #ench .hint { margin: 8px 0 0; font-size: 12px; color: #444; }
+  #enchBody .tool { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px; background: #b5b5b5; border: 3px solid #666; font-weight: 700; }
+  #enchBody .tool canvas { width: 40px; height: 40px; image-rendering: pixelated; }
+  #enchBody .row { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 6px 8px; background: #d8d8d8; border: 2px solid #777; text-align: left; }
+  #enchBody .row .nm { flex: 1; font-size: 14px; } #enchBody .row small { display: block; font-weight: 400; color: #555; font-size: 11px; }
+  #enchBody .row .lv { font: 700 13px monospace; color: #6a2ac8; letter-spacing: 1px; }
+  #enchBody .row button { padding: 5px 10px; font: 700 12px sans-serif; cursor: pointer; }
+  #enchBody .row button:disabled { cursor: default; opacity: .5; }
   #chest .cell .c { position: absolute; right: 2px; bottom: 0; font: 700 12px monospace; color: #fff; text-shadow: 1px 1px 0 #000; pointer-events: none; }
   #chatLog { position: fixed; left: 10px; bottom: 112px; width: min(46vw, 360px); z-index: 6; pointer-events: none; font: 13px/1.4 sans-serif; color: #fff; text-shadow: 1px 1px 0 #000; }
   #chatLog .cl { background: #0006; padding: 1px 6px; margin-top: 2px; word-break: break-all; }
@@ -279,6 +292,13 @@
   <div id="chestInv"></div>
   <p class="hint" id="chestHint"></p>
   <button class="close" id="chestClose">닫기 (E)</button>
+</div></div>
+
+<div id="ench"><div class="panel">
+  <h2>✨ 마법 부여대</h2>
+  <div id="enchBody"></div>
+  <p class="hint" id="enchHint"></p>
+  <button class="close" id="enchClose">닫기 (E)</button>
 </div></div>
 
 <div id="touch">
@@ -1158,6 +1178,7 @@ function tickWorld(dt) {
     for (const k of batch) { const p = k.split(','); startFall(+p[0], +p[1], +p[2]); }
   }
   if (fallers.length) updateFallers(dt);
+  tickSpawners(dt);
   if (dirtyChunks.size) { for (const c of dirtyChunks) if (c.meshes !== null) buildChunk(c); dirtyChunks.clear(); }
 }
 function rebuildIfLoaded(cx, cz) { const c = chunks.get(cx + ',' + cz); if (c && c.meshes !== null) buildChunk(c); }
@@ -1473,6 +1494,8 @@ const sfx = {
   eat() { for (let i = 0; i < 3; i++) setTimeout(() => noise(1200, 1, 0.07, 0.35), i * 110); },
   wake() { [523, 659, 784].forEach((f, i) => setTimeout(() => tone(f, f, 0.18, 0.2, 'sine'), i * 140)); },
   pop() { noise(900, 0.8, 0.2, 0.45); tone(400, 120, 0.15, 0.25, 'sine'); },
+  hiss() { noise(5200, 0.8, 0.9, 0.35, 'highpass'); },
+  boom() { noise(160, 0.6, 0.8, 0.9, 'lowpass'); noise(900, 0.7, 0.4, 0.5); tone(90, 30, 0.6, 0.5, 'sawtooth'); },
   xp() { tone(900 + Math.random() * 300, 1500, 0.07, 0.12, 'sine'); },
   levelUp() { [660, 880, 1100].forEach((f, i) => setTimeout(() => tone(f, f * 1.01, 0.14, 0.22, 'sine'), i * 90)); },
   toolBreak() { noise(2400, 1.2, 0.18, 0.5); tone(700, 180, 0.22, 0.3, 'square'); },
@@ -1805,7 +1828,8 @@ function setDurBar(bar, id) {
 function select(i, quiet) {
   sel = (i + hotbar.length) % hotbar.length;
   refreshHotbar();
-  if (!quiet && hotbar[sel]) showToast(nameOf(hotbar[sel]));
+  if (!quiet && hotbar[sel]) showToast(nameOf(hotbar[sel]) + enchTag(hotbar[sel]));
+  if (curEnch) renderEnch();
 }
 /* ---- 경험치: 광석·몹에서 얻고, 레벨은 마법 부여대에서 쓴다 ---- */
 const xpEl = document.getElementById('xp'), xpFill = document.getElementById('xpFill'), xpNumEl = document.getElementById('xpNum');
@@ -2268,6 +2292,48 @@ function openFurnace(x, y, z) {
   invOpen = true; paused = true; invEl.classList.remove('show'); furEl.classList.add('show');
   if (!isTouch && document.pointerLockElement) document.exitPointerLock();
   renderFur();
+}
+
+/* ---- 마법 부여대: 경험치 레벨을 써서 손에 든 도구를 강화한다 (효율 / 내구성 / 날카로움, 각 3단계) ---- */
+const enchEl = document.getElementById('ench'), enchBody = document.getElementById('enchBody'), enchHint = document.getElementById('enchHint');
+let curEnch = false;
+const ENCH_OPTS = [
+  ['e', '효율', '더 빨리 캔다 (곡괭이·도끼·삽)', it => it.tt === 'pick' || it.tt === 'axe' || it.tt === 'shovel'],
+  ['u', '내구성', '도구가 덜 닳는다', () => true],
+  ['s', '날카로움', '더 강하게 벤다 (칼)', it => it.tt === 'sword'],
+];
+const enchTag = id => { const en = ench[id]; return en && (en.e || en.u || en.s) ? ' ✨' : ''; };
+function renderEnch() {
+  const id = hotbar[sel], it = ITEM[id];
+  enchBody.innerHTML = '';
+  const ok = it && it.k === 'tool' && (gm === 'creative' || (inv[id] || 0) > 0);
+  enchHint.textContent = (gm === 'survival' ? `내 경험치 레벨: ${xpLvl} — ` : '') + (ok ? '단계가 오를수록 더 많은 레벨이 필요해요.' : '핫바에서 강화할 도구를 고르세요 (1~9).');
+  if (!ok) return;
+  const t = document.createElement('div'); t.className = 'tool'; t.append(iconCv(id)); t.append(document.createTextNode(nameOf(id) + enchTag(id)));
+  enchBody.append(t);
+  const en = ench[id] || { e: 0, u: 0, s: 0 };
+  for (const [key, name, desc, can] of ENCH_OPTS) {
+    if (!can(it)) continue;
+    const lv = en[key], cost = lv + 1;
+    const row = document.createElement('div'); row.className = 'row';
+    row.innerHTML = `<div class="nm">${name}<small>${desc}</small></div><div class="lv">${'■'.repeat(lv)}${'□'.repeat(3 - lv)}</div>`;
+    const btn = document.createElement('button');
+    btn.textContent = lv >= 3 ? '최대' : gm === 'survival' ? `${cost}레벨` : '부여';
+    btn.disabled = lv >= 3 || (gm === 'survival' && xpLvl < cost);
+    btn.addEventListener('click', () => {
+      if (gm === 'survival') { if (xpLvl < cost) return; xpLvl -= cost; xpPts = 0; refreshXp(); }
+      ench[id] = ench[id] || { e: 0, u: 0, s: 0 }; ench[id][key]++;
+      sfx.levelUp(); showToast(`${nameOf(id)} — ${name} ${ench[id][key]}단계`, 1400); renderEnch(); save();
+    });
+    row.append(btn); enchBody.append(row);
+  }
+}
+function openEnch() {
+  if (paused && !invOpen) return;
+  curEnch = true; curFur = null; curChest = null;
+  invOpen = true; paused = true; invEl.classList.remove('show'); furEl.classList.remove('show'); chestEl.classList.remove('show'); enchEl.classList.add('show');
+  if (!isTouch && document.pointerLockElement) document.exitPointerLock();
+  renderEnch();
 }
 
 /* ---- 상자: 27칸, 한 칸에 64개까지 ---- */
@@ -2998,6 +3064,47 @@ function buildChicken() {
   return finishSprite(h);
 }
 
+// ───────────────────────── 크리퍼 / 해골 궁수 (마크 풍) ─────────────────────────
+function flashBox(parent, x, y, z, w, h, d) {
+  const m = new THREE.Mesh(bgeo(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false }));
+  m.position.set(x, y, z); m.scale.set(w, h, d); parent.add(m); return m;
+}
+function buildCreeper() {
+  const P = { g: 0x4aa83a, gd: 0x2e7a28, gl: 0x66c250, ink: 0x101410 };
+  const h = makeSpriteRig('크리퍼', { headY: 2.0, hipX: 0.19 });
+  const { head, torso } = h;
+  spriteBox(torso, P.g, 0, 1.2, 0, 0.62, 0.92, 0.4, '몸통');
+  for (const [x, y, z] of [[-0.18, 1.0, -0.205], [0.15, 1.35, -0.205], [0.05, 0.9, -0.205], [-0.12, 1.5, 0.205], [0.2, 1.1, 0.205]]) spriteBox(torso, P.gd, x, y, z, 0.16, 0.14, 0.02, '무늬');
+  spriteBox(head, P.g, 0, 0, 0, 0.66, 0.66, 0.66, '머리');
+  for (const [x, y, z] of [[-0.2, 0.2, -0.335], [0.22, -0.22, -0.335], [0.1, 0.27, -0.335], [-0.25, -0.1, 0.335]]) spriteBox(head, P.gd, x, y, z, 0.15, 0.13, 0.02, '무늬');
+  for (const s of [-1, 1]) spriteBox(head, P.ink, s * 0.15, 0.1, -0.338, 0.15, 0.15, 0.02, '눈');
+  spriteBox(head, P.ink, 0, -0.1, -0.338, 0.14, 0.12, 0.02, '입'); spriteBox(head, P.ink, 0, -0.2, -0.338, 0.22, 0.14, 0.02, '입 아래');
+  spriteBox(head, P.ink, -0.09, -0.27, -0.338, 0.07, 0.1, 0.02, '입'); spriteBox(head, P.ink, 0.09, -0.27, -0.338, 0.07, 0.1, 0.02, '입');
+  h.legs.forEach(({ hip, s }) => { spriteBox(hip, P.g, 0, -0.37, 0, 0.3, 0.74, 0.66, '다리'); spriteBox(hip, P.gd, s * 0.12, -0.2, -0.335, 0.08, 0.2, 0.02, '무늬'); });
+  // 터지기 직전에 하얗게 깜빡이는 덮개
+  h.flash = [flashBox(head, 0, 0, 0, 0.7, 0.7, 0.7), flashBox(torso, 0, 1.2, 0, 0.66, 0.96, 0.44)];
+  h.legs.forEach(({ hip }) => h.flash.push(flashBox(hip, 0, -0.37, 0, 0.34, 0.78, 0.7)));
+  h.flash.forEach(f => { f.visible = false; });
+  return finishSprite(h);
+}
+function buildSkeleton() {
+  const P = { bone: 0xdcdccf, boneD: 0xaeae9e, ink: 0x1a1a1a, bow: 0x7a5230 };
+  const h = makeSpriteRig('해골 궁수', { shoulder: 0.38, shoulderY: 1.49, headY: 2.02 });
+  const { head, torso } = h;
+  spriteBox(torso, P.boneD, 0, 1.2, 0.04, 0.1, 0.8, 0.12, '척추');
+  for (const y of [0.85, 1.0, 1.15, 1.3, 1.45]) spriteBox(torso, P.bone, 0, y, -0.03, 0.5, 0.07, 0.24, '갈비뼈');
+  spriteBox(torso, P.bone, 0, 0.74, 0.02, 0.4, 0.1, 0.2, '골반');
+  spriteBox(head, P.bone, 0, 0, 0, 0.52, 0.52, 0.52, '머리뼈');
+  spriteBox(head, P.boneD, 0, -0.2, -0.27, 0.34, 0.08, 0.02, '이빨');
+  for (const s of [-1, 1]) { const e = spriteGroup(head, '눈구멍', s * 0.13, 0.06, -0.27); spriteBox(e, P.ink, 0, 0, 0, 0.14, 0.14, 0.02); h.eyes.push(e); }
+  spriteLimbs(h, { arm: P.bone, armShade: P.boneD, hand: P.bone, handShade: P.boneD, leg: P.bone, legShade: P.boneD, shoe: P.bone, sole: P.boneD }, { arm: 0.11, leg: 0.12, shoe: 0.16 });
+  const arm = h.arms[1]; arm.carry = 0.7;
+  const bow = spriteGroup(arm.hand, '활', 0, -0.02, -0.12);
+  spriteBox(bow, P.bow, 0, 0.2, -0.04, 0.05, 0.22, 0.05); spriteBox(bow, P.bow, 0, 0, 0, 0.05, 0.2, 0.06); spriteBox(bow, P.bow, 0, -0.2, -0.04, 0.05, 0.22, 0.05);
+  spriteBox(bow, 0xdddddd, 0, 0, 0.05, 0.015, 0.62, 0.015, '시위');
+  return finishSprite(h);
+}
+
 // 스트리트파이터 성격: 근접(부타 깔아뭉개기 / 제빵사 바게트) · 원거리(척추 / 원숭이 / 청사과나무)
 const MOB = {
   buta:   { n: '부타',       build: buildButa,   hw: 0.38, h: 1.8,  hp: 18, speed: 3.4, style: 'slam',   cd: 3.4, col: 0xee9ab3 },
@@ -3009,6 +3116,8 @@ const MOB = {
   sheep:   { n: '양',   build: buildSheep,   hw: 0.42, h: 1.3,  hp: 10, speed: 1.4, animal: 1, scale: 1, col: 0xf4f4ee },
   chicken: { n: '닭',   build: buildChicken, hw: 0.22, h: 0.75, hp: 4,  speed: 1.7, animal: 1, scale: 1, col: 0xf6f5f0 },
   baker:  { n: '제빵사',     build: buildBaker,  hw: 0.34, h: 1.85, hp: 15, speed: 3.2, style: 'melee',  cd: 1.2, reach: 2.7,        col: 0xffffff },
+  creeper:  { n: '크리퍼',     build: buildCreeper,  hw: 0.3, h: 1.7, hp: 16, speed: 2.9, style: 'creeper', col: 0x4aa83a },
+  skeleton: { n: '해골 궁수', build: buildSkeleton, hw: 0.3, h: 1.8, hp: 14, speed: 3.1, style: 'ranged', cd: 2.0, band: [6, 12], proj: 'arrow', col: 0xdcdccf },
 };
 const MOB_TYPES = Object.keys(MOB).filter(k => !MOB[k].animal), ANIMAL_TYPES = Object.keys(MOB).filter(k => MOB[k].animal);
 const MOB_SCALE = 0.72;
@@ -3107,6 +3216,7 @@ const PROJ = {
   bone:   { speed: 15, g: 0,  dmg: 4, col: 0xf2efd0, size: [0.12, 0.12, 0.55], slow: 0 },
   banana: { speed: 10, g: 12, dmg: 2, col: 0xf2d33a, size: [0.16, 0.16, 0.42], slow: 2.5 },
   apple:  { speed: 12, g: 2,  dmg: 3, col: 0xb5eb47, size: [0.26, 0.26, 0.26], slow: 0 },
+  arrow:  { speed: 24, g: 3,  dmg: 3, col: 0xd8d0b0, size: [0.06, 0.06, 0.8], slow: 0 },
 };
 function spawnProj(kind, ox, oy, oz, vx, vy, vz) {
   const P = PROJ[kind]; if (!P) return;
@@ -3114,6 +3224,7 @@ function spawnProj(kind, ox, oy, oz, vx, vy, vz) {
   const body = new THREE.Mesh(bgeo(...P.size), partMat(P.col)); mesh.add(body);
   if (kind === 'bone') for (const s of [-1, 1]) for (const k of [-1, 1]) { const kn = new THREE.Mesh(bgeo(0.1, 0.1, 0.1), partMat(P.col)); kn.position.set(k * 0.07, 0, s * 0.28); mesh.add(kn); }
   if (kind === 'apple') { const c = new THREE.Mesh(bgeo(0.1, 0.34, 0.1), partMat(P.col)); mesh.add(c); }
+  if (kind === 'arrow') { const tip = new THREE.Mesh(bgeo(0.12, 0.12, 0.14), partMat(0x8a8a8a)); tip.position.z = 0.42; mesh.add(tip); const fl = new THREE.Mesh(bgeo(0.16, 0.02, 0.2), partMat(0xf4f4f4)); fl.position.z = -0.36; mesh.add(fl); }
   mesh.position.set(ox, oy, oz); scene.add(mesh);
   projs.push({ kind, mesh, x: ox, y: oy, z: oz, vx, vy, vz, life: 4, spin: Math.random() * 6 });
   tone(500, 900, 0.12, 0.2, 'triangle');
@@ -3201,6 +3312,15 @@ function updateMobs(dt) {
       } else if (d.style === 'melee') {
         if (dist > d.reach * 0.7) { tvx = nx * speed; tvz = nz * speed; moving = true; }
         if (m.cd <= 0 && dist < d.reach) startWind(m, 0.35);
+      } else if (d.style === 'creeper') { // 다가와서 쉭 소리와 함께 깜빡이다 터진다. 멀어지면 취소
+        if (m.fuse > 0) {
+          m.fuse -= dt; m.armUp = 1 - Math.max(0, m.fuse) / 1.5;
+          if (dist > 6.5) { m.fuse = -1; m.armUp = 0; }
+          else if (m.fuse <= 0) { explode(m, L); continue; }
+        } else {
+          if (dist > 1.5) { tvx = nx * speed; tvz = nz * speed; moving = true; }
+          if (dist < 3.0 && Math.abs(tp.y - m.y) < 2) { m.fuse = 1.5; sfx.hiss(); }
+        }
       } else { // slam
         if (dist > 3.2) { tvx = nx * speed; tvz = nz * speed; moving = true; }
         if (m.cd <= 0 && dist < 8 && dist > 2.2) startWind(m, 0.6);
@@ -3225,6 +3345,29 @@ function updateMobs(dt) {
     m.say -= dt;
     if (m.say <= 0) { m.say = 6 + Math.random() * 10; if (dist < 18) sfx.voice(m.type); }
     animMob(m, dt, moving);
+  }
+}
+// 던전의 몹 생성기: 플레이어가 16칸 안에 있으면 주변에 몬스터를 만든다
+let spawnerT = 0;
+function tickSpawners(dt) {
+  spawnerT += dt; if (spawnerT < 1) return; spawnerT = 0;
+  if (isGuest() || !structSpawners.size) return;
+  const L = allPlayers();
+  for (const [k, s] of structSpawners) {
+    if (getBlock(s.x, s.y, s.z) !== SPAWNER) { structSpawners.delete(k); continue; }
+    const c = chunks.get((s.x >> 4) + ',' + (s.z >> 4));
+    if (!c || c.meshes === null || !L.some(p => Math.hypot(p.x - s.x, p.y - s.y, p.z - s.z) < 16)) continue;
+    s.t -= 1; if (s.t > 0) continue;
+    s.t = 5 + Math.random() * 5;
+    let cnt = 0; for (const m of mobs) if (Math.hypot(m.x - s.x, m.y - s.y, m.z - s.z) < 10) cnt++;
+    if (cnt >= 4) continue;
+    for (let tr = 0; tr < 8; tr++) {
+      const x = s.x + (Math.random() * 7 | 0) - 3, z = s.z + (Math.random() * 7 | 0) - 3, y = s.y;
+      if (!isSolid(x, y, z) && !isSolid(x, y + 1, z) && isSolid(x, y - 1, z)) {
+        spawnMob(MOB_TYPES[Math.random() * MOB_TYPES.length | 0], x + 0.5, y + 0.01, z + 0.5);
+        burst(s.x + 0.5, s.y + 1, s.z + 0.5, 0xff8a30, 12, 0.5, 3); break;
+      }
+    }
   }
 }
 // 동물: 천천히 거닐거나 풀을 뜯고, 맞으면 한동안 도망간다
@@ -3350,6 +3493,11 @@ function animMob(m, dt, moving) {
   m.blink = Math.max(0, m.blink - dt);
   const bl = m.blink > 0 ? 0.1 : 1; h.eyes.forEach(e => { e.scale.y = bl; });
   if (m.propT > 0) { m.propT -= dt; if (m.propT <= 0 && h.prop) h.prop.visible = true; }
+  if (h.flash) { // 크리퍼: 부풀며 하얗게 깜빡인다
+    const on = m.armUp > 0.02 && Math.floor(m.t * 9) % 2 === 0;
+    h.flash.forEach(f => { f.visible = on; });
+    h.rig.scale.set(1 + m.armUp * 0.22, 1 + m.armUp * 0.08, 1 + m.armUp * 0.22);
+  }
   m.hurt = Math.max(0, m.hurt - dt);
   m.g.position.set(m.x, m.y, m.z); m.g.rotation.y = m.yaw + Math.PI;
   m.g.scale.setScalar(1 + m.hurt * 0.4);
@@ -3369,7 +3517,7 @@ function mobRay(o, d, maxT) {
   }
   return best;
 }
-const MOB_DROPS = { pig: [[MEAT, 1, 2]], cow: [[MEAT, 1, 3], [LEATHER, 0, 2]], sheep: [[MEAT, 1, 2], [WOOL_W, 1, 2]], chicken: [[MEAT, 1, 1]], buta: [[MEAT, 1, 2]], chuk: [[STICK, 1, 3]], monkey: [[BANANA, 1, 2]], apple: [[APPLE, 1, 3]], baker: [[BREAD, 1, 2]] };
+const MOB_DROPS = { pig: [[MEAT, 1, 2]], cow: [[MEAT, 1, 3], [LEATHER, 0, 2]], sheep: [[MEAT, 1, 2], [WOOL_W, 1, 2]], chicken: [[MEAT, 1, 1]], creeper: [[COAL, 0, 2]], skeleton: [[STICK, 0, 2]], buta: [[MEAT, 1, 2]], chuk: [[STICK, 1, 3]], monkey: [[BANANA, 1, 2]], apple: [[APPLE, 1, 3]], baker: [[BREAD, 1, 2]] };
 function mobDrops(m) {
   if (gm !== 'survival') return;
   giveXp(MOB[m.type].animal ? 2 : 6);
@@ -3377,6 +3525,24 @@ function mobDrops(m) {
   if (MOB[m.type].animal) return;
   if (m.type === 'chuk' && Math.random() < 0.4) spawnDrop(COAL, 1, m.x, m.y + 0.8, m.z);
   if (Math.random() < 0.15) spawnDrop(IRON, 1, m.x, m.y + 0.8, m.z);
+}
+// 크리퍼 폭발: 구멍을 뚫고(가장자리는 가끔 남는다) 가까운 사람에게 피해를 준다
+function explode(m, L) {
+  const R = 3.3, cx = Math.floor(m.x), cy = Math.floor(m.y + 0.8), cz = Math.floor(m.z);
+  sfx.boom(); burst(m.x, m.y + 0.8, m.z, 0xffb040, 30, 2.2, 7); burst(m.x, m.y + 0.8, m.z, 0x555555, 24, 2.6, 5);
+  for (let dx = -4; dx <= 4; dx++) for (let dy = -4; dy <= 4; dy++) for (let dz = -4; dz <= 4; dz++) {
+    const d2 = dx * dx + dy * dy + dz * dz; if (d2 > R * R) continue;
+    const x = cx + dx, y = cy + dy, z = cz + dz, b = getBlock(x, y, z);
+    if (!b || b === BEDROCK || ISW[b] || (d2 > 6 && Math.random() < 0.15)) continue;
+    if (b === CHEST) dumpChest(x, y, z); else if (b === FURNACE || b === FURNACE_ON) dumpFurnace(x, y, z);
+    setBlock(x, y, z, 0, false, 'net');
+    if (gm === 'survival' && Math.random() < 0.3 && !BLK[b].noDrop && !PART[b]) spawnDrop(BLK[b].drop || b, 1, x + 0.5, y + 0.5, z + 0.5);
+  }
+  for (const q of L) {
+    const px = q.x - m.x, pz = q.z - m.z, d = Math.hypot(px, q.y + 0.9 - (m.y + 0.8), pz);
+    if (d < 7) { const dmg = Math.round((1 - d / 7) * 16); if (dmg > 0) hurtAt(q, dmg, px / (d || 1) * 9, pz / (d || 1) * 9, 6, 0); }
+  }
+  removeMob(m);
 }
 function attackDamage() { const t = heldTool(); const en = ench[hotbar[sel]]; return t && t.tt === 'sword' ? SWORD_DMG[t.tier] + (en && en.s ? en.s * 1.5 : 0) : 3; }
 function damageMob(m, dmg, kx, kz, killer) {
@@ -3586,6 +3752,7 @@ function interact(t) {
   if (b === CTABLE) { openInv(3); return true; }
   if (b === FURNACE || b === FURNACE_ON) { openFurnace(t.x, t.y, t.z); return true; }
   if (b === CHEST) { openChest(t.x, t.y, t.z); return true; }
+  if (b === ENCH) { openEnch(); return true; }
   if (b && BLK[b].shape === 'door') { toggleDoor(t.x, t.y, t.z); return true; }
   return false;
 }
@@ -3728,12 +3895,14 @@ function openInv(n = 2) {
   invOpen = true; paused = true; furEl.classList.remove('show'); curFur = null; buildInv(); invEl.classList.add('show');
   if (!isTouch && document.pointerLockElement) document.exitPointerLock();
 }
-function hideInvUI() { returnGrid(); curFur = null; curChest = null; invOpen = false; invEl.classList.remove('show'); furEl.classList.remove('show'); chestEl.classList.remove('show'); refreshHotbar(); save(); }
+function hideInvUI() { returnGrid(); curFur = null; curChest = null; curEnch = false; invOpen = false; invEl.classList.remove('show'); furEl.classList.remove('show'); chestEl.classList.remove('show'); enchEl.classList.remove('show'); refreshHotbar(); save(); }
 function closeInv() { hideInvUI(); startPlay(); }
 document.getElementById('invClose').addEventListener('click', closeInv);
 document.getElementById('furClose').addEventListener('click', closeInv);
 document.getElementById('chestClose').addEventListener('click', closeInv);
+document.getElementById('enchClose').addEventListener('click', closeInv);
 chestEl.addEventListener('pointerdown', e => { if (e.target === chestEl) closeInv(); });
+enchEl.addEventListener('pointerdown', e => { if (e.target === enchEl) closeInv(); });
 invEl.addEventListener('pointerdown', e => { if (e.target === invEl) closeInv(); });
 furEl.addEventListener('pointerdown', e => { if (e.target === furEl) closeInv(); });
 
@@ -3759,7 +3928,7 @@ addEventListener('keydown', e => {
     if (n >= 1 && n <= 9) {
       if (!paused) select(n - 1);
       else if (invOpen) { // 인벤토리가 열려 있어도 숫자키로 핫바 칸을 고른다 (아이템 위에 마우스를 올리고 누르면 그 칸에 지정)
-        if (!curFur && !curChest) digitAssign(n - 1); else select(n - 1, true);
+        if (!curFur && !curChest && !curEnch) digitAssign(n - 1); else select(n - 1, true);
       }
     }
   }
