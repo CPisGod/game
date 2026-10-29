@@ -303,7 +303,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* ================= 상수 / 블록 정의 ================= */
-const CS = 16, MINY = -24, H = 68, R = 6, SEA = 1, SEED = 0x5bd1e995 | 0;
+const CS = 16, MINY = -24, H = 68, R = 6, SEA = 1, DEFAULT_SEED = 0x5bd1e995 | 0;
+let SEED = DEFAULT_SEED; // 월드마다 다른 지형 씨앗 (새 월드/초기화 때 무작위)
+const randomSeed = () => ((Math.random() * 4294967296) | 0) || 1;
 const TOPY = MINY + H - 1;
 const DAY_LEN = 360;
 const GRASS = 1, DIRT = 2, STONE = 3, PLANKS = 4, LOG = 5, BRICK = 6, SAND = 7, GLASS = 8, WOOL_R = 9, BEDROCK = 10,
@@ -912,7 +914,7 @@ function snapshot(clean) {
     const [cx, cz] = k.split(',').map(Number);
     for (const [i, t] of m) ef.push(cx * CS + i % CS, Math.floor(i / (CS * CS)) + MINY, cz * CS + Math.floor(i / CS) % CS, t);
   }
-  return { game: 'blockworld', v: 3, terrain, gm, ef, p: [player.x, player.y, player.z, player.yaw, player.pitch], s: sel, hb: hotbar, bg: bag, inv, t: tod, hp, food, fn: [...furnaces.values()].map(f => [f.x, f.y, f.z, f.inp, f.fuel, f.out, +f.burn.toFixed(1), f.burnMax, +f.prog.toFixed(1)]),
+  return { game: 'blockworld', v: 3, seed: SEED, terrain, gm, ef, p: [player.x, player.y, player.z, player.yaw, player.pitch], s: sel, hb: hotbar, bg: bag, inv, t: tod, hp, food, fn: [...furnaces.values()].map(f => [f.x, f.y, f.z, f.inp, f.fuel, f.out, +f.burn.toFixed(1), f.burnMax, +f.prog.toFixed(1)]),
     sp: [spawn.x, spawn.y, spawn.z], dr: drops.slice(0, 100).map(d => [d.id, d.n, +d.x.toFixed(2), +d.y.toFixed(2), +d.z.toFixed(2), Math.round(d.life)]) };
 }
 const saveInfoEl = document.getElementById('saveInfo');
@@ -3262,14 +3264,14 @@ function hostWelcome(to) {
     }
   }
   if (cur.length) parts.push(cur);
-  netSend(to, { t: 'welcome', terrain, gm, tod, sp: [spawn.x, spawn.y, spawn.z], n: parts.length });
+  netSend(to, { t: 'welcome', seed: SEED, terrain, gm, tod, sp: [spawn.x, spawn.y, spawn.z], n: parts.length });
   parts.forEach((p, i) => netSend(to, { t: 'wchunk', i, ef: p }));
 }
 function netCheckWorld() {
   const w = net.welcome;
   if (!w || net.worldReady || net.wparts.length !== w.n || net.wparts.some(p => !p)) return;
   const ef = [].concat(...net.wparts);
-  loadWorld(w.terrain === 'hills' ? 'hills' : 'flat', { gm: w.gm, tod: w.tod, sp: w.sp, ef });
+  loadWorld(w.terrain === 'hills' ? 'hills' : 'flat', { gm: w.gm, tod: w.tod, sp: w.sp, ef, seed: w.seed });
   net.worldReady = true;
   for (const e of net.pendingB) applyEdits(e);
   net.pendingB = [];
@@ -3475,6 +3477,13 @@ function loadWorld(t, netInfo) {
   for (const c of chunks.values()) disposeMesh(c);
   chunks.clear(); edits.clear(); clearMobs(); clearDrops(); glows.length = 0; pending = []; lastCx = 1e9;
   hotbar = [0, 0, 0, 0, 0, 0, 0, 0, 0]; bag = new Array(27).fill(0); inv = {}; furnaces.clear(); sel = 0; gm = 'creative'; hp = MAXHP; food = 20; tod = 0.12;
+  // 지형 씨앗: 멀티 손님은 방장 것, 저장이 있으면 저장된 것(옛 저장은 기본값), 저장이 없으면 새로 무작위
+  if (netInfo) SEED = (netInfo.seed | 0) || DEFAULT_SEED;
+  else {
+    let sv = null; try { sv = JSON.parse(localStorage.getItem(saveKey(t)) || (t === 'flat' ? localStorage.getItem('blockworld_v1') : null)); } catch (e) {}
+    SEED = sv && (Array.isArray(sv.e) || Array.isArray(sv.ef)) ? ((sv.seed | 0) || DEFAULT_SEED) : randomSeed();
+  }
+  caveCache.clear();
   spawn = findSpawn();
   Object.assign(player, { x: spawn.x, y: spawn.y, z: spawn.z, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, fly: false });
   try {
@@ -3529,7 +3538,7 @@ document.getElementById('soundBtn').addEventListener('click', () => {
   refreshOptsUI();
 });
 document.getElementById('resetBtn').addEventListener('click', () => {
-  if (!confirm('이 지형 월드의 모든 블록/인벤토리가 초기화됩니다. 계속할까요?')) return;
+  if (!confirm('이 지형 월드의 모든 블록/인벤토리가 초기화되고, 지형도 완전히 새로 무작위로 만들어집니다. 계속할까요?')) return;
   try { localStorage.removeItem(saveKey(terrain)); if (terrain === 'flat') localStorage.removeItem('blockworld_v1'); } catch (e) {}
   loadWorld(terrain);
 });
