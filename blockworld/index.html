@@ -28,7 +28,7 @@
   .slot.sel { border-color: #fff; background: #fff3; transform: scale(1.1); z-index: 1; }
 
   #hud { position: fixed; left: 10px; top: 10px; z-index: 6; color: #fff; font: 700 13px/1.5 monospace; text-shadow: 1px 1px 0 #000; pointer-events: none; }
-  #toast { position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); color: #fff; font: 700 16px/1 sans-serif; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000; z-index: 6; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  #toast { position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%); color: #fff; font: 700 16px/1 sans-serif; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000; z-index: 6; opacity: 0; transition: opacity .3s; pointer-events: none; }
 
   #overlay { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #000a; color: #fff; text-align: center; padding: 16px; }
   #overlay.hidden { display: none; }
@@ -160,6 +160,7 @@
   #boss .bb { height: 10px; background: #0009; border: 2px solid #000; margin-top: 2px; } #boss .bb i { display: block; height: 100%; width: 100%; background: #c04aff; }
   #bowbar { position: fixed; left: 50%; top: calc(50% + 22px); width: 60px; height: 5px; margin-left: -30px; background: #0009; border: 1px solid #000; z-index: 5; display: none; pointer-events: none; }
   #bowfill { height: 100%; width: 0; background: #ffd24a; }
+  body.inv-open #hotbar, body.inv-open #hearts, body.inv-open #xp { display: none !important; }
   #xp { position: fixed; left: 50%; bottom: 64px; transform: translateX(-50%); width: min(290px, 70vw); height: 7px; background: #0009; border: 1px solid #000; z-index: 6; pointer-events: none; display: none; }
   #xpFill { height: 100%; width: 0; background: #7fe03a; }
   #xpNum { position: absolute; left: 50%; top: -16px; transform: translateX(-50%); font: 700 13px monospace; color: #8f8; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000; }
@@ -258,7 +259,7 @@
   body.touch .slot { width: min(40px, calc((100vw - 48px) / 9 - 6px)); height: min(40px, calc((100vw - 48px) / 9 - 6px)); border-width: 2px; }
   body.touch #hearts { bottom: 56px; font-size: 13px; width: max-content; white-space: nowrap; letter-spacing: 0; }
   body.touch #bChat { right: 62px; top: 54px; }
-  body.touch #toast { bottom: 76px; }
+  body.touch #toast { bottom: 92px; }
   body.touch #joy { bottom: 64px; }
   body.touch #bJump { bottom: 190px; }
   body.touch #bBreak { bottom: 140px; }
@@ -2203,7 +2204,7 @@ function refreshHotbar() {
     if (sl.id !== id) { sl.id = id; drawIcon(sl.cv, id); }
     sl.s.classList.toggle('sel', i === sel);
     const cnt = inv[id] || 0;
-    sl.c.textContent = gm === 'survival' && id ? cnt : '';
+    sl.c.textContent = gm === 'survival' && id && cnt > 1 ? cnt : '';
     sl.s.classList.toggle('dim', gm === 'survival' && !!id && cnt <= 0);
     setDurBar(sl.bar, id);
   });
@@ -2860,7 +2861,7 @@ function updateDrops(dt) {
 }
 
 /* ================= 1인칭 팔 / 손에 든 물건 (화면 오른쪽 아래) ================= */
-const hand = new THREE.Group(); camera.add(hand);
+const hand = new THREE.Group(); hand.scale.setScalar(0.8); camera.add(hand);
 const armPivot = new THREE.Group(); hand.add(armPivot);
 const held = new THREE.Group(); held.position.set(0, 0.0, -0.3); armPivot.add(held);
 const handMats = [];
@@ -2894,12 +2895,12 @@ function heldModel(id) {
   const B = BLK[id];
   if (B && !B.shape && !B.trans) { // 통블록: 작은 정육면체
     const mats = [B.t[1], B.t[1], B.t[0], B.t[2], B.t[1], B.t[1]].map(t => hmat({ map: tileTex(t) }));
-    const c = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), mats); c.rotation.set(0.3, 0.75, 0); c.position.set(0, 0.09, -0.02); g.add(c);
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.17, 0.17), mats); c.rotation.set(0.3, 0.75, 0); c.position.set(0, 0.07, -0.02); g.add(c);
   } else { // 아이템 / 횃불 / 식물 / 반블록 등은 아이콘 판
     const cv = document.createElement('canvas'); cv.width = cv.height = 16; drawIcon(cv, id);
     const t = new THREE.CanvasTexture(cv); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.colorSpace = THREE.SRGBColorSpace;
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), hmat({ map: t, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide }));
-    p.rotation.set(-0.05, -0.55, 0.15); p.position.set(0.04, 0.17, -0.03); g.add(p);
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), hmat({ map: t, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide }));
+    p.rotation.set(-0.05, -0.55, 0.15); p.position.set(0.03, 0.14, -0.03); g.add(p);
   }
   g.traverse(o => { o.renderOrder = 1001; o.frustumCulled = false; });
   heldCache.set(id, g); return g;
@@ -2909,6 +2910,7 @@ let swingT = 0, handDip = 0, handId = -1, handBob = 0, handShade = 1;
 const swingHand = () => { if (swingT <= 0) swingT = 0.001; };
 function updateHand(dt) {
   hand.visible = ready;
+  document.body.classList.toggle('inv-open', invEl.classList.contains('show'));
   const id = hotbar[sel] || 0;
   if (id !== handId) { handDip += dt * 9; if (handDip >= 1) { handDip = 1; held.clear(); if (id) held.add(heldModel(id)); handId = id; } }
   else handDip = Math.max(0, handDip - dt * 9);
