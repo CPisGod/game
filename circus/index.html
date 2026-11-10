@@ -106,6 +106,35 @@
   tr.me { background:var(--acc-l); font-weight:900; }
   #toast { position:fixed; left:50%; bottom:64px; transform:translateX(-50%); background:#000c; color:#fff; padding:9px 14px; border-radius:12px; font-size:14px; z-index:9500; opacity:0; pointer-events:none; transition:opacity .2s; max-width:90%; text-align:center; }
   #toast.show { opacity:1; }
+  header .btn.off { opacity:.45; }
+  #wx { text-align:center; font-size:12px; font-weight:700; opacity:.8; margin:2px 0; }
+  #buffs { display:flex; flex-wrap:wrap; justify-content:center; gap:4px; min-height:4px; margin:4px 0; }
+  .chip { background:#fff3c4; border:2px solid var(--yellow); border-radius:999px; padding:2px 9px; font-size:12px; font-weight:800; }
+  .chip.bad { background:#e3ecff; border-color:var(--blue); }
+  #combo { position:absolute; top:34px; right:8px; z-index:3; font-weight:900; font-size:18px; color:#fff; text-shadow:0 2px 0 var(--red), 0 0 6px var(--red); pointer-events:none; opacity:0; transition:opacity .2s; text-align:right; }
+  .gold { position:absolute; z-index:5; width:48px; height:48px; font-size:38px; line-height:48px; text-align:center; cursor:pointer; filter:drop-shadow(0 0 8px #ffd23f); animation: goldfloat 1.4s ease-in-out infinite alternate, goldin .3s ease-out; }
+  @keyframes goldfloat { from { transform:translateY(0) rotate(-8deg); } to { transform:translateY(-14px) rotate(8deg); } }
+  @keyframes goldin { from { opacity:0; scale:.2; } to { opacity:1; scale:1; } }
+  #showBtn { display:none; margin:8px auto 0; width:100%; padding:10px; animation: pulse .8s ease-in-out infinite alternate; }
+  @keyframes pulse { to { transform:scale(1.03); box-shadow:0 0 14px #ffc933; } }
+  #crowd { display:flex; justify-content:center; flex-wrap:wrap; gap:0 2px; min-height:28px; margin-top:6px; font-size:20px; }
+  #crowd span { display:inline-block; animation: sway 1.6s ease-in-out infinite alternate; }
+  @keyframes sway { from { transform:rotate(-4deg); } to { transform:rotate(4deg); } }
+  #crowd.cheer span { animation: jump .22s ease-in-out infinite alternate; }
+  @keyframes jump { to { transform:translateY(-9px); } }
+  .tab { position:relative; }
+  .tab .dot { position:absolute; top:3px; right:5px; width:10px; height:10px; border-radius:50%; background:var(--red); border:2px solid #fff; }
+  .dex { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+  .dx { background:#fff; border:2px solid var(--acc); border-radius:10px; text-align:center; padding:4px 1px; }
+  .dx.lock { border-color:#d9c9a8; opacity:.55; }
+  .dx span { font-size:26px; display:block; } .dx small { font-size:10px; line-height:1.2; display:block; }
+  .g-hud { text-align:center; font-weight:900; font-size:18px; margin-bottom:8px; }
+  .g-field { position:relative; height:300px; overflow:hidden; border:3px solid var(--ink); border-radius:14px; background:linear-gradient(#cfeaff,#fff4e0); touch-action:none; }
+  .g-item { position:absolute; top:-44px; font-size:36px; cursor:pointer; animation: gfall linear forwards; }
+  @keyframes gfall { to { transform:translateY(350px); } }
+  .g-bar { position:relative; height:46px; border:3px solid var(--ink); border-radius:14px; background:#fff; margin-top:34px; touch-action:none; }
+  .g-zone { position:absolute; top:0; bottom:0; background:#3fbf6f88; border-left:3px solid var(--green); border-right:3px solid var(--green); }
+  .g-mark { position:absolute; top:3px; font-size:30px; line-height:34px; transform:translateX(-50%); }
 </style>
 </head>
 <body>
@@ -115,21 +144,28 @@
   <header>
     <h1>🐵 원숭이 서커스</h1>
     <div>
-      <button class="btn sub" id="rankBtn">🏆 순위</button>
+      <button class="btn sub" id="sndBtn">🔊</button><button class="btn sub" id="bgmBtn">🎵</button><button class="btn sub" id="rankBtn">🏆 순위</button>
     </div>
   </header>
 
   <div class="money"><b id="money">0</b><span>원</span></div>
   <div class="sub-info"><span id="nick">-</span> · <b id="runinfo">1회차</b> · 초당 <span id="rate">+0</span>원 · 누적 <span id="earned">0</span>원 · <a href="#" id="logoutBtn" style="display:none;color:inherit">로그아웃</a></div>
 
+  <div class="sub-info" id="fansInfo" style="margin-top:-4px"></div>
+  <div id="wx"></div>
+  <div id="buffs"></div>
+
   <div class="barlabel"><span id="nextLabel">🎯 다음 묘기 해금</span><span id="nextVal"></span></div>
   <div class="bar" id="nbar"><i></i></div>
 
   <div id="stage">
     <div id="msg"></div>
+    <div id="combo"></div>
     <svg id="mk" viewBox="0 0 300 260"><g id="bg"></g><g id="fx"></g><g id="fg"></g></svg>
     <div id="exlabel">원숭이를 터치하면 춤을 춰요! (컴퓨터는 스페이스바)</div>
   </div>
+  <button class="btn go" id="showBtn" style="background:var(--acc)">🎪 특별 공연이 열렸어요! 도전하기</button>
+  <div id="crowd"></div>
   <div id="crew"></div>
 
   <div class="tabs5" id="tabs"></div>
@@ -140,6 +176,27 @@
   <div class="card">
     <div class="phead"><b id="panelTitle"></b><button class="btn sub" id="panelClose">✕ 닫기</button></div>
     <div id="panelBody"><div id="panel"></div></div>
+  </div>
+</div>
+
+<!-- 특별 공연(미니게임) -->
+<div class="modal" id="gameModal">
+  <div class="card">
+    <h2 id="gameTitle"></h2>
+    <div id="gameArea"></div>
+    <p style="margin-bottom:0"><button class="btn sub" id="gameClose" style="width:100%;display:none">닫기</button></p>
+  </div>
+</div>
+
+<!-- 접속 환영 (출석 / 오프라인 수입) -->
+<div class="modal" id="welcomeModal">
+  <div class="card">
+    <h2>🐵 어서 와요!</h2>
+    <div id="wBody"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+      <button class="btn" id="wBonus" style="background:var(--acc)">🎪 보너스 게임 (성공하면 한 번 더!)</button>
+      <button class="btn sub" id="wOk">받기</button>
+    </div>
   </div>
 </div>
 
@@ -174,6 +231,7 @@
     <h2>🏆 스코어보드</h2>
     <div class="tabs">
       <button class="btn on" id="tabEarn">누적 수입</button>
+      <button class="btn" id="tabWeek">이번 주</button>
       <button class="btn" id="tabNet">순자산</button>
     </div>
     <table id="rankTable"></table>
@@ -287,9 +345,9 @@ const MAX_CREW = 30;   // 알바 종류별 최대 고용 수
 const FEE = 0.005;   // 매수·매도 수수료 0.5%
 const tipMult = () => Math.pow(1.5, S.tipLv), wageMult = () => Math.pow(1.3, S.wageLv);
 const tipCost = L => Math.ceil(25 * Math.pow(2, L)), wageCost = L => Math.ceil(400 * Math.pow(3, L));
-const crewCost = (w, n) => Math.ceil(w.cost * Math.pow(1.15, n));
+const crewCost = (w, n) => Math.ceil(w.cost * Math.pow(1.15, n) * (1 - 0.03 * traitLv('disc')));
 const runMult = (n = S.run) => Math.pow(2, n - 1);   // 회차 수입 배수: 1회차 ×1, 2회차 ×2, 3회차 ×4 ...
-const crewRate = () => (CREW.reduce((s, w) => s + (S.crew[w.id] || 0) * w.inc, 0) * wageMult() * venueMult() + estateRate()) * runMult();
+const crewRate = () => (CREW.reduce((s, w) => s + (S.crew[w.id] || 0) * unitInc(w), 0) * wageMult() * venueMult() * (1 + 0.1 * traitLv('crew')) + estateRate()) * runMult() * globalMult() * buffM('crew');
 const lifeEarned = () => S.history.reduce((a, h) => a + h.earned, 0) + S.totalEarned;   // 모든 회차를 합친 누적 수입
 const REBIRTH_MONEY = 1e21;   // 환생하려면 이번 회차 누적 수입이 10해 이상이어야 함
 const rebirthReq = () => [
@@ -307,10 +365,14 @@ const netWorth = () => S.money + STOCKS.reduce((a, x) => a + S.stocks[x.id].shar
 // ---------- 상태 ----------
 let uid = 'local', db = null, fb = null, online = false;
 const newState = () => ({ nickname:'', money:0, totalEarned:0, taps:0, dances:{}, crew:{}, estate:{}, skins:['basic'], skin:'basic', run:1, history:[], tipLv:0, wageLv:0,
-  stocks:newStocks(), venues:[0], venue:0, dance:'sway', savedAt:0, acts:0 });
+  stocks:newStocks(), venues:[0], venue:0, dance:'sway', savedAt:0, acts:0,
+  lifeTaps:0, crewLv:{}, dex:{}, ach:{}, traits:{}, daily:null, streak:0, lastDay:'', title:'', hat:'none', hats:['none'], fx:'coin', fxs:['coin'], golds:0, games:0, perfects:0, bestCombo:0,
+  weekKey:'', weekStart:0, bonusTp:0, sound:true, music:false });
+const EXTRA_KEYS = ['lifeTaps', 'crewLv', 'dex', 'ach', 'traits', 'daily', 'streak', 'lastDay', 'title', 'hat', 'hats', 'fx', 'fxs', 'golds', 'games', 'perfects', 'bestCombo', 'weekKey', 'weekStart', 'bonusTp', 'sound', 'music'];
+const extraOut = () => Object.fromEntries(EXTRA_KEYS.map(k => [k, S[k] === undefined ? null : S[k]]));
 let S = newState();
 let dirty = false, ready = false, stale = false, syncedAt = 0;   // syncedAt: 이 기기가 마지막으로 확인한 서버 기록의 savedAt
-let tab = null, bulkMode = '1', knownUnlocked = 1;
+let tab = null, bulkMode = '1', knownUnlocked = 1, lastPanelH = '', combo = 0, lastTap = 0;
 
 const LS_KEY = 'circus-local';
 const lsKey = () => uid === 'local' ? LS_KEY : LS_KEY + '-' + uid;
@@ -615,7 +677,7 @@ function drawMonkey(p, time, ph, id) {
   }
   hd += rc(-4, 5, 2.5, 3, C.ink) + rc(1.5, 5, 2.5, 3, C.ink);
   hd += p.mo > .5 ? `<path d="M-7 11 Q0 22 7 11Z" fill="#7a2e2e" stroke="${C.ink}" stroke-width="1.5" stroke-linejoin="round"/>` : `<path d="M-6 12 Q0 16 6 12" fill="none" stroke="${C.ink}" stroke-width="2" stroke-linecap="round"/>`;
-  hd += (sk.face || '') + sk.hat + (sk.over || '');
+  hd += (sk.face || '') + sk.hat + (sk.over || '') + hatSvg();
   hd += '</g>';
   o += hd;
 
@@ -802,7 +864,7 @@ function loop(now) {
   const k = 1 - Math.exp(-dt * 22);
   let diff = 0;
   for (const key in tgt) { const d = tgt[key] - anim.cur[key]; diff += Math.abs(d); anim.cur[key] += d * k; }
-  if (now - fxDrawn > 45) { fxDrawn = now; $('fx').innerHTML = fxSvg(S.venue, time); }
+  if (now - fxDrawn > 45) { fxDrawn = now; $('fx').innerHTML = fxSvg(S.venue, time) + weatherSvg(time); }
   if (id || diff > .3 || now - anim.drawn > 90) { anim.drawn = now; $('fg').innerHTML = drawMonkey(anim.cur, time, ph, id); }
 }
 
@@ -810,17 +872,27 @@ function loop(now) {
 function showMsg(t) { $('msg').textContent = t; clearTimeout(showMsg.t); showMsg.t = setTimeout(() => $('msg').textContent = '', 900); }
 function tap(cx, cy) {
   if (!ready || !S.nickname) return;
-  const pay = TAP_PAY * tipMult() * venueMult() * runMult();
+  const now = performance.now();
+  combo = now - lastTap < 900 ? combo + 1 : 1; lastTap = now;
+  const perfect = !!anim.id && (now - anim.start) / anim.dur > .65;   // 동작이 거의 끝날 때 맞춰 터치하면 퍼펙트
+  if (perfect) { S.perfects++; qAdd('perf'); }
+  if (combo > S.bestCombo) S.bestCombo = combo;
+  qMax('combo', combo);
+  const cm = 1 + Math.min(combo, 40) * .025;
+  const pay = tapPay() * cm * (perfect ? 1.5 : 1);
   earn(pay);
   const d = curDance();
-  S.taps++; S.dances[d.id] = (S.dances[d.id] || 0) + 1;
+  S.taps++; S.lifeTaps++; qAdd('tap'); S.dances[d.id] = (S.dances[d.id] || 0) + 1;
   if (anim.id) anim.queue = Math.min(3, anim.queue + 1);   // 동작이 진행 중이면 끝까지 보여주고 이어서 한 번 더
   else startDance();
+  sfx(perfect ? 'perfect' : 'tap', combo); cheer(perfect);
+  const cb = $('combo'); cb.style.opacity = combo >= 3 ? 1 : 0; cb.innerHTML = `🔥 ${combo}콤보<br><small>×${cm.toFixed(2)}${perfect ? ' · PERFECT!' : ''}</small>`;
   const r = $('stage').getBoundingClientRect();
-  const f = document.createElement('div'); f.className = 'float'; f.textContent = '+' + fmt(pay) + '원';
+  const f = document.createElement('div'); f.className = 'float'; f.textContent = (perfect ? 'PERFECT! +' : '+') + fmt(pay) + '원';
+  if (perfect) f.style.color = 'var(--red)';
   f.style.left = (cx - r.left - 24) + 'px'; f.style.top = (cy - r.top - 20) + 'px';
   $('stage').appendChild(f); setTimeout(() => f.remove(), 800);
-  const pf = VENUES[S.venue].puff;
+  const pf = fxPuff();
   for (let i = 0; i < Math.min(9, 3 + S.venue); i++) {
     const e = document.createElement('span'); e.className = 'puff'; e.textContent = pf;
     e.style.left = (cx - r.left) + 'px'; e.style.top = (cy - r.top) + 'px';
@@ -845,7 +917,7 @@ function checkUnlock() {
   const n = unlocked().length;
   if (n > knownUnlocked) {
     const d = DANCES[n - 1];
-    toast('🎉 새 묘기 해금! ' + d.ic + ' ' + d.nm + ' (묘기 탭에서 선택)');
+    toast('🎉 새 묘기 해금! ' + d.ic + ' ' + d.nm + ' (묘기 탭에서 선택)'); finale(d.ic + ' 새 묘기 해금!<br>' + d.nm, [d.ic, '🎉', '⭐']);
     knownUnlocked = n;
     if (tab === 'dance') buildPanel();
   }
@@ -874,9 +946,9 @@ function renderCrew() {
 }
 
 // ---------- 탭 ----------
-const TABS = [['dance', '🎭', '묘기'], ['crew', '🐾', '알바'], ['up', '⬆️', '강화'], ['stock', '📈', '주식'], ['venue', '🏟️', '무대'], ['estate', '🌴', '부동산'], ['skin', '👕', '스킨'], ['rebirth', '🔁', '환생']];
+const TABS = [['dance', '🎭', '묘기'], ['crew', '🐾', '알바'], ['up', '⬆️', '강화'], ['stock', '📈', '주식'], ['venue', '🏟️', '무대'], ['estate', '🌴', '부동산'], ['skin', '👕', '스킨'], ['ach', '🏅', '업적'], ['quest', '📅', '퀘스트'], ['evo', '⭐', '진화'], ['trait', '🌟', '특성'], ['rebirth', '🔁', '환생']];
 function buildTabs() {
-  $('tabs').innerHTML = TABS.map(([id, ic, nm]) => `<button class="tab" data-tab="${id}"><span class="ic">${ic}</span><span class="nm">${nm}</span></button>`).join('');
+  $('tabs').innerHTML = TABS.map(([id, ic, nm]) => `<button class="tab" data-tab="${id}"><span class="ic">${ic}</span><span class="nm">${nm}</span><i class="dot" id="dot-${id}" style="display:none"></i></button>`).join('');
 }
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (!b) return;
@@ -908,7 +980,7 @@ function buildPanel() {
   if (!tab) return;
   let h = '';
   if (tab === 'dance') {
-    h = `<div class="note gray" style="margin:0 0 8px">보여줄 묘기를 하나 골라요. 어떤 묘기든 터치당 +${fmt(TAP_PAY * tipMult() * venueMult() * runMult())}원으로 똑같아요. 누적 수입이 쌓이면 새 묘기가 열려요.</div>` + DANCES.map(d => {
+    h = `<div class="note gray" style="margin:0 0 8px">보여줄 묘기를 하나 골라요. 어떤 묘기든 터치당 +${fmt(tapPay())}원으로 똑같아요. 박자(동작이 끝날 무렵)에 맞춰 누르면 퍼펙트 ×1.5, 연속으로 누르면 콤보 보너스(최대 ×2)! 누적 수입이 쌓이면 새 묘기가 열려요.</div>` + DANCES.map(d => {
       const ok = S.totalEarned >= d.need, on = S.dance === d.id;
       return `<div class="row ${ok ? '' : 'lock'} ${on ? 'on' : ''}"><span class="ic">${ok ? d.ic : '🔒'}</span><div class="tx"><b>${ok ? d.nm : '???'}</b>
         <small>${ok ? '공연 ' + (S.dances[d.id] || 0).toLocaleString() + '회' : '누적 수입 ' + fmt(d.need) + '원이면 해금'}</small></div>
@@ -919,7 +991,7 @@ function buildPanel() {
       + CREW.map(w => {
         const n = S.crew[w.id] || 0, { k, total } = bulkInfo(w, bulkMode);
         return `<div class="row"><span class="ic">${w.ic}</span><div class="tx"><b>${w.nm} <span style="opacity:.6">${n}/${MAX_CREW}</span></b>
-          <small>1마리당 초당 +${fmtRate(w.inc * wageMult())}원 · 합계 +${fmtRate(n * w.inc * wageMult())}원</small></div>
+          <small>1마리당 초당 +${fmtRate(unitInc(w) * wageMult())}원 · 합계 +${fmtRate(n * unitInc(w) * wageMult())}원</small></div>
           ${k === 0 ? '<button class="btn" disabled>최대<br>인원</button>' : costBtn('hire', w.id + ',' + k, total, '고용' + (k > 1 ? ' ×' + k : '') + '<br>' + fmt(total) + '원')}</div>`;
       }).join('');
   } else if (tab === 'up') {
@@ -942,10 +1014,13 @@ function buildPanel() {
         <button class="btn buy" data-act="buy" data-arg=".1">매수 10%</button><button class="btn buy" data-act="buy" data-arg=".5">매수 50%</button><button class="btn buy" data-act="buy" data-arg="1">매수 전부</button>
         <button class="btn sell" data-act="sell" data-arg=".25">매도 25%</button><button class="btn sell" data-act="sell" data-arg=".5">매도 50%</button><button class="btn sell" data-act="sell" data-arg="1">매도 전부</button>
       </div></div>
+      <div class="note gray"><b>📰 서커스 뉴스</b> (실제 시세와 별개로, 수입에 잠깐 영향을 줘요)<br>${newsLog.length ? newsLog.map(esc2).join('<br>') : '아직 뉴스가 없어요.'}</div>
       <div class="note gray">${x.nm} 1주 가격은 ${note} 매수·매도할 때마다 수수료 ${(FEE * 100).toFixed(1)}%가 붙어요.</div>`;
+  } else if (['ach', 'quest', 'evo', 'trait'].includes(tab)) {
+    h = buildExtraPanel(tab);
   } else if (tab === 'rebirth') {
     const req = rebirthReq(), ok = canRebirth(), nx = S.run + 1;
-    h = `<div class="note gray" style="margin:0 0 8px">알바·무대·스킨·묘기·부동산을 모두 모으고 이번 회차 누적 수입이 10해 이상이면 다시 태어날 수 있어요. 돈과 모은 것이 전부 처음으로 돌아가고, 이번 회차의 누적 수입은 기록으로 남아요. 대신 다음 회차부터는 모든 수입(터치·알바·부동산)이 2^(회차 − 1)배(2회차 ×2, 3회차 ×4, 4회차 ×8…)로 곱해져요.</div>
+    h = `<div class="note gray" style="margin:0 0 8px">🌟 환생하면 특성 포인트 ${S.run}점을 받아요. (특성 탭)<br>알바·무대·스킨·묘기·부동산을 모두 모으고 이번 회차 누적 수입이 10해 이상이면 다시 태어날 수 있어요. 돈과 모은 것이 전부 처음으로 돌아가고, 이번 회차의 누적 수입은 기록으로 남아요. 대신 다음 회차부터는 모든 수입(터치·알바·부동산)이 2^(회차 − 1)배(2회차 ×2, 3회차 ×4, 4회차 ×8…)로 곱해져요.</div>
       <div class="row on"><span class="ic">🔁</span><div class="tx"><b>지금 ${S.run}회차 (수입 ×${fmt(runMult())})</b><small>이번 회차 누적 ${fmt(S.totalEarned)}원 · 전체 누적 ${fmt(lifeEarned())}원</small></div></div>`
       + req.map(([nm, a, b, f]) => `<div class="row ${a >= b ? 'on' : ''}"><span class="ic">${a >= b ? '✅' : '⬜'}</span><div class="tx"><b>${nm}</b><small>${f ? f(a) : a} / ${f ? f(b) : b}</small>${f ? `<div style="height:8px;margin-top:5px;border-radius:4px;background:rgba(0,0,0,.15);overflow:hidden"><div style="height:100%;width:${Math.min(100, a / b * 100)}%;background:var(--acc)"></div></div><small>진행도 ${(Math.min(100, a / b * 100)).toFixed(a >= b ? 0 : 2)}%</small>` : ''}</div></div>`).join('')
       + `<button class="btn go" style="width:100%;margin:4px 0 12px;padding:12px" data-act="rebirth" ${ok ? '' : 'disabled'}>${ok ? '🔁 ' + nx + '회차로 다시 태어나기 (수입 ×' + fmt(runMult(nx)) + ')' : '아직 다 모으지 못했어요'}</button>
@@ -957,7 +1032,7 @@ function buildPanel() {
         const own = S.skins.includes(k.id), on = curSkin().id === k.id;
         return `<div class="row ${on ? 'on' : ''}"><span class="ic">${k.ic}</span><div class="tx"><b>${k.nm}</b><small>${k.desc}<br>${own ? (on ? '입고 있어요' : '보유 중') : fmt(k.cost) + '원'}</small></div>
           ${own ? (on ? '<span style="font-weight:700;color:var(--acc)">착용 중</span>' : `<button class="btn go" data-act="skinUse" data-arg="${k.id}">입기</button>`) : costBtn('skinBuy', k.id, k.cost, '구매<br>' + fmt(k.cost) + '원')}</div>`;
-      }).join('');
+      }).join('') + cosmeticHtml();
   } else if (tab === 'estate') {
     const tot = estateRate();
     h = `<div class="note gray" style="margin:0 0 8px">🌴 아마존에 부동산을 세워요. 종류마다 최대 ${MAX_ESTATE}채까지 지을 수 있고, 지을수록 같은 종류의 다음 채 가격이 첫 채 가격의 ${ESTATE_STEP * 100}%씩 (단리) 올라가요. 지은 건물은 초당 수입을 가져다줘요.<br>지금 부동산 수입: <b>+${fmtRate(tot)}원/초</b></div>`
@@ -970,11 +1045,11 @@ function buildPanel() {
   } else {
     h = VENUES.map((v, i) => {
       const own = S.venues.includes(i), on = S.venue === i;
-      return `<div class="row ${on ? 'on' : ''}"><span class="ic">${v.ic}</span><div class="tx"><b>${v.nm}</b><small>${on ? '지금 공연 중! · ' : own ? '구매 완료 · ' : fmt(v.cost) + '원 · '}수입 ×${v.bonus}<br>효과: ${v.fx}</small></div>
+      return `<div class="row ${on ? 'on' : ''}"><span class="ic">${v.ic}</span><div class="tx"><b>${v.nm}</b><small>${on ? '지금 공연 중! · ' : own ? '구매 완료 · ' : fmt(v.cost) + '원 · '}수입 ×${v.bonus}<br>효과: ${v.fx}<br>좋아하는 날씨: ${WEATHERS[VENUE_FAV[i]][0]} ${WEATHERS[VENUE_FAV[i]][1]} (수입 ×1.25)</small></div>
         ${own ? (on ? '<span style="font-weight:700;color:var(--acc)">사용 중</span>' : `<button class="btn go" data-act="venueUse" data-arg="${i}">사용</button>`) : costBtn('venueBuy', i, v.cost, '구매<br>' + fmt(v.cost) + '원')}</div>`;
     }).join('') + '<div class="note gray">무대마다 수입 보너스(터치·알바 모두)와 효과가 달라요. 보너스는 지금 사용 중인 무대 것만 적용되고, 산 무대는 언제든 바꿔 쓸 수 있어요.</div>';
   }
-  $('panel').innerHTML = h;
+  if (h !== lastPanelH) { $('panel').innerHTML = h; lastPanelH = h; }
   refreshDyn();
 }
 function refreshDyn() {
@@ -985,25 +1060,26 @@ function refreshDyn() {
 $('panel').addEventListener('click', e => {
   const b = e.target.closest('button[data-act]'); if (!b || b.disabled || !ready) return;
   const arg = b.dataset.arg;
+  if (EXTRA_ACTS.includes(b.dataset.act)) return;
   switch (b.dataset.act) {
     case 'bulk': bulkMode = arg; buildPanel(); return;
     case 'stk': curStock = arg; buildPanel(); return;
     case 'resetChart': mk().hist = []; if (mk().live) mk().hist.push({ t:Date.now(), v:cs().price }); renderStock(); return;
     case 'pick': S.dance = arg; dirty = true; buildPanel(); return;
     case 'hire': { const [id, k] = arg.split(','), w = CREW.find(x => x.id === id), { total } = bulkInfo(w, bulkMode);
-      if (!total || S.money < total) return; S.money -= total; S.crew[id] = (S.crew[id] || 0) + (+k); renderCrew(); break; }
+      if (!total || S.money < total) return; S.money -= total; S.crew[id] = (S.crew[id] || 0) + (+k); S.dex[id] = Math.max(S.dex[id] || 0, S.crew[id]); qAdd('hire', +k); sfx('coin'); renderCrew(); break; }
     case 'tip': { const c = tipCost(S.tipLv); if (S.money < c) return; S.money -= c; S.tipLv++; break; }
     case 'wage': { const c = wageCost(S.wageLv); if (S.money < c) return; S.money -= c; S.wageLv++; break; }
     case 'buy': trade(true, +arg); return;
     case 'sell': trade(false, +arg); return;
-    case 'venueBuy': { const v = VENUES[+arg]; if (S.money < v.cost) return; S.money -= v.cost; S.venues.push(+arg); setVenue(+arg); toast('🎉 ' + v.nm + ' 무대를 샀어요!'); break; }
-    case 'venueUse': setVenue(+arg); break;
+    case 'venueBuy': { const v = VENUES[+arg]; if (S.money < v.cost) return; S.money -= v.cost; S.venues.push(+arg); setVenue(+arg); toast('🎉 ' + v.nm + ' 무대를 샀어요!'); finale(v.ic + ' ' + v.nm + ' 오픈!', [v.ic, '🎊', '✨']); startMusic(); break; }
+    case 'venueUse': setVenue(+arg); startMusic(); break;
     case 'rebirth': {
       if (!canRebirth() || !confirm((S.run + 1) + '회차로 다시 태어날까요?\n돈·알바·무대·스킨·묘기·부동산·강화·주식이 모두 처음으로 돌아가요.\n이번 회차 기록은 남고, 수입이 ×' + fmt(runMult(S.run + 1)) + '이 돼요.')) return;
       closePanel(); rebirthFx(S.run);   // 환생 전 모습을 찍어 두고 우주로 날려 보냄
       S.history.push({ run:S.run, earned:S.totalEarned, at:Date.now() });
       const st = newStocks(); for (const x of STOCKS) st[x.id].price = S.stocks[x.id].price;
-      Object.assign(S, { run:S.run + 1, money:0, totalEarned:0, taps:0, dances:{}, crew:{}, estate:{}, tipLv:0, wageLv:0, stocks:st, venues:[0], skins:['basic'], skin:'basic', dance:'sway' });
+      Object.assign(S, { crewLv:{}, run:S.run + 1, money:0, totalEarned:0, taps:0, dances:{}, crew:{}, estate:{}, tipLv:0, wageLv:0, stocks:st, venues:[0], skins:['basic'], skin:'basic', dance:'sway' });
       knownUnlocked = 1; setVenue(0); renderCrew(); startDance(); toast('🔁 ' + S.run + '회차 시작! 모든 수입이 ×' + fmt(runMult()) + '배예요'); break; }
     case 'skinUse': if (S.skins.includes(arg)) S.skin = arg; break;
     case 'skinBuy': { const k = SKINS.find(x => x.id === arg); if (!k || S.skins.includes(arg) || S.money < k.cost) return; S.money -= k.cost; S.skins.push(arg); S.skin = arg; toast('🎉 ' + k.nm + ' 의상을 샀어요!'); break; }
@@ -1011,6 +1087,10 @@ $('panel').addEventListener('click', e => {
       if (S.money < c) return; S.money -= c; S.estate[arg] = n + 1; toast('🎉 ' + e.nm + ' ' + (n + 1) + '번째 채를 지었어요!'); break; }
   }
   S.acts++; dirty = true; save(); render(); buildPanel();
+});
+$('panel').addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]'); if (!b || b.disabled || !ready) return;
+  if (extraAct(b.dataset.act, b.dataset.arg)) { S.acts++; dirty = true; save(); render(); buildPanel(); }
 });
 
 // ================= 주식 시세 =================
@@ -1166,6 +1246,457 @@ function rebirthFx(oldRun) {
   setTimeout(() => { ov.remove(); fg.style.transition = ''; fg.style.opacity = ''; }, T);
 }
 
+// ================= 확장 기능: 이벤트 · 콤보 · 업적 · 퀘스트 · 진화 · 특성 · 날씨 · 소리 · 미니게임 =================
+const rand = (a, b) => a + Math.random() * (b - a);
+const pickW = arr => { let r = Math.random() * arr.reduce((s, x) => s + x.w, 0); for (const x of arr) { r -= x.w; if (r <= 0) return x; } return arr[0]; };
+const esc2 = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+// ---------- 환생 특성 트리 (환생해도 유지) ----------
+const TRAITS = [
+  { id:'tap',     ic:'👏', nm:'박수갈채',   max:10, ds:l => `터치 수입 +${l * 10}%` },
+  { id:'crew',    ic:'🤝', nm:'팀워크',     max:10, ds:l => `알바 수입 +${l * 10}%` },
+  { id:'disc',    ic:'🏷️', nm:'알뜰살림',   max:10, ds:l => `알바 고용 가격 -${l * 3}%` },
+  { id:'lucky',   ic:'🍀', nm:'행운',       max:5,  ds:l => `골든 이벤트 등장 -${l * 8}% 더 자주` },
+  { id:'gold',    ic:'🌟', nm:'황금 손길',  max:5,  ds:l => `이벤트 효과 지속시간 +${l * 20}%` },
+  { id:'fan',     ic:'💖', nm:'인기 스타',  max:5,  ds:l => `팬 보너스 효과 +${l * 20}%` },
+  { id:'offline', ic:'🌙', nm:'야간 근무',  max:5,  ds:l => `자리 비운 동안 수입 효율 ${50 + l * 10}%` },
+  { id:'offcap',  ic:'⏰', nm:'연장 근무',  max:5,  ds:l => `자리 비운 동안 최대 ${8 + l * 2}시간까지 인정` },
+];
+const traitLv = id => S.traits[id] || 0;
+const tpEarned = () => S.history.reduce((a, h) => a + h.run, 0) + (S.bonusTp || 0);
+const tpSpent = () => TRAITS.reduce((a, t) => a + traitLv(t.id) * (traitLv(t.id) + 1) / 2, 0);
+const tpLeft = () => tpEarned() - tpSpent();
+
+// ---------- 팬 · 날씨 · 버프 ----------
+const fanCount = () => Math.floor(S.lifeTaps / 100) + Object.keys(S.ach).length * 5;
+const fanMult = () => 1 + Math.min(fanCount(), 500) * 0.002 * (1 + 0.2 * traitLv('fan'));
+const WEATHERS = { clear:['☀️', '맑음'], rain:['🌧️', '비'], snow:['❄️', '눈'], rainbow:['🌈', '무지개'], wind:['🍃', '바람'] };
+const VENUE_FAV = ['rain', 'wind', 'clear', 'rainbow', 'rain', 'clear', 'clear', 'wind', 'snow', 'snow'];
+let weather = { type:'clear', until:0 };
+const weatherMult = () => weather.type === VENUE_FAV[S.venue] ? 1.25 : 1;
+const dayPhase = () => { const h = new Date().getHours(); return h >= 6 && h < 17 ? 'day' : h >= 17 && h < 20 ? 'dusk' : 'night'; };
+const globalMult = () => fanMult() * weatherMult();
+let buffs = [];
+const buffM = k => buffs.reduce((m, b) => m * (b[k] || 1), 1);
+function addBuff(b) {
+  const dur = b.dur * (1 + 0.2 * traitLv('gold')) * 1000;
+  buffs = buffs.filter(x => x.id !== b.id); buffs.push({ ...b, until:Date.now() + dur });
+}
+const tapPay = () => TAP_PAY * tipMult() * venueMult() * runMult() * globalMult() * (1 + 0.1 * traitLv('tap')) * buffM('tap');
+const bonusBase = () => Math.max(crewRate(), tapPay() * 5);   // 보너스 보상의 기준: 1초치 수입
+
+// ---------- 알바 진화 · 시너지 ----------
+const MAX_EVO = 5, EVO_NM = ['', '숙련된 ', '베테랑 ', '에이스 ', '전설의 ', '신화의 '];
+const evoCost = (w, lv) => Math.ceil(w.cost * 6 * Math.pow(3.5, lv));
+const SYN_MIN = 5;
+const SYN = [
+  { ids:['parrot', 'penguin'],   ic:'🎟️', nm:'호객 콤비' },
+  { ids:['elephant', 'lion'],    ic:'🎪', nm:'맹수 조련단' },
+  { ids:['otter', 'bear'],       ic:'🤹', nm:'곡예 듀오' },
+  { ids:['giraffe', 'unicorn'],  ic:'🌈', nm:'공중 마술단' },
+  { ids:['panda', 'tiger'],      ic:'🎋', nm:'흑백 대결' },
+  { ids:['mammoth', 'trex'],     ic:'🦴', nm:'선사시대 쇼' },
+  { ids:['kraken', 'dragon'],    ic:'🌊', nm:'바다와 하늘' },
+  { ids:['dragon', 'phoenix'],   ic:'🔥', nm:'불꽃 대전' },
+];
+const synOn = s => s.ids.every(i => (S.crew[i] || 0) >= SYN_MIN);
+const synMult = id => SYN.reduce((m, s) => s.ids.includes(id) && synOn(s) ? m * 1.25 : m, 1);
+const unitInc = w => w.inc * (1 + 0.5 * (S.crewLv[w.id] || 0)) * synMult(w.id);
+
+// ---------- 꾸미기: 모자 · 터치 이펙트 ----------
+const HATS = [
+  { id:'none',   ic:'🙅', nm:'없음',        cost:0,   svg:'' },
+  { id:'ribbon', ic:'🎀', nm:'분홍 리본',    cost:2e4, svg:'<path d="M8,-24 L26,-36 L26,-14 Z" fill="#ff6b9a" stroke="#a02b55" stroke-width="2" stroke-linejoin="round"/><path d="M8,-24 L-10,-36 L-10,-14 Z" fill="#ff6b9a" stroke="#a02b55" stroke-width="2" stroke-linejoin="round"/><circle cx="8" cy="-24" r="5" fill="#ffd0e0" stroke="#a02b55" stroke-width="2"/>' },
+  { id:'shades', ic:'🕶️', nm:'멋쟁이 선글라스', cost:3e5, svg:'<rect x="-21" y="-12" width="18" height="12" rx="4" fill="#15151f" stroke="#000" stroke-width="1.5"/><rect x="3" y="-12" width="18" height="12" rx="4" fill="#15151f" stroke="#000" stroke-width="1.5"/><rect x="-4" y="-9" width="8" height="3" fill="#15151f"/><path d="M-17,-9 l6,0" stroke="#fff" stroke-width="2" opacity=".5"/>' },
+  { id:'flower', ic:'🌸', nm:'꽃 머리핀',    cost:4e6, svg:'<g transform="translate(-15 -24)"><circle cx="0" cy="-7" r="5" fill="#ff9ec1"/><circle cx="7" cy="-2" r="5" fill="#ff9ec1"/><circle cx="4" cy="6" r="5" fill="#ff9ec1"/><circle cx="-4" cy="6" r="5" fill="#ff9ec1"/><circle cx="-7" cy="-2" r="5" fill="#ff9ec1"/><circle cx="0" cy="0" r="4" fill="#ffd23f" stroke="#a07800" stroke-width="1.5"/></g>' },
+  { id:'party',  ic:'🥳', nm:'파티 고깔',    cost:5e7, svg:'<polygon points="-13,-20 13,-20 0,-56" fill="#6ec6ff" stroke="#2a6a99" stroke-width="2" stroke-linejoin="round"/><path d="M-8,-31 L8,-31 M-5,-42 L5,-42" stroke="#fff" stroke-width="3"/><circle cx="0" cy="-57" r="5" fill="#ffd23f" stroke="#a07800" stroke-width="1.5"/>' },
+  { id:'phones', ic:'🎧', nm:'헤드폰',       cost:6e8, svg:'<path d="M-25,-2 Q-25,-38 0,-38 Q25,-38 25,-2" fill="none" stroke="#2d2d38" stroke-width="5" stroke-linecap="round"/><rect x="-32" y="-10" width="10" height="18" rx="4" fill="#e8504a" stroke="#6b1d1a" stroke-width="2"/><rect x="22" y="-10" width="10" height="18" rx="4" fill="#e8504a" stroke="#6b1d1a" stroke-width="2"/>' },
+  { id:'tophat', ic:'🎩', nm:'마술사 모자',  cost:7e9, svg:'<rect x="-14" y="-50" width="28" height="30" rx="3" fill="#25252f" stroke="#000" stroke-width="2"/><rect x="-24" y="-25" width="48" height="7" rx="3" fill="#25252f" stroke="#000" stroke-width="2"/><rect x="-14" y="-34" width="28" height="6" fill="#c0392b"/>' },
+];
+const FXS = [
+  { id:'coin',  ic:'🪙', nm:'기본 (무대 효과)', cost:0,   puff:null },
+  { id:'heart', ic:'💖', nm:'하트 팡팡',   cost:1e4, puff:'💖' },
+  { id:'note',  ic:'🎵', nm:'음표 팡팡',   cost:2e6, puff:'🎵' },
+  { id:'star',  ic:'🌟', nm:'별똥별',      cost:3e7, puff:'🌟' },
+  { id:'fire',  ic:'🔥', nm:'불꽃',        cost:4e8, puff:'🔥' },
+  { id:'rbow',  ic:'🌈', nm:'무지개',      cost:5e9, puff:'🌈' },
+  { id:'bubble',ic:'🫧', nm:'비눗방울',    cost:6e10, puff:'🫧' },
+];
+const hatSvg = () => (HATS.find(h => h.id === S.hat && S.hats.includes(h.id)) || HATS[0]).svg;
+const fxPuff = () => (FXS.find(f => f.id === S.fx && S.fxs.includes(f.id)) || FXS[0]).puff || VENUES[S.venue].puff;
+function cosmeticHtml() {
+  const item = (k, ownList, cur, buyAct, useAct) => {
+    const own = ownList.includes(k.id), on = cur === k.id;
+    return `<div class="row ${on ? 'on' : ''}"><span class="ic">${k.ic}</span><div class="tx"><b>${k.nm}</b><small>${own ? (on ? '쓰고 있어요' : '보유 중') : fmt(k.cost) + '원'}</small></div>
+      ${own ? (on ? '<span style="font-weight:700;color:var(--acc)">사용 중</span>' : `<button class="btn go" data-act="${useAct}" data-arg="${k.id}">쓰기</button>`) : costBtn(buyAct, k.id, k.cost, '구매<br>' + fmt(k.cost) + '원')}</div>`;
+  };
+  return `<h3 style="margin:14px 0 6px">🎩 모자 · 소품</h3>` + HATS.map(k => item(k, S.hats, S.hat, 'hatBuy', 'hatUse')).join('')
+    + `<h3 style="margin:14px 0 6px">✨ 터치 이펙트</h3>` + FXS.map(k => item(k, S.fxs, S.fx, 'fxBuy', 'fxUse')).join('');
+}
+
+// ---------- 업적 ----------
+const ownedCrew = () => CREW.filter(w => (S.crew[w.id] || 0) > 0).length;
+const ACHS = [
+  { id:'tap100',  ic:'👆', nm:'첫 박수',       ds:'터치 100번',       ok:() => S.lifeTaps >= 100 },
+  { id:'tap1k',   ic:'👏', nm:'인기 공연자',   ds:'터치 1,000번',     ok:() => S.lifeTaps >= 1e3 },
+  { id:'tap10k',  ic:'🙌', nm:'박수 부대',     ds:'터치 1만 번',      ok:() => S.lifeTaps >= 1e4 },
+  { id:'tap100k', ic:'☝️', nm:'전설의 손가락', ds:'터치 10만 번',     ok:() => S.lifeTaps >= 1e5 },
+  { id:'hire1',   ic:'🦜', nm:'단원 모집',     ds:'알바 처음 고용',   ok:() => ownedCrew() >= 1 },
+  { id:'crew30',  ic:'🐘', nm:'만원 사례',     ds:'한 종류 알바 30마리', ok:() => CREW.some(w => (S.crew[w.id] || 0) >= MAX_CREW) },
+  { id:'dex5',    ic:'📖', nm:'동물 친구들',   ds:'도감 5종 수집',    ok:() => Object.keys(S.dex).length >= 5 },
+  { id:'dex15',   ic:'🎓', nm:'동물 박사',     ds:'도감 전부 수집',   ok:() => CREW.every(w => S.dex[w.id]) },
+  { id:'dance5',  ic:'🎭', nm:'묘기 꿈나무',   ds:'묘기 5개 해금',    ok:() => unlocked().length >= 5 },
+  { id:'dance15', ic:'🏆', nm:'묘기 대마왕',   ds:'묘기 전부 해금',   ok:() => unlocked().length >= DANCES.length },
+  { id:'venue3',  ic:'🏟️', nm:'무대 수집가',   ds:'무대 3곳 보유',    ok:() => S.venues.length >= 3 },
+  { id:'venue10', ic:'🌌', nm:'월드 스타',     ds:'무대 전부 보유',   ok:() => S.venues.length >= VENUES.length },
+  { id:'skin4',   ic:'👕', nm:'패셔니스타',    ds:'스킨 4벌 보유',    ok:() => S.skins.length >= 4 },
+  { id:'skinall', ic:'👑', nm:'옷장 마스터',   ds:'스킨 전부 보유',   ok:() => S.skins.length >= SKINS.length },
+  { id:'hat3',    ic:'🎩', nm:'멋쟁이',        ds:'모자·소품 3개 보유', ok:() => S.hats.length >= 4 },
+  { id:'estate1', ic:'🌴', nm:'아마존 투자자', ds:'부동산 첫 구매',   ok:() => ESTATES.some(e => (S.estate[e.id] || 0) > 0) },
+  { id:'estate30',ic:'🏝️', nm:'부동산 재벌',   ds:'부동산 30채',      ok:() => ESTATES.every(e => (S.estate[e.id] || 0) >= MAX_ESTATE) },
+  { id:'combo20', ic:'🔥', nm:'콤보 시작',     ds:'20콤보',           ok:() => S.bestCombo >= 20 },
+  { id:'combo50', ic:'💥', nm:'콤보 달인',     ds:'50콤보',           ok:() => S.bestCombo >= 50 },
+  { id:'perf100', ic:'🎯', nm:'박자 천재',     ds:'퍼펙트 100번',     ok:() => S.perfects >= 100 },
+  { id:'perf1k',  ic:'🎼', nm:'리듬의 신',     ds:'퍼펙트 1,000번',   ok:() => S.perfects >= 1000 },
+  { id:'gold10',  ic:'🍌', nm:'행운의 손',     ds:'골든 이벤트 10번 잡기', ok:() => S.golds >= 10 },
+  { id:'gold100', ic:'🍀', nm:'행운의 여신',   ds:'골든 이벤트 100번 잡기', ok:() => S.golds >= 100 },
+  { id:'game5',   ic:'🎪', nm:'무대 체질',     ds:'특별 공연 5번',    ok:() => S.games >= 5 },
+  { id:'game30',  ic:'🎡', nm:'공연의 달인',   ds:'특별 공연 30번',   ok:() => S.games >= 30 },
+  { id:'reb1',    ic:'🔁', nm:'다시 태어난 자', ds:'환생 1번',        ok:() => S.history.length >= 1 },
+  { id:'reb3',    ic:'🚀', nm:'우주 여행자',   ds:'환생 3번',         ok:() => S.history.length >= 3 },
+  { id:'earn8',   ic:'💰', nm:'억만장자',      ds:'전체 누적 1억원',  ok:() => lifeEarned() >= 1e8 },
+  { id:'earn12',  ic:'💎', nm:'조만장자',      ds:'전체 누적 1조원',  ok:() => lifeEarned() >= 1e12 },
+  { id:'earn20',  ic:'🌠', nm:'해만장자',      ds:'전체 누적 1해원',  ok:() => lifeEarned() >= 1e20 },
+  { id:'streak7', ic:'📅', nm:'개근상',        ds:'7일 연속 출석',    ok:() => S.streak >= 7 },
+];
+const achReward = () => Math.max(3000, crewRate() * 1800);
+const unclaimedAch = () => ACHS.filter(a => a.ok() && !S.ach[a.id]);
+let achSeen = new Set();
+
+// ---------- 일일 퀘스트 · 출석 ----------
+const QPOOL = [
+  { id:'tap',   ic:'👆', nm:'터치 {n}번 하기',          g:[200, 400, 800] },
+  { id:'hire',  ic:'🐾', nm:'알바 {n}마리 고용하기',    g:[3, 5, 8] },
+  { id:'gold',  ic:'🍌', nm:'골든 이벤트 {n}번 잡기',   g:[2, 3, 4] },
+  { id:'game',  ic:'🎪', nm:'특별 공연 {n}번 하기',     g:[1, 2] },
+  { id:'perf',  ic:'🎯', nm:'퍼펙트 {n}번 맞추기',      g:[15, 30, 50] },
+  { id:'combo', ic:'🔥', nm:'{n}콤보 달성하기',         g:[15, 25, 40] },
+];
+const todayKey = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+function ensureDaily() {
+  const k = todayKey();
+  if (S.daily && S.daily.key === k) return;
+  let h = 0; for (const c of k) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const pool = QPOOL.slice(), q = [];
+  while (q.length < 3) { h = (h * 1103515245 + 12345) >>> 0; const t = pool.splice((h >>> 4) % pool.length, 1)[0]; q.push({ id:t.id, goal:t.g[(h >>> 12) % t.g.length], prog:0, claimed:false }); }
+  S.daily = { key:k, q, all:false }; dirty = true;
+}
+function qAdd(id, n = 1) { const q = S.daily?.q.find(x => x.id === id); if (q && q.prog < q.goal) { q.prog = Math.min(q.goal, q.prog + n); dirty = true; } }
+function qMax(id, v) { const q = S.daily?.q.find(x => x.id === id); if (q && q.prog < q.goal && v > q.prog) { q.prog = Math.min(q.goal, v); dirty = true; } }
+const questReward = () => Math.max(2000, crewRate() * 600);
+const weekKeyNow = () => { const x = new Date(); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return todayKey(x); };
+
+// ---------- 소리 (WebAudio 합성: 효과음 + 무대별 배경음) ----------
+let AC = null;
+function ac() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } }
+  if (AC.state === 'suspended') AC.resume().catch(() => {});
+  return AC;
+}
+function tone(f, dur = .12, type = 'triangle', vol = .07, when = 0, slide = 0) {
+  const c = ac(); if (!c) return;
+  const t0 = c.currentTime + when, o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t0);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f * slide), t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + .01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + dur + .02);
+}
+function sfx(k, n = 0) {
+  if (!S.sound) return;
+  switch (k) {
+    case 'tap': tone(330 * Math.pow(2, Math.min(n, 24) / 12 * .5), .09, 'triangle', .06, 0, 1.3); break;
+    case 'perfect': tone(880, .12, 'sine', .07); tone(1320, .16, 'sine', .06, .06); break;
+    case 'coin': tone(988, .08, 'square', .04); tone(1319, .18, 'square', .04, .07); break;
+    case 'gold': [523, 659, 784, 1047].forEach((f, i) => tone(f, .18, 'triangle', .08, i * .07)); break;
+    case 'fanfare': [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, .28, 'square', .05, i * .1)); tone(1047, .6, 'triangle', .07, .5); break;
+    case 'bad': tone(180, .22, 'sawtooth', .06, 0, .6); break;
+    case 'ok': tone(660, .08, 'triangle', .07); break;
+  }
+}
+const MUSIC = [
+  { bpm:104, root:261.6, w:'triangle' }, { bpm:100, root:293.7, w:'sine' }, { bpm:120, root:329.6, w:'square' }, { bpm:112, root:246.9, w:'triangle' },
+  { bpm:96,  root:220,   w:'sine' },     { bpm:128, root:293.7, w:'triangle' }, { bpm:108, root:261.6, w:'sine' }, { bpm:90, root:196, w:'triangle' },
+  { bpm:84,  root:174.6, w:'sine' },     { bpm:76,  root:220,   w:'sine' },
+];
+const PENTA = [0, 2, 4, 7, 9];
+let bgmTimer = null, bgmStep = 0;
+function stopMusic() { clearInterval(bgmTimer); bgmTimer = null; }
+function startMusic() {
+  stopMusic(); if (!S.music || !ac()) return;
+  const m = MUSIC[S.venue] || MUSIC[0], v = S.venue, stepMs = 60000 / m.bpm / 2;
+  bgmTimer = setInterval(() => {
+    if (document.hidden) return;
+    const i = bgmStep++ % 32, f = n => m.root * Math.pow(2, n / 12);
+    if (i % 8 === 0) tone(f(-12), stepMs * 7 / 1000, 'sine', .05);
+    if ((i * 5 + v) % 4 !== 3) { const deg = PENTA[(i * 7 + v * 3 + (i >> 3)) % 5] + ((i + v) % 6 === 0 ? 12 : 0); tone(f(deg), stepMs * 1.6 / 1000, m.w, .035); }
+  }, stepMs);
+}
+function syncSndBtns() {
+  $('sndBtn').classList.toggle('off', !S.sound); $('sndBtn').textContent = S.sound ? '🔊' : '🔇';
+  $('bgmBtn').classList.toggle('off', !S.music);
+}
+$('sndBtn').onclick = () => { S.sound = !S.sound; dirty = true; ac(); sfx('ok'); syncSndBtns(); };
+$('bgmBtn').onclick = () => { S.music = !S.music; dirty = true; ac(); S.music ? startMusic() : stopMusic(); syncSndBtns(); };
+addEventListener('pointerdown', () => { if (S.music && !bgmTimer && ready) startMusic(); }, { once:true });
+
+// ---------- 연출: 피날레 · 관중석 ----------
+function finale(text, icons) {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9550;pointer-events:none;overflow:hidden';
+  let h = '';
+  for (let i = 0; i < 36; i++) h += `<span style="position:absolute;left:${rand(0, 98).toFixed(0)}%;top:-8%;font-size:${rand(18, 34).toFixed(0)}px">${icons[i % icons.length]}</span>`;
+  ov.innerHTML = h + `<div style="position:absolute;left:0;right:0;top:34%;text-align:center;font-weight:900;font-size:26px;color:#fff;text-shadow:0 3px 0 #3b2a1a,0 0 12px #000a;padding:0 12px">${text}</div>`;
+  document.body.appendChild(ov);
+  ov.querySelectorAll('span').forEach(e => e.animate([{ transform:'translateY(0) rotate(0)', opacity:1 }, { transform:`translateY(${innerHeight * 1.1}px) rotate(${rand(-360, 360).toFixed(0)}deg)`, opacity:1 }], { duration:rand(1500, 2600), delay:rand(0, 500), easing:'ease-in', fill:'forwards' }));
+  ov.lastElementChild.animate([{ transform:'scale(.3)', opacity:0 }, { transform:'scale(1.1)', opacity:1, offset:.2 }, { transform:'scale(1)', opacity:1, offset:.8 }, { transform:'scale(1)', opacity:0 }], { duration:2600 });
+  setTimeout(() => ov.remove(), 3200);
+  sfx('fanfare');
+}
+const AUD = ['🧑', '👧', '👦', '🧓', '👩', '🧒', '🐶', '🐱', '🧔', '👴'];
+let crowdN = -1;
+function renderCrowd() {
+  const n = clamp(Math.floor(Math.log10(crewRate() + 10) * 2), 1, 16);
+  if (n === crowdN) return; crowdN = n;
+  $('crowd').innerHTML = Array.from({ length:n }, (_, i) => `<span style="animation-delay:${((i * .13) % 1).toFixed(2)}s">${AUD[i % AUD.length]}</span>`).join('');
+}
+function cheer(big) {
+  const c = $('crowd'); c.classList.add('cheer'); clearTimeout(cheer.t); cheer.t = setTimeout(() => c.classList.remove('cheer'), 450);
+  if (big || Math.random() < .06) {
+    const sp = c.children[Math.floor(Math.random() * c.children.length)]; if (!sp) return;
+    const r = sp.getBoundingClientRect(), e = document.createElement('span');
+    e.textContent = Math.random() < .5 ? '🌹' : '💐'; e.style.cssText = `position:fixed;left:${r.left}px;top:${r.top}px;font-size:20px;z-index:50;pointer-events:none`;
+    document.body.appendChild(e);
+    e.animate([{ transform:'translate(0,0) rotate(0)', opacity:1 }, { transform:`translate(${rand(-40, 40)}px,-${rand(120, 200)}px) rotate(300deg)`, opacity:0 }], { duration:1100, easing:'ease-out' }).onfinish = () => e.remove();
+  }
+}
+
+// ---------- 골든 이벤트 · 뉴스 · 특별 공연 알림 ----------
+const GOLD_TYPES = [
+  { w:5, ic:'🍌', run() { addBuff({ id:'gold', ic:'🍌', nm:'골든 바나나 ×5', tap:5, crew:5, dur:30 }); toast('🍌 골든 바나나! 30초 동안 모든 수입 ×5'); } },
+  { w:3, ic:'🎈', run() { const g = bonusBase() * 90; earn(g); toast('🎈 행운 풍선! ' + fmt(g) + '원을 받았어요'); } },
+  { w:2, ic:'🍀', run() { addBuff({ id:'clover', ic:'🍀', nm:'네잎클로버 알바 ×3', crew:3, dur:25 }); toast('🍀 네잎클로버! 25초 동안 알바 수입 ×3'); } },
+];
+let nextGold = Date.now() + 25000, nextNews = Date.now() + 90000, nextShow = Date.now() + 120000, showUntil = 0, nextWeather = 0;
+function spawnGold() {
+  nextGold = Date.now() + rand(40, 90) * 1000 * (1 - 0.08 * traitLv('lucky'));
+  const t = pickW(GOLD_TYPES), st = $('stage').getBoundingClientRect(), r = $('mk').getBoundingClientRect();
+  const el = document.createElement('div'); el.className = 'gold'; el.textContent = t.ic;
+  el.style.left = (r.left - st.left + rand(.1, .8) * (r.width - 48)) + 'px'; el.style.top = (r.top - st.top + rand(.12, .55) * (r.height - 48)) + 'px';
+  el.addEventListener('pointerdown', e => {
+    e.stopPropagation(); e.preventDefault();
+    S.golds++; qAdd('gold'); t.run(); sfx('gold'); cheer(true);
+    const b = el.getBoundingClientRect(); el.remove();
+    for (let i = 0; i < 8; i++) { const p = document.createElement('span'); p.className = 'puff'; p.textContent = '✨'; p.style.left = (b.left - st.left + 24) + 'px'; p.style.top = (b.top - st.top + 24) + 'px';
+      p.style.setProperty('--dx', rand(-70, 70).toFixed(0) + 'px'); p.style.setProperty('--dy', rand(-70, 30).toFixed(0) + 'px'); $('stage').appendChild(p); setTimeout(() => p.remove(), 900); }
+    render();
+  });
+  $('stage').appendChild(el); setTimeout(() => el.remove(), 8000);
+}
+const NEWS = [
+  { w:3, t:'🍌 바나나 풍년! 터치 수입 ×1.5 (60초)',        b:{ id:'n_tap', ic:'🍌', nm:'바나나 풍년 터치 ×1.5', tap:1.5, dur:60 } },
+  { w:3, t:'🎟️ 관광객이 몰려와요! 알바 수입 ×1.5 (60초)',   b:{ id:'n_crew', ic:'🎟️', nm:'관광객 알바 ×1.5', crew:1.5, dur:60 } },
+  { w:2, t:'🍇 포도 축제 개막! 모든 수입 ×1.3 (45초)',      b:{ id:'n_all', ic:'🍇', nm:'포도 축제 ×1.3', tap:1.3, crew:1.3, dur:45 } },
+  { w:2, t:'⛈️ 폭풍우 경보… 알바 수입 ×0.7 (30초)',         b:{ id:'n_bad', ic:'⛈️', nm:'폭풍우 알바 ×0.7', crew:.7, dur:30 } },
+  { w:1, t:'🥒 오이 가뭄… 소문만 무성하네요 (영향 없음)',    b:null },
+];
+const newsLog = [];
+function fireNews() {
+  nextNews = Date.now() + rand(150, 260) * 1000;
+  const n = pickW(NEWS); if (n.b) addBuff(n.b);
+  newsLog.unshift(new Date().toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) + ' ' + n.t); newsLog.length = Math.min(newsLog.length, 5);
+  toast('📰 ' + n.t); if (tab === 'stock') buildPanel();
+}
+function changeWeather(first) {
+  const t = pickW([{ w:4, k:'clear' }, { w:2, k:'rain' }, { w:1.5, k:'snow' }, { w:1.2, k:'rainbow' }, { w:1.5, k:'wind' }]).k;
+  weather = { type:t, until:Date.now() + rand(120, 240) * 1000 };
+  if (!first && weatherMult() > 1) toast(WEATHERS[t][0] + ' ' + WEATHERS[t][1] + '! 이 무대가 좋아하는 날씨라 수입 ×1.25');
+  renderWx();
+}
+function renderWx() {
+  const w = WEATHERS[weather.type], p = { day:'☀️낮', dusk:'🌇저녁', night:'🌙밤' }[dayPhase()];
+  $('wx').textContent = `${w[0]} ${w[1]} · ${p}` + (weatherMult() > 1 ? ' · 수입 ×1.25' : '');
+}
+function weatherSvg(t) {
+  const f = x => x.toFixed(1), ph = dayPhase(), ty = weather.type;
+  let o = ph === 'night' ? '<rect width="300" height="260" fill="#0a1a5a" opacity=".3"/>' : ph === 'dusk' ? '<rect width="300" height="260" fill="#ff8a3c" opacity=".16"/>' : '';
+  if (ty === 'rain') for (let i = 0; i < 26; i++) { const x = (i * 37 + t * 40) % 320 - 10, y = (t * 420 + i * 53) % 270 - 10; o += `<line x1="${f(x)}" y1="${f(y)}" x2="${f(x - 4)}" y2="${f(y + 12)}" stroke="#6aa8e8" stroke-width="1.6" opacity=".7"/>`; }
+  else if (ty === 'snow') for (let i = 0; i < 24; i++) { const x = (i * 41 + 12 * sin(t + i)) % 300, y = (t * 40 + i * 47) % 270; o += `<circle cx="${f(x)}" cy="${f(y)}" r="${1.8 + i % 3}" fill="#fff" opacity=".9"/>`; }
+  else if (ty === 'wind') for (let i = 0; i < 7; i++) { const x = ((t * 140 + i * 90) % 400) - 60, y = 30 + i * 28; o += `<path d="M${f(x)} ${y} q18 -6 36 0 t30 0" fill="none" stroke="#fff" stroke-width="2" opacity=".6" stroke-linecap="round"/>`; }
+  else if (ty === 'rainbow') ['#ff6b6b', '#ffa94d', '#ffe066', '#69db7c', '#4dabf7', '#9775fa'].forEach((c, i) => { o += `<path d="M${30 + i * 7} ${GY - 10} A${120 - i * 7} ${120 - i * 7} 0 0 1 ${270 - i * 7} ${GY - 10}" fill="none" stroke="${c}" stroke-width="7" opacity=".4"/>`; });
+  return o;
+}
+
+// ---------- 특별 공연 (미니게임) ----------
+let gameOpen = false, gameDone = null, gameTimers = [];
+const gClear = () => { gameTimers.forEach(t => { clearInterval(t); clearTimeout(t); }); gameTimers = []; cancelAnimationFrame(gameRaf); };
+let gameRaf = 0;
+function openGame(kind, onDone) {
+  if (gameOpen || !ready) return;
+  gameOpen = true; gameDone = onDone || null; kind = kind || (Math.random() < .5 ? 'catch' : 'ring');
+  $('showBtn').style.display = 'none'; showUntil = 0; nextShow = Date.now() + rand(150, 240) * 1000;
+  $('gameTitle').textContent = kind === 'catch' ? '🍌 바나나를 받아라!' : '⭕ 불붙은 링을 통과하라!';
+  $('gameModal').classList.add('show');
+  (kind === 'catch' ? gameCatch : gameRing)($('gameArea'), finishGame);
+}
+function finishGame(score) {
+  gClear();
+  const tier = score >= 30 ? 3 : score >= 20 ? 2 : score >= 10 ? 1 : 0, mins = [30, 120, 240, 480][tier], g = bonusBase() * mins;
+  earn(g); S.games++; qAdd('game'); dirty = true;
+  sfx(tier >= 2 ? 'fanfare' : tier ? 'gold' : 'ok');
+  $('gameArea').innerHTML = `<div style="text-align:center;padding:26px 8px"><div style="font-size:54px">${['😅', '👍', '🎉', '🏆'][tier]}</div>
+    <h2 style="margin:6px 0">${['아쉬워요', '좋아요!', '훌륭해요!', '대박 공연!'][tier]}</h2><p>점수 <b>${score}</b>점 · 보상 <b>${fmt(g)}원</b></p></div>`;
+  $('gameClose').style.display = '';
+  const cb = gameDone; gameDone = null; if (cb) cb(tier);
+  save(); render();
+}
+$('gameClose').onclick = () => { gClear(); gameOpen = false; $('gameModal').classList.remove('show'); };
+function gameCatch(area, done) {
+  let score = 0, left = 15;
+  $('gameClose').style.display = 'none';
+  area.innerHTML = '<div class="g-hud"></div><div class="g-field"></div><div class="note gray" style="text-align:center">🍌 +1 · 🌟 +3 · 🥥 −2 (터치해서 받아요)</div>';
+  const hud = area.querySelector('.g-hud'), field = area.querySelector('.g-field');
+  const upd = () => hud.textContent = `⏱ ${Math.ceil(left)}초 · 점수 ${score}`; upd();
+  const types = [{ ic:'🍌', p:1, w:6 }, { ic:'🌟', p:3, w:1.4 }, { ic:'🥥', p:-2, w:2.6 }];
+  gameTimers.push(setInterval(() => {
+    const t = pickW(types), e = document.createElement('div'); e.className = 'g-item'; e.textContent = t.ic;
+    e.style.left = rand(3, 82).toFixed(0) + '%'; e.style.animationDuration = rand(1.5, 2.6).toFixed(2) + 's';
+    e.addEventListener('pointerdown', ev => { ev.preventDefault(); score = Math.max(0, score + t.p); sfx(t.p > 0 ? 'coin' : 'bad'); e.remove(); upd(); });
+    e.addEventListener('animationend', () => e.remove()); field.appendChild(e);
+  }, 330));
+  gameTimers.push(setInterval(() => { left -= .1; upd(); if (left <= 0) done(score); }, 100));
+}
+function gameRing(area, done) {
+  let round = 0, hits = 0, stopped = false, zone = 0, zw = 0, t0 = performance.now(), x = 0;
+  $('gameClose').style.display = 'none';
+  area.innerHTML = '<div class="g-hud"></div><div class="g-bar"><div class="g-zone"></div><div class="g-mark">🐵</div></div><button class="btn go" id="ringBtn" style="width:100%;margin-top:14px;padding:14px;font-size:18px">🔥 지금!</button><div class="note gray" style="text-align:center">움직이는 원숭이가 초록 구간에 있을 때 눌러요 (5번)</div>';
+  const hud = area.querySelector('.g-hud'), zEl = area.querySelector('.g-zone'), mk2 = area.querySelector('.g-mark');
+  const speeds = [1.6, 2.0, 2.5, 3.0, 3.6], widths = [.3, .25, .2, .16, .13];
+  const next = () => { zw = widths[round]; zone = rand(zw / 2 + .05, 1 - zw / 2 - .05); zEl.style.left = ((zone - zw / 2) * 100) + '%'; zEl.style.width = (zw * 100) + '%'; hud.textContent = `${round + 1} / 5번째 · 성공 ${hits}`; t0 = performance.now(); stopped = false; };
+  next();
+  const frame = now => { if (!stopped) { x = .5 + .5 * Math.sin((now - t0) / 1000 * speeds[round] * 2 - 1.57); mk2.style.left = (x * 100) + '%'; } gameRaf = requestAnimationFrame(frame); };
+  gameRaf = requestAnimationFrame(frame);
+  const hit = () => {
+    if (stopped) return; stopped = true;
+    if (Math.abs(x - zone) <= zw / 2) { hits++; sfx('gold'); mk2.textContent = '🔥'; } else { sfx('bad'); mk2.textContent = '💦'; }
+    gameTimers.push(setTimeout(() => { mk2.textContent = '🐵'; round++; if (round >= 5) done(hits * 7); else next(); }, 550));
+  };
+  $('ringBtn').onclick = hit; area.querySelector('.g-bar').addEventListener('pointerdown', hit);
+}
+$('showBtn').onclick = () => openGame();
+
+// ---------- 접속 환영창: 출석 · 자리 비운 동안의 수입 ----------
+function showWelcome(lines, bonusGain) {
+  $('wBody').innerHTML = lines.map(l => `<p>${l}</p>`).join('');
+  $('wBonus').style.display = bonusGain > 0 ? '' : 'none';
+  $('wBonus').onclick = () => { $('welcomeModal').classList.remove('show'); openGame(null, tier => { if (tier >= 1) { earn(bonusGain); toast('🎁 보너스 성공! ' + fmt(bonusGain) + '원을 한 번 더 받았어요'); } else toast('아쉽게도 보너스는 받지 못했어요'); }); };
+  $('welcomeModal').classList.add('show');
+}
+$('wOk').onclick = () => $('welcomeModal').classList.remove('show');
+
+// ---------- 새 탭들의 화면 ----------
+function buildExtraPanel(t) {
+  if (t === 'ach') {
+    const claimed = ACHS.filter(a => S.ach[a.id]).length, fc = fanCount();
+    let h = `<div class="note gray" style="margin:0 0 8px">👥 팬 <b>${fc.toLocaleString()}명</b> (터치 100번마다 +1명, 업적마다 +5명) → 모든 수입 <b>+${((fanMult() - 1) * 100).toFixed(0)}%</b><br>업적은 환생해도 남아요. 달성하면 보상 ${fmt(achReward())}원을 받고 칭호로 쓸 수 있어요.</div>`;
+    h += `<h3 style="margin:8px 0 6px">📖 동물 도감 (${Object.keys(S.dex).length}/${CREW.length})</h3><div class="dex">`
+      + CREW.map(w => S.dex[w.id] ? `<div class="dx"><span>${w.ic}</span><small>${w.nm.replace(/ \[.*\]/, '')}<br>최대 ${S.dex[w.id]}마리</small></div>` : `<div class="dx lock"><span>❓</span><small>???</small></div>`).join('') + '</div>';
+    h += `<h3 style="margin:14px 0 6px">🏅 업적 (${claimed}/${ACHS.length})</h3>`;
+    h += ACHS.map(a => {
+      const ok = a.ok(), got = S.ach[a.id];
+      return `<div class="row ${got ? 'on' : ok ? '' : 'lock'}"><span class="ic">${ok || got ? a.ic : '🔒'}</span><div class="tx"><b>${a.nm}</b><small>${a.ds}</small></div>
+        ${got ? (S.title === a.nm ? '<span style="font-weight:700;color:var(--acc)">칭호 사용</span>' : `<button class="btn sub" data-act="titleUse" data-arg="${a.id}">칭호 쓰기</button>`) : ok ? `<button class="btn go" data-act="achClaim" data-arg="${a.id}">받기<br>${fmt(achReward())}원</button>` : ''}</div>`;
+    }).join('');
+    if (S.title) h += `<div class="note gray"><button class="linkbtn" data-act="titleOff">칭호 떼기</button> (지금 칭호: ${esc2(S.title)})</div>`;
+    return h;
+  }
+  if (t === 'quest') {
+    ensureDaily();
+    const d = S.daily, done = d.q.filter(q => q.claimed).length, week = ['월', '화', '수', '목', '금', '토', '일'];
+    let h = `<div class="note gray" style="margin:0 0 8px">📅 매일 새로운 퀘스트 3개가 나와요. 모두 받으면 특성 포인트 +1!</div>`;
+    h += `<div class="row on"><span class="ic">📅</span><div class="tx"><b>출석 ${S.streak}일째</b><small>${week.map((w, i) => (i < ((S.streak - 1) % 7) + 1 ? '✅' : '⬜')).join(' ')}<br>연속 출석할수록 접속 보너스가 커져요 (최대 7일)</small></div></div>`;
+    h += d.q.map((q, i) => { const tp = QPOOL.find(x => x.id === q.id), ok = q.prog >= q.goal;
+      return `<div class="row ${q.claimed ? 'on' : ok ? '' : ''}"><span class="ic">${tp.ic}</span><div class="tx"><b>${tp.nm.replace('{n}', q.goal)}</b><small>${q.prog} / ${q.goal}</small><div style="height:8px;margin-top:5px;border-radius:4px;background:rgba(0,0,0,.15);overflow:hidden"><div style="height:100%;width:${q.prog / q.goal * 100}%;background:var(--acc)"></div></div></div>
+        ${q.claimed ? '<span style="font-weight:700;color:var(--acc)">완료</span>' : ok ? `<button class="btn go" data-act="qClaim" data-arg="${i}">받기<br>${fmt(questReward())}원</button>` : ''}</div>`; }).join('');
+    h += `<div class="note gray">오늘 완료 ${done}/3 ${d.all ? '· 🎁 특성 포인트 보너스를 받았어요' : ''}</div>`;
+    return h;
+  }
+  if (t === 'evo') {
+    let h = `<div class="note gray" style="margin:0 0 8px">⭐ 알바 동물을 진화시키면 그 동물의 수입이 레벨마다 +50% 늘어요 (최대 ${MAX_EVO}단계). 환생하면 진화는 처음으로 돌아가요.</div>`;
+    const own = CREW.filter(w => (S.crew[w.id] || 0) > 0);
+    h += own.length ? own.map(w => { const lv = S.crewLv[w.id] || 0, c = evoCost(w, lv);
+      return `<div class="row ${lv ? 'on' : ''}"><span class="ic">${w.ic}</span><div class="tx"><b>${EVO_NM[lv]}${w.nm.replace(/ \[.*\]/, '')} ${'⭐'.repeat(lv) || '<span style="opacity:.5">Lv.0</span>'}</b><small>수입 ×${(1 + .5 * lv).toFixed(1)}${lv < MAX_EVO ? ' → ×' + (1 + .5 * (lv + 1)).toFixed(1) : ''}</small></div>
+        ${lv >= MAX_EVO ? '<button class="btn" disabled>최고<br>단계</button>' : costBtn('evo', w.id, c, '진화<br>' + fmt(c) + '원')}</div>`; }).join('') : '<div class="note gray">아직 고용한 알바가 없어요.</div>';
+    h += `<h3 style="margin:14px 0 6px">🤝 시너지 (두 동물을 각각 ${SYN_MIN}마리 이상 고용하면 둘 다 수입 ×1.25)</h3>`
+      + SYN.map(s => { const on = synOn(s), a = CREW.find(w => w.id === s.ids[0]), b = CREW.find(w => w.id === s.ids[1]);
+        return `<div class="row ${on ? 'on' : 'lock'}"><span class="ic">${s.ic}</span><div class="tx"><b>${s.nm}</b><small>${a.ic}${S.crew[a.id] || 0} + ${b.ic}${S.crew[b.id] || 0} / 각 ${SYN_MIN}마리</small></div>${on ? '<span style="font-weight:700;color:var(--acc)">발동!</span>' : ''}</div>`; }).join('');
+    return h;
+  }
+  if (t === 'trait') {
+    return `<div class="note gray" style="margin:0 0 8px">🌟 환생할 때마다 지난 회차 번호만큼 특성 포인트(TP)를 받아요 (3회차를 끝내면 +3). 특성은 환생해도 영구히 남아요. 레벨 L을 올리는 데 TP가 L+1 필요해요.</div>
+      <div class="row on"><span class="ic">🌟</span><div class="tx"><b>남은 TP: ${tpLeft()}</b><small>모은 TP ${tpEarned()} · 쓴 TP ${tpSpent()}</small></div></div>`
+      + TRAITS.map(tr => { const l = traitLv(tr.id), c = l + 1;
+        return `<div class="row ${l ? 'on' : ''}"><span class="ic">${tr.ic}</span><div class="tx"><b>${tr.nm} Lv.${l}/${tr.max}</b><small>${l ? '지금: ' + tr.ds(l) : '아직 안 배웠어요'}${l < tr.max ? '<br>다음: ' + tr.ds(l + 1) : ''}</small></div>
+          ${l >= tr.max ? '<button class="btn" disabled>최고</button>' : `<button class="btn go" data-act="trait" data-arg="${tr.id}" ${tpLeft() < c ? 'disabled' : ''}>배우기<br>TP ${c}</button>`}</div>`; }).join('');
+  }
+  return '';
+}
+
+// 새 탭의 클릭 처리 (true를 돌려주면 처리됨)
+function extraAct(act, arg) {
+  switch (act) {
+    case 'achClaim': { const a = ACHS.find(x => x.id === arg); if (!a || !a.ok() || S.ach[arg]) return true; earn(achReward()); S.ach[arg] = 1; S.title = S.title || a.nm; toast('🏅 ' + a.nm + ' 보상 ' + fmt(achReward()) + '원!'); sfx('coin'); return true; }
+    case 'titleUse': { const a = ACHS.find(x => x.id === arg); if (a && S.ach[arg]) S.title = a.nm; return true; }
+    case 'titleOff': S.title = ''; return true;
+    case 'qClaim': { const q = S.daily.q[+arg]; if (!q || q.claimed || q.prog < q.goal) return true; q.claimed = true; earn(questReward()); sfx('coin'); toast('📅 퀘스트 보상 ' + fmt(questReward()) + '원!');
+      if (S.daily.q.every(x => x.claimed) && !S.daily.all) { S.daily.all = true; S.bonusTp = (S.bonusTp || 0) + 1; toast('🎁 오늘 퀘스트 전부 완료! 특성 포인트 +1'); finale('📅 오늘의 퀘스트 완료!', ['🎉', '⭐', '🍌']); } return true; }
+    case 'evo': { const w = CREW.find(x => x.id === arg), lv = S.crewLv[arg] || 0; if (!w || lv >= MAX_EVO || !(S.crew[arg] > 0)) return true; const c = evoCost(w, lv); if (S.money < c) return true;
+      S.money -= c; S.crewLv[arg] = lv + 1; toast('⭐ ' + w.ic + ' ' + EVO_NM[lv + 1] + w.nm.replace(/ \[.*\]/, '') + '(으)로 진화!'); sfx('gold'); return true; }
+    case 'trait': { const tr = TRAITS.find(x => x.id === arg), l = traitLv(arg); if (!tr || l >= tr.max || tpLeft() < l + 1) return true; S.traits[arg] = l + 1; sfx('gold'); toast('🌟 ' + tr.nm + ' Lv.' + (l + 1)); return true; }
+    case 'hatBuy': { const k = HATS.find(x => x.id === arg); if (!k || S.hats.includes(arg) || S.money < k.cost) return true; S.money -= k.cost; S.hats.push(arg); S.hat = arg; sfx('coin'); toast('🎉 ' + k.nm + ' 구매!'); return true; }
+    case 'hatUse': if (S.hats.includes(arg)) S.hat = arg; return true;
+    case 'fxBuy': { const k = FXS.find(x => x.id === arg); if (!k || S.fxs.includes(arg) || S.money < k.cost) return true; S.money -= k.cost; S.fxs.push(arg); S.fx = arg; sfx('coin'); toast('🎉 ' + k.nm + ' 이펙트 구매!'); return true; }
+    case 'fxUse': if (S.fxs.includes(arg)) S.fx = arg; return true;
+  }
+  return false;
+}
+
+// ---------- 1초마다 도는 확장 기능 틱 ----------
+function extraTick() {
+  if (!ready || !S.nickname) return;
+  const now = Date.now();
+  ensureDaily();
+  if (S.weekKey !== weekKeyNow()) { S.weekKey = weekKeyNow(); S.weekStart = lifeEarned(); dirty = true; }
+  buffs = buffs.filter(b => b.until > now);
+  const chips = buffs.map(b => `<span class="chip ${(b.tap < 1 || b.crew < 1) ? 'bad' : ''}">${b.ic} ${b.nm} ${Math.ceil((b.until - now) / 1000)}초</span>`).join('');
+  if (chips !== extraTick.chips) { extraTick.chips = chips; $('buffs').innerHTML = chips; }
+  const busy = document.querySelector('.modal.show') || gameOpen;
+  if (now > nextGold && !busy) spawnGold();
+  if (now > nextNews && !busy) fireNews();
+  if (now > nextShow && !showUntil && !busy) { showUntil = now + 90000; $('showBtn').style.display = ''; }
+  if (showUntil && now > showUntil) { showUntil = 0; $('showBtn').style.display = 'none'; nextShow = now + rand(150, 240) * 1000; }
+  if (now > weather.until) changeWeather(false);
+  if (performance.now() - lastTap > 1300 && combo) { combo = 0; $('combo').style.opacity = 0; }
+  for (const a of ACHS) if (a.ok() && !achSeen.has(a.id)) { achSeen.add(a.id); toast('🏅 업적 달성! ' + a.ic + ' ' + a.nm + ' (업적 탭에서 보상을 받아요)'); sfx('gold'); }
+  renderWx(); renderCrowd();
+  $('fansInfo').textContent = `👥 팬 ${fanCount().toLocaleString()}명 (수입 +${((fanMult() - 1) * 100).toFixed(0)}%)` + (S.title ? ` · 『${S.title}』` : '');
+  const dots = { ach:unclaimedAch().length > 0, quest:S.daily.q.some(q => !q.claimed && q.prog >= q.goal), trait:tpLeft() > 0 };
+  for (const k in dots) { const e = $('dot-' + k); if (e) e.style.display = dots[k] ? '' : 'none'; }
+  if (tab === 'quest' || tab === 'ach') buildPanel();
+}
+setInterval(extraTick, 1000);
+
+const EXTRA_ACTS = ['achClaim', 'titleUse', 'titleOff', 'qClaim', 'evo', 'trait', 'hatBuy', 'hatUse', 'fxBuy', 'fxUse'];
+
 // ================= 시간 흐름 =================
 let lastFrame = performance.now(), lastPanel = 0;
 setInterval(() => {
@@ -1198,7 +1729,7 @@ async function save() {
       tx.set(ref, {
         nickname:S.nickname, money:S.money, totalEarned:lifeEarned(), runEarned:S.totalEarned, run:S.run, history:S.history, netWorth:netWorth(), taps:S.taps, dances:S.dances, crew:S.crew, estate:S.estate, skins:S.skins, skin:S.skin,
         tipLv:S.tipLv, wageLv:S.wageLv, stocks:S.stocks,
-        venues:S.venues, venue:S.venue, dance:S.dance, acts:S.acts, savedAt:ts, updatedAt:fb.serverTimestamp()
+        venues:S.venues, venue:S.venue, dance:S.dance, acts:S.acts, savedAt:ts, ...extraOut(), weekEarned:Math.max(0, lifeEarned() - S.weekStart), updatedAt:fb.serverTimestamp()
       });
       return 'ok';
     });
@@ -1216,28 +1747,29 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) save(
 
 // ================= 스코어보드 =================
 let rankTab = 'earn';
-function setRankTab(t) { rankTab = t; $('tabEarn').classList.toggle('on', t === 'earn'); $('tabNet').classList.toggle('on', t === 'net'); openRank(); }
-$('tabEarn').onclick = () => setRankTab('earn'); $('tabNet').onclick = () => setRankTab('net');
+function setRankTab(t) { rankTab = t; $('tabEarn').classList.toggle('on', t === 'earn'); $('tabWeek').classList.toggle('on', t === 'week'); $('tabNet').classList.toggle('on', t === 'net'); openRank(); }
+$('tabEarn').onclick = () => setRankTab('earn'); $('tabWeek').onclick = () => setRankTab('week'); $('tabNet').onclick = () => setRankTab('net');
 $('rankBtn').onclick = () => openRank();
 $('rankClose').onclick = () => $('rankModal').classList.remove('show');
 async function openRank() {
   $('rankModal').classList.add('show');
-  const tbl = $('rankTable'), note = $('rankNote'), key = rankTab === 'earn' ? 'totalEarned' : 'netWorth';
+  const tbl = $('rankTable'), note = $('rankNote'), key = rankTab === 'earn' ? 'totalEarned' : rankTab === 'week' ? 'weekEarned' : 'netWorth';
   note.textContent = ''; tbl.innerHTML = '<tr><td>불러오는 중...</td></tr>';
   let rows = [];
   if (online) {
     try {
-      const snap = await fb.getDocs(fb.query(fb.collection(db, 'circus'), fb.orderBy(key, 'desc'), fb.limit(30)));
+      const snap = await fb.getDocs(fb.query(fb.collection(db, 'circus'), fb.orderBy(key, 'desc'), fb.limit(rankTab === 'week' ? 120 : 30)));
       rows = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+      if (rankTab === 'week') rows = rows.filter(r => r.weekKey === weekKeyNow()).slice(0, 30);
     } catch (e) { tbl.innerHTML = '<tr><td>스코어보드를 불러오지 못했어요.</td></tr>'; console.warn(e); return; }
   } else {
-    rows = [{ id:uid, nickname:S.nickname, run:S.run, totalEarned:lifeEarned(), netWorth:netWorth() }];
+    rows = [{ id:uid, nickname:S.nickname, run:S.run, title:S.title, weekKey:weekKeyNow(), weekEarned:Math.max(0, lifeEarned() - S.weekStart), totalEarned:lifeEarned(), netWorth:netWorth() }];
     note.textContent = 'Firebase가 연결되지 않아 내 기록만 보여요.';
   }
   if (!rows.length) { tbl.innerHTML = '<tr><td>아직 기록이 없어요.</td></tr>'; return; }
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-  tbl.innerHTML = `<tr><th>#</th><th>닉네임</th><th>${rankTab === 'earn' ? '누적 수입' : '순자산'}</th></tr>` + rows.map((r, i) =>
-    `<tr class="${r.id === uid ? 'me' : ''}"><td>${i + 1}</td><td>${esc(r.nickname)}${r.run > 1 ? ' <small>(' + num(r.run) + '회차)</small>' : ''}</td><td>${fmt(r[key] || 0)}원</td></tr>`).join('');
+  tbl.innerHTML = `<tr><th>#</th><th>닉네임</th><th>${rankTab === 'earn' ? '누적 수입' : rankTab === 'week' ? '이번 주 수입' : '순자산'}</th></tr>` + rows.map((r, i) =>
+    `<tr class="${r.id === uid ? 'me' : ''}"><td>${i + 1}</td><td>${r.title ? '<small>『' + esc(r.title) + '』</small> ' : ''}${esc(r.nickname)}${r.run > 1 ? ' <small>(' + num(r.run) + '회차)</small>' : ''}</td><td>${fmt(r[key] || 0)}원</td></tr>`).join('');
 }
 
 // ================= 시작 / 로그인 =================
@@ -1326,6 +1858,10 @@ const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
       venue:num(loaded.venue), dance:loaded.dance || 'sway', savedAt:num(loaded.savedAt), acts:num(loaded.acts) };
     S.skins = ['basic', ...(Array.isArray(loaded.skins) ? loaded.skins.filter(k => k !== 'basic' && SKINS.some(x => x.id === k)) : [])];
     S.skin = S.skins.includes(loaded.skin) ? loaded.skin : 'basic';
+    for (const k of EXTRA_KEYS) if (loaded[k] != null && typeof loaded[k] === typeof d[k]) S[k] = loaded[k];
+    S.lifeTaps = Math.max(num(S.lifeTaps), S.taps);
+    if (!S.hats.includes('none')) S.hats.unshift('none'); if (!S.fxs.includes('coin')) S.fxs.unshift('coin');
+    for (const k of Object.keys(S.traits)) { const tr = TRAITS.find(x => x.id === k); S.traits[k] = tr ? clamp(num(S.traits[k]), 0, tr.max) : 0; }
     for (const k of ['grape', 'cucumber']) {   // 예전 종목(테슬라·SK하이닉스) 보유분은 마지막 평가액만큼 돈으로 돌려줌
       const o = loaded.stocks?.[k], v = o && !o.conv ? num(o.shares) * num(o.price) : 0;
       if (v > 0) { S.money += v; dirty = true; setTimeout(() => toast('📈 종목이 바뀌어서 예전 주식 ' + fmt(v) + '원어치를 현금으로 돌려받았어요'), 1500); }
@@ -1335,17 +1871,31 @@ const num = (v, d = 0) => Number.isFinite(+v) ? +v : d;
   if (newId) { S.nickname = newId; dirty = true; }
   else if (!S.nickname && au?.currentUser?.displayName) { S.nickname = au.currentUser.displayName; dirty = true; }
   if (!S.nickname) { S.nickname = await askNick(); dirty = true; }
-  // 자리를 비운 동안의 수입 (절반 효율, 최대 8시간)
-  const away = S.savedAt ? (Date.now() - S.savedAt) / 1000 : 0, rate = crewRate();
+  // 자리를 비운 동안의 수입 (기본 절반 효율, 최대 8시간 / 특성으로 늘어남)
+  const away = S.savedAt ? (Date.now() - S.savedAt) / 1000 : 0, rate = crewRate(), lines = [];
+  let offGain = 0;
   if (away > 60 && rate > 0) {
-    const gain = rate * Math.min(away, 8 * 3600) * .5;
-    earn(gain);
-    toast('😴 자리를 비운 동안 ' + fmt(gain) + '원을 벌었어요');
+    offGain = rate * Math.min(away, (8 + 2 * traitLv('offcap')) * 3600) * (.5 + .1 * traitLv('offline'));
+    earn(offGain);
+    lines.push(`😴 자리를 비운 동안 <b>${fmt(offGain)}원</b>을 벌었어요`);
   }
+  for (const w of CREW) if (S.crew[w.id] > 0) S.dex[w.id] = Math.max(S.dex[w.id] || 0, S.crew[w.id]);
+  ensureDaily();
+  const tk = todayKey();
+  if (S.lastDay !== tk) {   // 출석 보너스
+    S.streak = S.lastDay === todayKey(new Date(Date.now() - 864e5)) ? S.streak + 1 : 1; S.lastDay = tk;
+    const att = Math.max(1000, rate * 60) * (1 + Math.min(S.streak, 7) * .5);
+    earn(att); lines.unshift(`📅 <b>${S.streak}일 연속 출석!</b> 출석 보너스 <b>${fmt(att)}원</b>`);
+  }
+  if (!S.weekKey) { S.weekKey = weekKeyNow(); S.weekStart = lifeEarned(); }
+  dirty = true;
   knownUnlocked = unlocked().length;
   setVenue(S.venue);
   ready = true; await save();
   buildTabs(); buildPanel(); renderCrew(); render();
+  ACHS.forEach(a => { if (a.ok()) achSeen.add(a.id); });
+  changeWeather(true); syncSndBtns();
+  if (lines.length) showWelcome(lines, offGain);
   for (const x of STOCKS) { tickStock(x.id); setInterval(() => tickStock(x.id), x.ivl); }
 })();
 </script>
