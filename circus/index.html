@@ -258,12 +258,12 @@ const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ---------- 숫자 표시 (만/억/조/경/해/자) ----------
-const UNITS = [[1e24, '자'], [1e20, '해'], [1e16, '경'], [1e12, '조'], [1e8, '억'], [1e4, '만']];
+const UNITS = [[1e48, '극'], [1e44, '재'], [1e40, '정'], [1e36, '간'], [1e32, '구'], [1e28, '양'], [1e24, '자'], [1e20, '해'], [1e16, '경'], [1e12, '조'], [1e8, '억'], [1e4, '만']];
 function fmt(n) {
   if (!isFinite(n)) return '∞';
   n = Math.max(0, n);
   if (n < 1e4) return Math.floor(n).toLocaleString('ko-KR');
-  if (n >= 1e28) return n.toExponential(2).replace('e+', '×10^');
+  if (n >= 1e48 * 1e4) return n.toExponential(2).replace('e+', '×10^');
   for (const [v, u] of UNITS) if (n >= v) { const x = n / v; return (x >= 100 ? Math.floor(x) : x >= 10 ? x.toFixed(1) : x.toFixed(2)) + u; }
 }
 const fmtRate = r => r < 1 ? r.toFixed(2) : r < 10 ? r.toFixed(1) : fmt(r);
